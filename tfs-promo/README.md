@@ -19,3 +19,12 @@ Slots: `reel_1..13`, `restaurant_1..5`, `gym_1..5`, `coaching_1..5`, `events_1..
 ## Audio
 - `audio/vo_take2.mp3` — VO used (take 1 bhi rakha hai). Word timings: `audio/vo_take2.mp3.words.json`
 - `audio/sfx_*.mp3` — ElevenLabs sound effects; baaki chhote SFX `audio.py` mein synthesize hote hain.
+
+## Vertical intro reel (9:16, 23.3s)
+Foretell Studio reel ki timing par based, + 4s montage + original logo (`logo.png`).
+```sh
+# feed reels ../feed/r1.mp4 ... r7.mp4 mein chahiye (yt-dlp se):
+# r1 DYhHkWiNnU3, r2 DWf6R8FSMBN, r3 DWqxMcTk2cN, r4 DSIaYukEsCu, r5 DeRomZBAts6, r6 DdoZOkxgXbj, r7 DdYVVHMRR0b
+python3 reel_audio.py && python3 reel.py --out reel.mp4
+ffmpeg -i reel.mp4 -i reel_mix.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 256k TFS_Intro_Reel.mp4
+```
