@@ -36,3 +36,11 @@ Music: Mixkit "Remember Me" (https://assets.mixkit.co/music/739/739.mp3 → `mus
 python3 brand_audio.py   # brand_mix.wav  (brand_audio.py expects the VO at ../tfs2/; copy from brand_reel/)
 python3 brand_reel.py --scale 2 --fps 60 --out brand_4k.mp4   # split with --start/--end to render in parallel
 ```
+
+## Brand reel v2 (9:16, 35.44s, 4K60) — `exports/TFS_Brand_Reel_v2_4K60.mp4`
+Reference (Hyper Visuals) ke music par re-timed: har VO sentence reference ki line ki jagah par (`SEG` in brand2.py),
+camera drift + beat punches, whip/zoom/defocus motion-blur transitions, 10 reels se unique shots.
+Music bed = reference audio se Demucs (htdemucs, two-stems) se nikala gaya `no_vocals.wav`.
+```sh
+python3 brand2_audio.py && python3 brand2.py --scale 2 --fps 60 --start 0 --end 9 --out p0.mp4   # ...chunks, then concat
+```
