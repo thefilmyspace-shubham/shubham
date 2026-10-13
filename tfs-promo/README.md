@@ -44,3 +44,8 @@ Music bed = reference audio se Demucs (htdemucs, two-stems) se nikala gaya `no_v
 ```sh
 python3 brand2_audio.py && python3 brand2.py --scale 2 --fps 60 --start 0 --end 9 --out p0.mp4   # ...chunks, then concat
 ```
+
+## Brand reel v3 (9:16, 35.44s, 4K60) — `exports/TFS_Brand_Reel_v3_4K60.mp4`
+v2 ki timing/music + 3D assets (Microsoft Fluent 3D emoji — MIT; NASA earth texture via three.js), ambientCG Paper001 (CC0),
+DeepLabV3 person cut-outs (`assets3d/cut_*.png`), warm footage grade + caption-safe crops, bigger framing, words 0.06s before VO.
+Note: brand3.py expects the paper texture at assets3d/paper/Paper001_2K-JPG_Color.jpg (copied here to assets3d/).
