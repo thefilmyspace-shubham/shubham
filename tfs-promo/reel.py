@@ -16,7 +16,8 @@ Rn.TF['bi'] = skia.Typeface.MakeFromFile(os.path.join(HERE, 'fonts', 'Inter-Bold
 W, H = 1080, 1920
 OFF, PAPER, INK = '#F2EEE6', '#FAF8F4', '#111114'
 # reference scene boundaries (kept identical) + 4s montage before the logo
-T1, T2, T3, T4, T5, T6, T7, T8, END = 1.833, 3.333, 5.333, 7.667, 10.667, 13.0, 16.333, 20.333, 23.35
+T1, T2, T3, T4, T5, T6, T7, END = 1.833, 3.333, 5.333, 7.667, 10.667, 13.0, 16.333, 19.35
+T8 = T7  # montage removed: logo follows the story line (reference timing)
 BEAT = 60 / 123.0
 CUTS = [T7] + [2.583 + k * BEAT for k in range(29, 36)]  # 16.73 ... 19.66 (music beats)
 FEED = os.path.join(os.path.dirname(HERE), 'feed')
@@ -160,7 +161,7 @@ def s5(c, t):
         s = "Ok that's cool."; n = 2 + int(clamp((t - T4 - 0.33) / 0.04, 0, len(s) - 2))
         type_text(c, s, n, W / 2, 975, f, WHITE, t=t)
     else:
-        s = 'But what do you actually do?'
+        s = 'But what do we actually do?'
         n = int(clamp((t - T4 - 1.35) / 0.035, 0, len(s)))
         cols = [RED if 4 <= i < 8 else WHITE for i in range(len(s))]
         x0 = type_text(c, s, n, W / 2, 975, f, WHITE, t=t, colors=cols)
@@ -296,7 +297,6 @@ def frame(c, t):
     elif t < T5: s5(c, t)
     elif t < T6: s6(c, t)
     elif t < T7: s7(c, t)
-    elif t < T8: s8(c, t)
     else: s9(c, t)
 
 def main():
@@ -304,7 +304,6 @@ def main():
     ap.add_argument('--out', default='reel.mp4'); ap.add_argument('--fps', type=int, default=30)
     ap.add_argument('--stills', default=''); ap.add_argument('--crf', type=int, default=17)
     a = ap.parse_args()
-    load_clips(a.fps)
     surf = skia.Surface(W, H); c = surf.getCanvas()
     def render(t):
         c.clear(hexc('#000000')); c.save(); frame(c, t); c.restore()

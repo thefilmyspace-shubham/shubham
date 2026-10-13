@@ -23,11 +23,9 @@ def main():
     for tt in (T2, T3, T4, T6): A.place(fx, W2, tt - 0.12, -18)
     for i in range(2): A.place(fx, A.s_tick(2600, 0.02), T4 + 0.05 + i * 0.06, -20)
     for i in range(13): A.place(fx, A.s_tick(2600, 0.02), T4 + 0.33 + i * 0.04, -22)
-    for i in range(28): A.place(fx, A.s_tick(2600, 0.02), T4 + 1.35 + i * 0.035, -22)
+    for i in range(27): A.place(fx, A.s_tick(2600, 0.02), T4 + 1.35 + i * 0.035, -22)
     dt = (T6 - T5) / len(SERV)
     for i in range(len(SERV)): A.place(fx, A.s_tick(1700, 0.03), T5 + i * dt, -16)
-    A.place(fx, W2, T7 - 0.05, -14)
-    for ct in CUTS[1:]: A.place(fx, W2, ct - 0.1, -20)
     A.place(fx, A.sfx('impact2'), T8 + 0.15, -2)
 
     mix = music + fx
