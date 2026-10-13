@@ -1,0 +1,3 @@
+# slot  file  [start_seconds]
+# Feed clips yahan daalo (clips/ folder mein) aur slot se map karo, jaise:
+# reel_1  hook_reel.mp4  2.0
