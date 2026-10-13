@@ -28,3 +28,11 @@ Foretell Studio reel ki timing par based, original logo (`logo.png`).
 python3 reel_audio.py && python3 reel.py --out reel.mp4
 ffmpeg -i reel.mp4 -i reel_mix.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 256k TFS_Intro_Reel.mp4
 ```
+
+## Brand reel (9:16, 43s, 4K60) — `exports/TFS_Brand_Reel_4K60.mp4`
+Hyper Visuals reel ke structure par kinetic typography + feed clips. VO: ElevenLabs "Everett" (`brand_reel/TFS_brand_reel_VO.mp3`).
+Music: Mixkit "Remember Me" (https://assets.mixkit.co/music/739/739.mp3 → `music/m739.mp3`).
+```sh
+python3 brand_audio.py   # brand_mix.wav  (brand_audio.py expects the VO at ../tfs2/; copy from brand_reel/)
+python3 brand_reel.py --scale 2 --fps 60 --out brand_4k.mp4   # split with --start/--end to render in parallel
+```
