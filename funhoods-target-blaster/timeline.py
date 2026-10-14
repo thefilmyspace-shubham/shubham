@@ -23,8 +23,10 @@ seg(b(12), b(14), 'nozzle_c', 10.20, 11.15)
 seg(b(14), b(16), 'badge_c',  8.92,  9.88)
 # 16-20 catalogue cards (grip, 4 darts)
 seg(b(20), b(24), 'pull_b2',  17.75, 19.10)
-seg(b(24), b(25.1), 'pick_b', 21.20, 21.70)
-seg(b(25.1), b(28), 'show_c', 17.20, 18.32)
+# 24-28 LOAD DARTS = client's real video (dart goes into the UPPER barrel), shown as a framed card
+REAL = (b(24), b(28), 7.25, 8.55)       # video t0, t1, real-video src in/out (60 fps)
+REAL_CROP = (0, 170, 720, 1070)         # 4:5 crop of the 720x1280 phone video
+REAL_UPPER = (282, 588)                 # upper-barrel centre (source px) while the dart sits in it (8.22 s+)
 seg(b(28), b(32), 'aim_c',    20.42, 21.50)
 seg(b(32), b(36), 'fire_c1',  21.50, 22.40)
 # 36-44 styled pack, 44-52 bulk-orders graphic

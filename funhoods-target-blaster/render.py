@@ -403,6 +403,49 @@ def scene_styled(t, t0, t1):
     place(c, im, W / 2, 345 + im.height * 0.45, sc, 0, clamp(p * 3))
     return c
 
+@functools.lru_cache(maxsize=1)
+def real_card_frame(w):
+    """white rounded border + soft shadow for the real-video card (image pasted per frame)"""
+    x0, y0, x1, y1 = T.REAL_CROP
+    h = int((y1 - y0) * w / (x1 - x0)); bd, pad = 16, 60
+    im = Image.new('RGBA', (w + 2 * bd + 2 * pad, h + 2 * bd + 2 * pad), (0, 0, 0, 0))
+    sh = Image.new('RGBA', im.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).rounded_rectangle((pad + 10, pad + 26, pad + w + 2 * bd + 10, pad + h + 2 * bd + 26), 34, fill=(40, 0, 0, 150))
+    im.alpha_composite(sh.filter(ImageFilter.GaussianBlur(18)))
+    ImageDraw.Draw(im).rounded_rectangle((pad, pad, pad + w + 2 * bd, pad + h + 2 * bd), 34, fill=WHITE)
+    m = Image.new('L', (w, h), 0); ImageDraw.Draw(m).rounded_rectangle((0, 0, w, h), 26, fill=255)
+    return im, m, h, bd, pad
+
+def scene_real(t):
+    """LOAD DARTS: client's real video -- the dart goes into the UPPER barrel."""
+    v0, v1, s0, s1 = T.REAL
+    src_t = s0 + (t - v0) * (s1 - s0) / (v1 - v0)
+    n = min(max(int(round(src_t * 60)), 410), 525)
+    fr = Image.open(P('dec', 'R', '%05d.png' % n)).convert('RGB').crop(T.REAL_CROP)
+    w = 760
+    frame, mask, h, bd, pad = real_card_frame(w)
+    fr = grade(fr.resize((w, h), Image.LANCZOS).filter(ImageFilter.UnsharpMask(2, 50, 2)))
+    cardim = frame.copy(); cardim.paste(fr, (pad + bd, pad + bd), mask)
+    c = red_bg(t)
+    p = prog(t, v0, 0.4)
+    cy = 850
+    sc = 0.9 + 0.1 * e_back(p, 1.4)
+    place(c, cardim, W / 2, cy, sc, 0, clamp(p * 4))
+    # highlight the upper barrel once the dart sits in it
+    s = w / (T.REAL_CROP[2] - T.REAL_CROP[0])
+    hx = W / 2 + ((T.REAL_UPPER[0] - T.REAL_CROP[0]) * s - w / 2) * sc
+    hy = cy + ((T.REAL_UPPER[1] - T.REAL_CROP[1]) * s - h / 2) * sc
+    if src_t >= 8.22:
+        q = e_back(prog(src_t, 8.22, 0.12), 1.6)
+        r = 64 * q + 4 * math.sin(t * 14)
+        d = ImageDraw.Draw(c)
+        d.ellipse((hx - r - 4, hy - r - 4, hx + r + 4, hy + r + 4), outline=DRED + (255,), width=13)
+        d.ellipse((hx - r, hy - r, hx + r, hy + r), outline=YEL + (255,), width=9)
+        lab = chip('UPPER BARREL', 34, YEL, DRED)
+        place(c, lab, hx - 20, hy - r - 58, q, -4, clamp(q))
+    pop(c, chip('REAL PRODUCT DEMO', 30, RED, WHITE, F_BODY, 22, 12), W / 2 - 215, cy + 470, t, v0 + 0.1, v1, rot=-4)
+    return c
+
 def render(t):
     # ---- base layer by section (beats)
     if t < b(4):
@@ -425,11 +468,16 @@ def render(t):
         pop(c, head(lab[0], 112), W / 2, 1360, t, t0 + 0.04, t1, slide=40)
         pop(c, head(lab[1], 92, YEL, 8, 5), W / 2, 1472, t, t0 + 0.16, t1, slide=40)
     elif t < b(32):
-        c = footage(t)
-        c.alpha_composite(grad_top()); c.alpha_composite(grad_bottom())
+        if b(24) <= t < b(28):
+            c = scene_real(t)
+        else:
+            c = footage(t)
+            c.alpha_composite(grad_top()); c.alpha_composite(grad_bottom())
         header_chip(c, t, 'HOW IT WORKS', b(20), b(32))
         if t < b(24): pop(c, step_badge(1, 'PULL BACK'), W / 2, 1420, t, b(20), b(24), slide=40)
-        elif t < b(28): pop(c, step_badge(2, 'LOAD DARTS'), W / 2, 1420, t, b(24), b(28), slide=40)
+        elif t < b(28):
+            pop(c, step_badge(2, 'LOAD DARTS'), W / 2, 1478, t, b(24), b(28), slide=40)
+            pop(c, chip('INTO THE UPPER BARREL', 44, WHITE, DRED), W / 2, 1630, t, b(24.5), b(28), slide=30)
         else:
             pop(c, step_badge(3, 'AIM...'), W / 2, 1420, t, b(28), b(32), slide=40)
             pop(c, chip('READY?', 54, WHITE, DRED, F_HEAD), W / 2, 1270, t, b(29), b(32))

@@ -93,6 +93,8 @@ place(impact(1.8, 58, 30), T.END_HIT, 0.55)
 # mechanism SFX (synced to the footage)
 place(click(), b(20) + (18.20-17.75)/0.731, 0.38)   # hook pulled back
 place(thwip(), T.DROP + 0.06, 0.48)                   # dart leaves the barrel
+v0, v1, s0, s1 = T.REAL
+place(thock(), v0 + (7.97 - s0) * (v1 - v0) / (s1 - s0), 0.36)   # dart seats in the upper barrel
 # UI pops for text
 for t in [b(12), b(14), b(16), b(18), b(24), b(28), b(36), b(38), b(40), b(46), b(47), b(48), b(53), b(54), b(58), b(60)]:
     place(blip(), t, 0.10)
