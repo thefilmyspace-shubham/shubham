@@ -10,23 +10,22 @@ m = load_mp3('music/m47.mp3')
 N = int(T.DUR*SR)
 out = np.zeros((N,2), np.float32)
 def S(t): return int(round(t*SR))
-# music: part 1 [MUSIC_IN, MUSIC_IN+JUMP_V), part 2 from MUSIC_JUMP_TO; 12 ms equal-power crossfade at the jump
+# music: pieces from T.MUSIC joined on beats with 12 ms equal-power crossfades
 xf = S(0.012)
-p1 = m[S(T.MUSIC_IN):S(T.MUSIC_IN+T.JUMP_V)+xf]
-p2 = m[S(T.MUSIC_JUMP_TO)-xf:S(T.MUSIC_JUMP_TO)+N]
-j = S(T.JUMP_V)
-mus = np.zeros((N+xf*2,2),np.float32)
-mus[:len(p1)] += p1
-r = np.linspace(0,1,2*xf)[:,None]
-fade_out = np.ones((len(p1),1),np.float32); fade_out[-2*xf:] = np.cos(r*np.pi/2)
-mus[:len(p1)] *= fade_out
-p2 = p2.copy(); p2[:2*xf] *= np.sin(r*np.pi/2)
-mus[j-xf:j-xf+len(p2)] += p2[:len(mus)-(j-xf)]
+mus = np.zeros((N + 4*xf, 2), np.float32)
+r = np.linspace(0, 1, 2*xf)[:, None]
+for k, (vb, mt) in enumerate(T.MUSIC):
+    v0 = S(T.b(vb)); v1 = S(T.b(T.MUSIC[k+1][0])) if k+1 < len(T.MUSIC) else N
+    a = max(0, v0 - xf); e = min(N, v1 + xf)
+    piece = m[S(mt) - (v0 - a): S(mt) - (v0 - a) + (e - a)].copy()
+    if k > 0: piece[:2*xf] *= np.sin(r*np.pi/2)
+    if k+1 < len(T.MUSIC): piece[-2*xf:] *= np.cos(r*np.pi/2)
+    mus[a:a+len(piece)] += piece
 mus = mus[:N]
-mus[:S(0.02)] *= np.linspace(0,1,S(0.02))[:,None]
-fo0, fo1 = S(T.DUR-1.6), N
-mus[fo0:fo1] *= (np.cos(np.linspace(0,np.pi/2,fo1-fo0))**2)[:,None]
-out += mus*0.86
+mus[:S(0.02)] *= np.linspace(0, 1, S(0.02))[:, None]
+fo0, fo1 = S(T.DUR-1.3), N
+mus[fo0:fo1] *= (np.cos(np.linspace(0, np.pi/2, fo1-fo0))**2)[:, None]
+out += mus*0.79
 rng = np.random.default_rng(7)
 def place(sig, t, gain=1.0, pan=0.0):
     i = S(t); sig = np.asarray(sig, np.float32)
@@ -87,18 +86,19 @@ for t, k in T.CUTS:
     if k in ('chev','whip'): place(whoosh(0.44, 0.7, 0.4), t-0.31, 0.32)
     elif k == 'zoom':        place(whoosh(0.30, 0.7, 0.25), t-0.21, 0.18)
 place(impact(1.4), 0.0, 0.40)            # logo slam
-place(riser(T.DROP-b(36)), b(36), 0.16)  # build into the drop
+place(riser(T.DROP-b(28)), b(28), 0.16)  # build into the drop
 place(impact(1.6), T.DROP, 0.55)         # drop
-place(impact(1.2, 70, 36), b(68), 0.38)  # STOCK UP
+place(impact(1.2, 70, 36), b(52), 0.38)  # STOCK UP
 place(impact(1.8, 58, 30), T.END_HIT, 0.55)
 # mechanism SFX (synced to the footage)
-place(click(), 11.30, 0.38)
-place(thock(), 14.33, 0.35); place(thock(), 16.08, 0.35)
-place(thwip(), 18.53, 0.60); place(thwip(), b(43), 0.55)
+place(click(), b(20) + (18.20-17.75)/0.731, 0.38)   # hook pulled back
+place(thwip(), T.DROP + 0.06, 0.48)                   # dart leaves the barrel
 # UI pops for text
-for t in [b(16), b(18), b(20), b(22), b(44), b(48), b(52), b(56), b(61), b(62), b(63), b(69), b(70), b(74), b(76)]:
+for t in [b(12), b(14), b(16), b(18), b(24), b(28), b(36), b(38), b(40), b(46), b(47), b(48), b(53), b(54), b(58), b(60)]:
     place(blip(), t, 0.10)
-peak = np.abs(out).max(); out *= min(1.0, 0.97/peak)
+peak = np.abs(out).max()
+ax = np.abs(out); knee = 0.80   # soft knee limiter: untouched below the knee, ceiling 0.97
+out = np.sign(out) * np.where(ax < knee, ax, knee + 0.17*np.tanh((ax - knee)/0.17))
 pcm = (np.clip(out, -1, 1)*32767).astype(np.int16)
 w = wave.open('mix.wav','wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes()); w.close()
 print('mix.wav', len(out)/SR, 's  peak', peak)

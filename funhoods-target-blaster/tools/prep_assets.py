@@ -56,6 +56,12 @@ if __name__ == '__main__':
         os.makedirs('cat_in', exist_ok=True)
         im = Image.open('src/catalog.webp').convert('RGB')
         for k, bx in CROPS.items(): im.crop(bx).save(f'cat_in/{k}.png')
+        # original Funhoods packet photo (1080x1440, 4 darts): used as-is (already sharp) + dart close-up to upscale
+        os.makedirs('cat_sr', exist_ok=True)
+        pk = Image.open('src/pack_original.png').convert('RGB')
+        pk.crop((136, 256, 968, 1288)).save('cat_sr/pack4.png')       # blister card only
+        pk.crop((0, 232, 1080, 1440)).save('cat_sr/pack_styled.png')   # styled shot below its own logo
+        pk.crop((206, 922, 522, 1200)).save('cat_in/darts4.png')       # 4 darts close-up
     else:
         logo()
         cutout('cat_sr/side.png', 'assets/gun_side.png')

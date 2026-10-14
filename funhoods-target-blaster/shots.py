@@ -17,6 +17,12 @@ SHOTS = {
     'hold_a2':  ('A', 8.70, 10.58),
     'hold_a3':  ('A', 14.00, 15.20),
     'close_b':  ('B', 17.00, 17.70),
+    # v2 (30 s): only B/C shots (A shows 5 darts on the table), no dart-insertion shots
+    'pull_b2':  ('B', 17.75, 19.10),
+    'pick_b':   ('B', 21.20, 21.70),   # picks a dart up -- cut before it goes into the lower barrel
+    'show_c':   ('C', 17.20, 18.32),   # dart held at the nozzle (AI shot change at 17.17) -- cut before insertion
+    'lift_b':   ('B', 9.20, 10.10),    # 4 darts on the table, no packaging in frame
+    'fire_c1':  ('C', 21.50, 22.40),   # first (single) dart only
 }
 def frames(shot):
     s, t0, t1 = SHOTS[shot]; fps = SRC[s][1]

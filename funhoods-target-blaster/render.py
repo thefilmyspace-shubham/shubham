@@ -364,7 +364,7 @@ def scene_intro(t):
 
 def scene_pack(t, t0, t1, top=True, label=None):
     c = red_bg(t)
-    cd = card('pack.png', 640)
+    cd = card('pack4.png', 600)
     p = prog(t, t0, 0.5)
     y = 980 + 700 * (1 - e_back(p, 1.3))
     rot = -10 + 6 * e_out(p) + 1.2 * math.sin((t - t0) * 2.2)
@@ -389,8 +389,22 @@ def lower(c, t, t0, t1, l1, l2=None, l2col=YEL, s1=112, s2=96):
     if l2: lines.append((head(l2, s2, l2col, 9, 5), 0.5 if t1 - t0 > b(2.5) else 0.35))
     lower_third(c, t, lines, t0, t1, 1350, 120)
 
+@functools.lru_cache(maxsize=1)
+def styled_pack():
+    im = Image.open(P('cat_sr', 'pack_styled.png')).convert('RGBA')
+    return im.resize((W, int(im.height * W / im.width)), Image.LANCZOS)
+
+def scene_styled(t, t0, t1):
+    """Original Funhoods packet shot (4 darts), slow push-in on brand red."""
+    c = red_bg(t)
+    im = styled_pack()
+    p = prog(t, t0, 0.45)
+    sc = 0.9 + 0.03 * (t - t0) + 0.08 * (1 - e_out(p))
+    place(c, im, W / 2, 345 + im.height * 0.45, sc, 0, clamp(p * 3))
+    return c
+
 def render(t):
-    # ---- base layer by section
+    # ---- base layer by section (beats)
     if t < b(4):
         c = scene_intro(t)
     elif t < b(8):
@@ -398,85 +412,69 @@ def render(t):
     elif t < b(12):
         c = footage(t)
         lower(c, t, b(8), b(12), 'BUILT TO FLY', 'OFF YOUR SHELVES!')
-    elif t < b(16):
-        c = footage(t)
-        c.alpha_composite(grad_top())
-        pop(c, head('READY TO PLAY', 120), W / 2, 330, t, b(12), b(16), slide=-30)
-        pop(c, chip('Straight out of the pack', 44, WHITE, DRED), W / 2, 460, t, b(13), b(16))
-    elif t < b(24):
-        k = int((t - b(16)) // b(2)); t0 = b(16) + k * b(2); t1 = t0 + b(2)
+    elif t < b(20):
+        k = int((t - b(12)) // b(2)); t0 = b(12) + k * b(2); t1 = t0 + b(2)
         if k == 2: c = scene_card(t, t0, t1, 'grip.png', 820, -4)
-        elif k == 3: c = scene_card(t, t0, t1, 'darts.png', 700, 3)
+        elif k == 3: c = scene_card(t, t0, t1, 'darts4.png', 760, 3)
         else: c = footage(t)
         c.alpha_composite(grad_top())
-        header_chip(c, t, 'KEY FEATURES', b(16), b(24))
-        lab = [('TWIN-BARREL', 'NOZZLE'), ('POLICE BADGE', 'DESIGN'), ('TEXTURED', 'EASY GRIP'), ('SOFT FOAM DARTS', 'WITH SUCTION TIPS')][k]
+        header_chip(c, t, 'KEY FEATURES', b(12), b(20))
+        lab = [('BOLD YELLOW', 'NOZZLE DESIGN'), ('POLICE BADGE', 'DESIGN'), ('TEXTURED', 'EASY GRIP'), ('4 SOFT FOAM DARTS', 'WITH SUCTION TIPS')][k]
         c.alpha_composite(grad_bottom())
         pop(c, body('0%d / 04' % (k + 1), 40, YEL), W / 2, 1255, t, t0, t1)
         pop(c, head(lab[0], 112), W / 2, 1360, t, t0 + 0.04, t1, slide=40)
         pop(c, head(lab[1], 92, YEL, 8, 5), W / 2, 1472, t, t0 + 0.16, t1, slide=40)
-    elif t < b(40):
+    elif t < b(32):
         c = footage(t)
         c.alpha_composite(grad_top()); c.alpha_composite(grad_bottom())
-        header_chip(c, t, 'HOW IT WORKS', b(24), b(40))
-        if t < b(28): pop(c, step_badge(1, 'PULL BACK'), W / 2, 1420, t, b(24), b(28), slide=40)
-        elif t < b(36): pop(c, step_badge(2, 'LOAD DARTS'), W / 2, 1420, t, b(28), b(36), slide=40)
+        header_chip(c, t, 'HOW IT WORKS', b(20), b(32))
+        if t < b(24): pop(c, step_badge(1, 'PULL BACK'), W / 2, 1420, t, b(20), b(24), slide=40)
+        elif t < b(28): pop(c, step_badge(2, 'LOAD DARTS'), W / 2, 1420, t, b(24), b(28), slide=40)
         else:
-            pop(c, step_badge(3, 'AIM...'), W / 2, 1420, t, b(36), b(40), slide=40)
-            pop(c, chip('READY?', 54, WHITE, DRED, F_HEAD), W / 2, 1270, t, b(37), b(40))
-    elif t < b(44):
-        # FIRE! -- drop
+            pop(c, step_badge(3, 'AIM...'), W / 2, 1420, t, b(28), b(32), slide=40)
+            pop(c, chip('READY?', 54, WHITE, DRED, F_HEAD), W / 2, 1270, t, b(29), b(32))
+    elif t < b(36):
+        # FIRE! on the drop -- one dart, slow motion
         u = t - T.DROP
-        amp = 26 * math.exp(-u * 7) + 16 * math.exp(-max(0, t - b(43)) * 8) * (t >= b(43))
+        amp = 26 * math.exp(-u * 6)
         sh = (amp * math.sin(t * 93), amp * math.cos(t * 71))
         c = footage(t, 1.0, sh)
         c.alpha_composite(grad_bottom())
-        bs = burst(720)
         sc = 0.3 + 0.75 * e_back(prog(t, T.DROP, 0.3), 1.6)
-        place(c, bs, W / 2, 1490, sc, (t * 40) % 360, 0.95 * (1 - prog(t, b(43.3), 0.2)))
-        f = impact_txt('FIRE!', 230)
-        if t < b(43):
-            pop(c, f, W / 2 + sh[0] * 0.5, 1490 + sh[1] * 0.5, t, T.DROP, b(44), d=0.3, rot=-6, from_scale=1.9)
-        else:  # second dart: punch the word again
-            pu = 1 + 0.22 * (1 - e_out(prog(t, b(43), 0.25)))
-            place(c, f, W / 2 + sh[0] * 0.5, 1490 + sh[1] * 0.5, pu, -6 + 4 * (1 - prog(t, b(43), 0.25)), 1 - prog(t, b(44) - 0.16, 0.16))
-
-    elif t < b(60):
-        k = int((t - b(44)) // b(4)); t0 = b(44) + k * b(4); t1 = t0 + b(4)
-        c = scene_pack(t, t0, t1, top=False) if k == 0 else footage(t)
-        c.alpha_composite(grad_top())
-        header_chip(c, t, 'WHY RETAILERS STOCK IT', b(44), b(60), bg=WHITE, fg=RED)
-        pts = [('EYE-CATCHING', 'RETAIL PACK'), ('COMPLETE', 'PLAY SET'), ('POLICE THEME', 'KIDS LOVE'), ('GREAT FOR GIFTING', '& IMPULSE BUYS')][k]
+        place(c, burst(720), W / 2, 1490, sc, (t * 40) % 360, 0.95 * (1 - prog(t, b(35.4), 0.25)))
+        pop(c, impact_txt('FIRE!', 230), W / 2 + sh[0] * 0.5, 1490 + sh[1] * 0.5, t, T.DROP, b(36), d=0.3, rot=-6, from_scale=1.9)
+    elif t < b(44):
+        c = scene_styled(t, b(36), b(44))
         c.alpha_composite(grad_bottom())
-        pop(c, check_line(pts[0], 100), W / 2, 1380, t, t0, t1, slide=40)
-        pop(c, head(pts[1], 96, YEL, 8, 5), W / 2, 1500, t, t0 + b(0.5), t1, slide=40)
-    elif t < b(68):
+        header_chip(c, t, 'WHY RETAILERS STOCK IT', b(36), b(44), bg=WHITE, fg=RED)
+        for i, (txt, dl) in enumerate([('EYE-CATCHING RETAIL PACK', 36), ('4 FOAM DARTS INCLUDED', 38), ('PERFECT FOR GIFTING', 40)]):
+            pop(c, check_line(txt, 66), W / 2, 1495 + i * 88, t, b(dl), b(44), slide=30)
+    elif t < b(52):
         c = red_bg(t)
         g = asset('gun_side.png')
-        p = prog(t, b(60), 0.55)
+        p = prog(t, b(44), 0.55)
         x = W / 2 + 900 * (1 - e_out(p)); rot = -8 + 20 * (1 - e_out(p)) + 1.5 * math.sin(t * 2.4)
         place(c, burst(1150, 24, (255, 196, 40), (255, 230, 120), (232, 60, 40)), W / 2, 790, 0.95 + 0.03 * math.sin(t * 3), (t * 12) % 360, 0.35 * clamp(p * 3))
         place(c, g, x, 790 + 10 * math.sin(t * 2.1), 0.52, rot, clamp(p * 3))
-        pop(c, logo_sticker(380), W / 2, 228, t, b(60), b(68), rot=-3)
-        pop(c, head('NOW TAKING', 104, WHITE), W / 2, 1150, t, b(60.5), b(68), slide=40)
-        pop(c, head('BULK ORDERS', 150, YEL, 12, 6), W / 2, 1290, t, b(61), b(68), slide=40)
-        for i, (txt, dl) in enumerate([('RETAILERS', 62), ('DISTRIBUTORS', 63), ('WHOLESALERS', 64)]):
-            pop(c, chip(txt, 42, WHITE, RED, F_BODY, 30, 15), W / 2, 1430 + i * 92, t, b(dl), b(68))
-    elif t < b(72):
+        pop(c, logo_sticker(380), W / 2, 228, t, b(44), b(52), rot=-3)
+        pop(c, head('NOW TAKING', 104, WHITE), W / 2, 1150, t, b(44.5), b(52), slide=40)
+        pop(c, head('BULK ORDERS', 150, YEL, 12, 6), W / 2, 1290, t, b(45), b(52), slide=40)
+        for i, (txt, dl) in enumerate([('RETAILERS', 46), ('DISTRIBUTORS', 47), ('WHOLESALERS', 48)]):
+            pop(c, chip(txt, 42, WHITE, RED, F_BODY, 30, 15), W / 2, 1430 + i * 92, t, b(dl), b(52))
+    elif t < b(56):
         c = footage(t)
         ov = Image.new('RGBA', (W, H), (60, 0, 0, 90)); c.alpha_composite(ov)
-        for i, (wd, dl, col, sz) in enumerate([('STOCK', 68, WHITE, 200), ('UP', 69, YEL, 220), ('NOW!', 70, WHITE, 230)]):
+        for i, (wd, dl, col, sz) in enumerate([('STOCK', 52, WHITE, 200), ('UP', 53, YEL, 220), ('NOW!', 54, WHITE, 230)]):
             pop(c, impact_txt(wd, sz, col), W / 2, 760 + i * 230, t, b(dl), None, d=0.26, rot=-4, from_scale=1.8)
     else:
         c = scene_end(t)
-    if b(4) <= t < b(60) or b(68) <= t < b(72):
+    if b(4) <= t < b(44) or b(52) <= t < b(56):
         place(c, logo_sticker(210), W - 150, 150, 1.0, 0, 0.92)
     # ---- transitions
     for tc, kind in T.CUTS:
         if kind == 'chev': chevron_wipe(c, t, tc)
         elif kind == 'flash': flash(c, t, tc)
         elif kind == 'zoom': flash(c, t, tc, 0.12, 0.35)
-    flash(c, t, b(43), 0.14, 0.35)
     for tc, kind in T.CUTS:
         if kind == 'whip' and abs(t - tc) < 0.12:
             amt = 260 * (1 - abs(t - tc) / 0.12)
@@ -495,12 +493,12 @@ def scene_end(t):
     lg = asset('logo_rgba.png')
     sc = (900 / lg.width) * (0.4 + 0.6 * e_back(prog(t, t0, 0.42), 1.6))
     place(c, lg, W / 2, 560, sc, 0, clamp((t - t0) / 0.1))
-    g = asset('gun_withdarts.png')
+    g = asset('gun_side.png')
     pg = prog(t, t0 + b(1), 0.5)
-    place(c, g, W / 2 - 90 + 600 * (1 - e_out(pg)), 1060 + 6 * math.sin(t * 2.2), 0.36, -4 + 10 * (1 - e_out(pg)), clamp(pg * 3))
-    pk = card('pack.png', 300, 10, 22)
+    place(c, g, W / 2 - 170 + 600 * (1 - e_out(pg)), 1050 + 6 * math.sin(t * 2.2), 0.31, -6 + 10 * (1 - e_out(pg)), clamp(pg * 3))
+    pk = card('pack4.png', 300, 10, 22)
     pp = prog(t, t0 + b(1.5), 0.5)
-    place(c, pk, W / 2 + 250 - 600 * (1 - e_out(pp)), 1060, 1.0, 7 - 10 * (1 - e_out(pp)), clamp(pp * 3))
+    place(c, pk, W / 2 + 255 - 600 * (1 - e_out(pp)), 1050, 1.0, 6 - 10 * (1 - e_out(pp)), clamp(pp * 3))
     pop(c, text_img('BULK & WHOLESALE', F_HEAD, 92, RED, 0), W / 2, 1360, t, t0 + b(2), None, slide=30)
     pop(c, text_img('ENQUIRIES OPEN', F_HEAD, 92, RED, 0), W / 2, 1455, t, t0 + b(2.5), None, slide=30)
     pop(c, chip('DM US FOR TRADE PRICING', 46, RED, WHITE, F_BODY, 40, 22), W / 2, 1585, t, t0 + b(4), None)
