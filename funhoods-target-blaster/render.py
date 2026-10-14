@@ -403,47 +403,89 @@ def scene_styled(t, t0, t1):
     place(c, im, W / 2, 345 + im.height * 0.45, sc, 0, clamp(p * 3))
     return c
 
-@functools.lru_cache(maxsize=1)
-def real_card_frame(w):
-    """white rounded border + soft shadow for the real-video card (image pasted per frame)"""
-    x0, y0, x1, y1 = T.REAL_CROP
-    h = int((y1 - y0) * w / (x1 - x0)); bd, pad = 16, 60
-    im = Image.new('RGBA', (w + 2 * bd + 2 * pad, h + 2 * bd + 2 * pad), (0, 0, 0, 0))
-    sh = Image.new('RGBA', im.size, (0, 0, 0, 0))
-    ImageDraw.Draw(sh).rounded_rectangle((pad + 10, pad + 26, pad + w + 2 * bd + 10, pad + h + 2 * bd + 26), 34, fill=(40, 0, 0, 150))
-    im.alpha_composite(sh.filter(ImageFilter.GaussianBlur(18)))
-    ImageDraw.Draw(im).rounded_rectangle((pad, pad, pad + w + 2 * bd, pad + h + 2 * bd), 34, fill=WHITE)
-    m = Image.new('L', (w, h), 0); ImageDraw.Draw(m).rounded_rectangle((0, 0, w, h), 26, fill=255)
-    return im, m, h, bd, pad
+@functools.lru_cache(maxsize=2)
+def dart_img(d=80, foam=330):
+    """Vector foam dart, horizontal: foam end on the left, orange suction cup on the right. d = diameter (px)."""
+    k = 3  # supersample
+    D, L = d * k, foam * k
+    neck, cup = int(0.22 * D), int(0.42 * D)
+    Wd, Hd = L + neck + cup + 4 * k, int(D * 1.5) + 8 * k
+    im = Image.new('RGBA', (Wd, Hd), (0, 0, 0, 0))
+    cy = Hd / 2
+    # foam body with cylinder shading (vertical gradient)
+    yy = np.arange(Hd)[:, None].astype(np.float32)
+    u = np.clip((yy - (cy - D / 2)) / D, 0, 1)
+    shade = 1 - 0.35 * (u - 0.32) ** 2 * 3.2
+    hi = np.exp(-((u - 0.28) / 0.10) ** 2) * 0.35
+    base = np.array([255, 205, 20], np.float32)
+    col = np.clip(base[None, None, :] * shade[..., None] + 255 * hi[..., None] * np.array([0, 0.25, 0.9]), 0, 255)
+    body = Image.fromarray(np.repeat(col, Wd, 1).astype(np.uint8), 'RGB').convert('RGBA')
+    m = Image.new('L', (Wd, Hd), 0); md = ImageDraw.Draw(m)
+    md.rounded_rectangle((2 * k, cy - D / 2, 2 * k + L, cy + D / 2), int(D * 0.18), fill=255)
+    im.paste(body, (0, 0), m)
+    dd = ImageDraw.Draw(im)
+    # matte foam grain
+    rng = np.random.default_rng(3)
+    grain = (rng.random((Hd, Wd)) < 0.035).astype(np.uint8) * 22
+    gl_ = Image.fromarray(grain, 'L').filter(ImageFilter.GaussianBlur(k))
+    tint = Image.new('RGBA', (Wd, Hd), (200, 140, 0, 255)); tint.putalpha(Image.fromarray(np.minimum(np.asarray(gl_), np.asarray(m)), 'L'))
+    im.alpha_composite(tint)
+    # neck + flared suction cup
+    x0 = 2 * k + L
+    dd.rectangle((x0 - 2 * k, cy - D * 0.36, x0 + neck, cy + D * 0.36), fill=(232, 72, 18, 255))
+    x1 = x0 + neck
+    dd.polygon([(x1, cy - D * 0.38), (x1 + cup, cy - D * 0.72), (x1 + cup, cy + D * 0.72), (x1, cy + D * 0.38)], fill=(255, 98, 30, 255))
+    dd.polygon([(x1, cy - D * 0.38), (x1 + cup, cy - D * 0.72), (x1 + cup, cy - D * 0.45), (x1 + 2 * k, cy - D * 0.18)], fill=(255, 140, 70, 255))
+    dd.rounded_rectangle((x1 + cup - 5 * k, cy - D * 0.74, x1 + cup + 2 * k, cy + D * 0.74), 3 * k, fill=(214, 58, 10, 255))
+    im = im.resize((Wd // k, Hd // k), Image.LANCZOS)
+    # soft drop shadow
+    sh = Image.new('RGBA', (im.width + 40, im.height + 50), (0, 0, 0, 0))
+    a = im.getchannel('A').point(lambda v: int(v * 0.45))
+    blk = Image.new('RGBA', im.size, (60, 0, 0, 255)); blk.putalpha(a)
+    sh.alpha_composite(blk, (20, 34)); sh = sh.filter(ImageFilter.GaussianBlur(8))
+    sh.alpha_composite(im, (20, 20))
+    return sh
 
-def scene_real(t):
-    """LOAD DARTS: client's real video -- the dart goes into the UPPER barrel."""
-    v0, v1, s0, s1 = T.REAL
-    src_t = s0 + (t - v0) * (s1 - s0) / (v1 - v0)
-    n = min(max(int(round(src_t * 60)), 410), 525)
-    fr = Image.open(P('dec', 'R', '%05d.png' % n)).convert('RGB').crop(T.REAL_CROP)
-    w = 760
-    frame, mask, h, bd, pad = real_card_frame(w)
-    fr = grade(fr.resize((w, h), Image.LANCZOS).filter(ImageFilter.UnsharpMask(2, 50, 2)))
-    cardim = frame.copy(); cardim.paste(fr, (pad + bd, pad + bd), mask)
+GUN_UPPER = (1671, 400)   # upper-barrel tip on gun_side.png (x of muzzle face, y of barrel axis)
+
+def scene_load(t):
+    """LOAD DARTS: a foam dart slides into the UPPER barrel of the catalogue blaster cut-out."""
+    v0, v1 = T.LOAD
+    u = t - v0
     c = red_bg(t)
-    p = prog(t, v0, 0.4)
-    cy = 850
-    sc = 0.9 + 0.1 * e_back(p, 1.4)
-    place(c, cardim, W / 2, cy, sc, 0, clamp(p * 4))
-    # highlight the upper barrel once the dart sits in it
-    s = w / (T.REAL_CROP[2] - T.REAL_CROP[0])
-    hx = W / 2 + ((T.REAL_UPPER[0] - T.REAL_CROP[0]) * s - w / 2) * sc
-    hy = cy + ((T.REAL_UPPER[1] - T.REAL_CROP[1]) * s - h / 2) * sc
-    if src_t >= 8.22:
-        q = e_back(prog(src_t, 8.22, 0.12), 1.6)
-        r = 64 * q + 4 * math.sin(t * 14)
+    g = asset('gun_side.png')
+    gs = 760 / g.width
+    gl, gt = 0, 610                       # gun top-left on the canvas
+    tip_x = gl + GUN_UPPER[0] * gs
+    up_y = gt + GUN_UPPER[1] * gs
+    seat = T.LOAD_SEAT
+    # dart: slides in from the right, foam end first, and seats 90 px deep in the upper barrel
+    dimg = dart_img()
+    pad_l, foam_left_in = 20 + 2, 120
+    x_end = tip_x - foam_left_in
+    x_start = W + 60
+    p = e_inout(prog(u, 0.25, seat - 0.25))
+    xl = x_start + (x_end - x_start) * p
+    kick = 6 * math.exp(-max(0, u - seat) * 18) * (u >= seat)
+    gp = prog(u, 0, 0.4)
+    gsc = 0.88 + 0.12 * e_back(gp, 1.4)
+    # speed lines while the dart moves
+    if 0.3 < u < seat:
         d = ImageDraw.Draw(c)
-        d.ellipse((hx - r - 4, hy - r - 4, hx + r + 4, hy + r + 4), outline=DRED + (255,), width=13)
-        d.ellipse((hx - r, hy - r, hx + r, hy + r), outline=YEL + (255,), width=9)
-        lab = chip('UPPER BARREL', 34, YEL, DRED)
-        place(c, lab, hx - 20, hy - r - 58, q, -4, clamp(q))
-    pop(c, chip('REAL PRODUCT DEMO', 30, RED, WHITE, F_BODY, 22, 12), W / 2 - 215, cy + 470, t, v0 + 0.1, v1, rot=-4)
+        for i, dy in enumerate((-22, 0, 22)):
+            x_a = xl + dimg.width - 20 + 30 + i * 18
+            d.line([(x_a, up_y + dy), (x_a + 120 + 40 * (1 - p), up_y + dy)], fill=(255, 255, 255, 150), width=6)
+    place(c, dimg, xl - pad_l + dimg.width / 2, up_y + 7, 1.0, 0, clamp(u / 0.2))   # +7: shadow pad offset (20 top vs 34 bottom)
+    gcx, gcy = gl + g.width * gs / 2, gt + g.height * gs / 2
+    place(c, g, gcx + kick, gcy, gs * gsc, 0, clamp(gp * 3))
+    if u >= seat:
+        q = e_back(prog(u, seat, 0.18), 1.7)
+        r = 96 * q + 4 * math.sin(u * 14)
+        hx, hy = tip_x - 10, up_y
+        d = ImageDraw.Draw(c)
+        d.ellipse((hx - r - 5, hy - r - 5, hx + r + 5, hy + r + 5), outline=DRED + (255,), width=14)
+        d.ellipse((hx - r, hy - r, hx + r, hy + r), outline=YEL + (255,), width=10)
+        place(c, chip('UPPER BARREL', 38, YEL, DRED), hx + 30, hy - r - 66, q, -4, clamp(q))
     return c
 
 def render(t):
@@ -469,7 +511,7 @@ def render(t):
         pop(c, head(lab[1], 92, YEL, 8, 5), W / 2, 1472, t, t0 + 0.16, t1, slide=40)
     elif t < b(32):
         if b(24) <= t < b(28):
-            c = scene_real(t)
+            c = scene_load(t)
         else:
             c = footage(t)
             c.alpha_composite(grad_top()); c.alpha_composite(grad_bottom())

@@ -9,9 +9,10 @@ Client corrections applied:
 - Packet = client's original Funhoods packet photo with **4 darts** (`src/pack_original.png`); catalogue pack (3 darts) dropped.
 - Darts card = 4-dart close-up from the original packet (catalogue had 5); AI-A dropped (5 darts on table); FIRE shows one dart.
 - AI-C 17.17s shot change (stretched hook) trimmed from the loading clip.
-- **v3:** dart loads into the **upper barrel** (client confirmed). No AI clip shows that (AI-C/AI-B load the lower barrel,
-  AI-A both), so "2 LOAD DARTS" uses the client's real video 7.25–8.55s as a framed "REAL PRODUCT DEMO" card with an
-  "UPPER BARREL" highlight ring and an "INTO THE UPPER BARREL" label.
+- Dart loads into the **upper barrel** (client confirmed). No AI clip shows that (AI-C/AI-B load the lower barrel,
+  AI-A both). The client's phone video was reference only, so "2 LOAD DARTS" is a motion graphic: the catalogue
+  blaster cut-out with a vector foam dart sliding into the upper barrel, an "UPPER BARREL" ring + label,
+  and an "INTO THE UPPER BARREL" caption (`scene_load()` in render.py).
 
 | Time | Scene | Text |
 |---|---|---|
@@ -19,7 +20,7 @@ Client corrections applied:
 | 1.8–3.7 | Original 4-dart pack | INTRODUCING TARGET BLASTER · FOAM DART BLASTER • AGES 3+ |
 | 3.7–5.5 | Hero | BUILT TO FLY OFF YOUR SHELVES! |
 | 5.5–9.2 | Key features | Bold yellow nozzle design · Police badge design · Textured easy grip · 4 soft foam darts with suction tips |
-| 9.2–14.8 | How it works | 1 PULL BACK · 2 LOAD DARTS (real video, into the upper barrel) · 3 AIM... |
+| 9.2–14.8 | How it works | 1 PULL BACK · 2 LOAD DARTS (animation: dart into the upper barrel) · 3 AIM... |
 | 14.8–16.6 | Music drop | FIRE! |
 | 16.6–20.3 | Original packet shot | Why retailers stock it: eye-catching retail pack · 4 foam darts included · perfect for gifting |
 | 20.3–24.0 | Partner | NOW TAKING BULK ORDERS · Retailers / Distributors / Wholesalers |
@@ -60,12 +61,11 @@ AI clips mein jahan product badla, woh hata diya:
 Used ranges: `shots.py` + `timeline.py`.
 
 ## Render
-Inputs `src/` mein: `ai_a.mov ai_b.mov ai_c.mp4 real.mp4 catalog.webp logo.png pack_original.png`; model `models/realesr-general-x4v3.pth`
+Inputs `src/` mein: `ai_a.mov ai_b.mov ai_c.mp4 catalog.webp logo.png pack_original.png` (real phone video = reference only, not used); model `models/realesr-general-x4v3.pth`
 (https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth).
 ```sh
 pip install torch numpy pillow --index-url https://download.pytorch.org/whl/cpu
 for s in a b c; do mkdir -p dec/${s^^}; ffmpeg -i src/ai_$s.* -start_number 0 dec/${s^^}/%05d.png; done
-mkdir -p dec/R; ffmpeg -i src/real.mp4 -vf "select='between(n\,410\,525)'" -vsync 0 -start_number 410 dec/R/%05d.png
 python3 tools/prep_assets.py crops && OUTW=0 python3 tools/sr.py models/realesr-general-x4v3.pth cat_in cat_sr && python3 tools/prep_assets.py cutouts
 # used footage frames -> sr_in/<idx>_<A|B|C><frame>.png, phir 480p -> 1080p Real-ESRGAN (72% SR + 28% lanczos blend in render.py)
 python3 tools/sr.py models/realesr-general-x4v3.pth sr_in sr_out
