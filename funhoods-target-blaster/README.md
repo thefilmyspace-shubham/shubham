@@ -1,6 +1,6 @@
 # Funhoods — Target Blaster B2B Reel (9:16, 1080x1920, 30 fps, 39 s)
 
-`exports/Funhoods_Target_Blaster_B2B_Reel_1080x1920.mp4`
+`exports/Funhoods_Target_Blaster_B2B_Reel_1080x1920.mp4` (master, 44 MB) · `..._share.mp4` (22 MB, WhatsApp/upload ke liye)
 
 Retailers / distributors / wholesalers ke liye product reel: AI videos ke clean parts + catalogue close-ups + motion graphics.
 Music: **"Punked Up Fun" — Ahjay Stelino (Mixkit)**, Mixkit Stock Music Free License (commercial use OK, no attribution required).
