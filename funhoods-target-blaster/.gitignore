@@ -1,0 +1,13 @@
+# generated / large intermediates
+src/
+dec/
+sr_in/
+sr_out/
+cat_in/
+cat_sr/
+models/
+chunks/
+stills/
+*.wav
+music/*.mp3
+video*.mp4
