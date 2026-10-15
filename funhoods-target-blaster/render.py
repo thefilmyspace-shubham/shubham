@@ -75,11 +75,11 @@ def place(canvas, img, cx, cy, scale=1.0, rot=0.0, alpha=1.0):
     if w_ <= 0 or h_ <= 0: return
     canvas.alpha_composite(im, (x0, y0), (sx, sy, sx + w_, sy + h_))
 
-def pop(canvas, img, cx, cy, t, t0, t1=None, d=0.34, rot=0.0, from_scale=0.45, slide=0):
+def pop(canvas, img, cx, cy, t, t0, t1=None, d=0.46, rot=0.0, from_scale=0.6, slide=0):
     """Element pops in at t0 (back-ease) and exits quickly at t1."""
     if t < t0: return
     p = prog(t, t0, d)
-    s = from_scale + (1 - from_scale) * e_back(p)
+    s = from_scale + (1 - from_scale) * e_back(p, 1.4)
     a = clamp(p / 0.35)
     if t1 is not None and t > t1 - 0.16:
         q = prog(t, t1 - 0.16, 0.16); s *= 1 - 0.35 * q; a *= 1 - q
@@ -249,7 +249,7 @@ def footage(t, extra_scale=1.0, shake=(0, 0)):
     img = shot_frame(shot, sin + (t - v0) * sp)
     u = (t - v0) / (v1 - v0)
     sc = 1.0 + 0.05 * u                      # slow push-in
-    sc += 0.10 * (1 - e_out(prog(t, v0, 0.28)))  # punch on cut
+    sc += 0.05 * (1 - e_out(prog(t, v0, 0.45)))  # gentle punch on cut
     return camera(img, sc * extra_scale, shake[0], shake[1]).convert('RGBA')
 
 @functools.lru_cache(maxsize=1)
@@ -311,7 +311,7 @@ def step_badge(num, txt):
     _cache[key] = im; return im
 
 # ---------------------------------------------------------------- transitions
-def chevron_wipe(c, t, tc, d=0.56):
+def chevron_wipe(c, t, tc, d=0.72):
     """Brand chevron band sweeps left->right; it fully covers the frame exactly at tc (the cut)."""
     p = (t - (tc - d / 2)) / d
     if p <= 0 or p >= 1: return
@@ -359,7 +359,7 @@ def scene_intro(t):
     wob = 3 * math.sin(t * 5) * (1 - prog(t, 0, 1.2))
     place(c, lg, W / 2, 800, sc, wob, clamp(t / 0.12))
     pop(c, chip('NEW LAUNCH', 64, RED, WHITE, F_HEAD, 44, 18), W / 2, 1180, t, b(1.5), None, rot=-3)
-    pop(c, body('For Retailers  •  Distributors  •  Wholesalers', 40, INK), W / 2, 1300, t, b(2.5), None, slide=30)
+    pop(c, body('For Distributors  &  Wholesalers', 42, INK), W / 2, 1300, t, b(2.5), None, slide=30)
     return c
 
 def scene_pack(t, t0, t1, top=True, label=None):
@@ -464,7 +464,7 @@ def scene_load(t):
     pad_l, foam_left_in = 20 + 2, 120
     x_end = tip_x - foam_left_in
     x_start = W + 60
-    p = e_inout(prog(u, 0.25, seat - 0.25))
+    p = e_inout(prog(u, 0.3, seat - 0.3))
     xl = x_start + (x_end - x_start) * p
     kick = 6 * math.exp(-max(0, u - seat) * 18) * (u >= seat)
     gp = prog(u, 0, 0.4)
@@ -488,6 +488,82 @@ def scene_load(t):
         place(c, chip('UPPER BARREL', 38, YEL, DRED), hx + 30, hy - r - 66, q, -4, clamp(q))
     return c
 
+@functools.lru_cache(maxsize=2)
+def carton_img(w=560):
+    """Kraft shipping carton (isometric) printed with the pack count."""
+    k = 2; w2 = w * k
+    fw, fh = 0.62 * w2, 0.50 * w2
+    dx, dy = 0.30 * w2, -0.17 * w2
+    x0, y0 = 0.04 * w2, -dy + 0.05 * w2
+    Wc, Hc = int(fw + dx + 0.08 * w2), int(fh - dy + 0.12 * w2)
+    im = Image.new('RGBA', (Wc, Hc), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    FR, SD, TP, ED, TAPE = (205, 150, 92), (172, 118, 64), (224, 176, 116), (120, 78, 38), (236, 206, 150)
+    # shadow
+    sh = Image.new('RGBA', im.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).ellipse((x0 - 0.02 * w2, y0 + fh - 0.06 * w2, x0 + fw + dx + 0.02 * w2, y0 + fh + 0.08 * w2), fill=(50, 0, 0, 120))
+    im.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14 * k)))
+    front = [(x0, y0), (x0 + fw, y0), (x0 + fw, y0 + fh), (x0, y0 + fh)]
+    side = [(x0 + fw, y0), (x0 + fw + dx, y0 + dy), (x0 + fw + dx, y0 + fh + dy), (x0 + fw, y0 + fh)]
+    top = [(x0, y0), (x0 + fw, y0), (x0 + fw + dx, y0 + dy), (x0 + dx, y0 + dy)]
+    for poly, col in ((front, FR), (side, SD), (top, TP)):
+        d.polygon(poly, fill=col + (255,), outline=ED + (255,))
+        d.line(poly + [poly[0]], fill=ED + (255,), width=3 * k, joint='curve')
+    # tape along the top seam and down the front
+    tw = 0.10 * fw; cx = x0 + fw / 2
+    d.polygon([(cx - tw / 2, y0), (cx + tw / 2, y0), (cx + tw / 2 + dx, y0 + dy), (cx - tw / 2 + dx, y0 + dy)], fill=TAPE + (255,))
+    d.rectangle((cx - tw / 2, y0, cx + tw / 2, y0 + 0.22 * fh), fill=TAPE + (255,))
+    # print on the front face
+    t1 = text_img('192 PCS', F_IMPACT, int(0.17 * fw), (110, 62, 24), 0)
+    im.alpha_composite(t1, (int(x0 + (fw - t1.width) / 2), int(y0 + 0.42 * fh)))
+    t2 = text_img('TARGET BLASTER', F_BODY, int(0.055 * fw), (110, 62, 24), 0)
+    im.alpha_composite(t2, (int(x0 + (fw - t2.width) / 2), int(y0 + 0.30 * fh)))
+    lg = asset('logo_rgba.png'); lw = int(0.30 * fw); lg = lg.resize((lw, int(lg.height * lw / lg.width)), Image.LANCZOS)
+    im.alpha_composite(lg, (int(x0 + 0.05 * fw), int(y0 + 0.74 * fh)))
+    # arrows "this side up"
+    for i in range(2):
+        ax = x0 + fw - 0.17 * fw + i * 0.065 * fw; ay = y0 + 0.78 * fh
+        d.polygon([(ax, ay), (ax + 0.025 * fw, ay - 0.05 * fw), (ax + 0.05 * fw, ay)], fill=(110, 62, 24, 255))
+        d.rectangle((ax + 0.017 * fw, ay, ax + 0.033 * fw, ay + 0.05 * fw), fill=(110, 62, 24, 255))
+    return im.resize((Wc // k, Hc // k), Image.LANCZOS)
+
+@functools.lru_cache(maxsize=4)
+def icon_row(kind, txt, size=74):
+    S = 116
+    ic = Image.new('RGBA', (S + 10, S + 10), (0, 0, 0, 0)); d = ImageDraw.Draw(ic)
+    d.ellipse((6, 10, S + 6, S + 10), fill=DRED + (255,)); d.ellipse((0, 0, S, S), fill=YEL + (255,))
+    col = DRED + (255,)
+    if kind == 'box':
+        d.rounded_rectangle((0.22 * S, 0.36 * S, 0.78 * S, 0.76 * S), 5, fill=col)               # carton body
+        d.polygon([(0.22 * S, 0.36 * S), (0.30 * S, 0.24 * S), (0.70 * S, 0.24 * S), (0.78 * S, 0.36 * S)], fill=(150, 30, 20, 255))  # lid
+        d.rectangle((0.45 * S, 0.24 * S, 0.55 * S, 0.50 * S), fill=YEL + (255,))                   # tape
+        d.line([(0.22 * S, 0.36 * S), (0.78 * S, 0.36 * S)], fill=YEL + (255,), width=3)
+    else:  # truck
+        d.rounded_rectangle((0.16 * S, 0.32 * S, 0.58 * S, 0.64 * S), 4, fill=col)
+        d.polygon([(0.60 * S, 0.42 * S), (0.74 * S, 0.42 * S), (0.84 * S, 0.54 * S), (0.84 * S, 0.64 * S), (0.60 * S, 0.64 * S)], fill=col)
+        d.polygon([(0.64 * S, 0.46 * S), (0.72 * S, 0.46 * S), (0.78 * S, 0.53 * S), (0.64 * S, 0.53 * S)], fill=YEL + (255,))
+        for wx in (0.30, 0.72):
+            d.ellipse(((wx - 0.08) * S, 0.60 * S, (wx + 0.08) * S, 0.76 * S), fill=col)
+            d.ellipse(((wx - 0.035) * S, 0.645 * S, (wx + 0.035) * S, 0.715 * S), fill=YEL + (255,))
+    tx = head(txt, size, WHITE, 8, 4)
+    im = Image.new('RGBA', (ic.width + 26 + tx.width, max(ic.height, tx.height)), (0, 0, 0, 0))
+    im.alpha_composite(ic, (0, (im.height - ic.height) // 2)); im.alpha_composite(tx, (ic.width + 26, (im.height - tx.height) // 2))
+    return im
+
+def scene_bulk(t, t0, t1):
+    """BULK ORDERS ONLY: carton (192 pcs) + pan India delivery, for distributors & wholesalers."""
+    c = red_bg(t)
+    pop(c, head('BULK ORDERS ONLY', 124, YEL, 11, 6), W / 2, 360, t, t0 + 0.1, t1, slide=-30)
+    p = prog(t, t0 + b(0.5), 0.6)
+    if p > 0:
+        place(c, burst(980, 24, (255, 196, 40), (255, 230, 120), (232, 60, 40)), W / 2, 760, 0.95 + 0.02 * math.sin(t * 2), (t * 8) % 360, 0.28 * clamp(p * 3))
+        cb = carton_img(640)
+        place(c, cb, W / 2 - 10, 770 + 8 * math.sin(t * 1.8) + 120 * (1 - e_back(p, 1.3)), 0.75 + 0.25 * e_back(p, 1.3), -3 + 2 * math.sin(t * 1.5), clamp(p * 3))
+    pop(c, icon_row('box', '192 PCS PER CARTON'), W / 2, 1180, t, t0 + b(2), t1, slide=30)
+    pop(c, icon_row('truck', 'PAN INDIA DELIVERY'), W / 2, 1320, t, t0 + b(3.5), t1, slide=30)
+    pop(c, chip('DISTRIBUTORS', 42, WHITE, RED, F_BODY, 30, 15), W / 2 - 200, 1480, t, t0 + b(5), t1)
+    pop(c, chip('WHOLESALERS', 42, WHITE, RED, F_BODY, 30, 15), W / 2 + 200, 1480, t, t0 + b(5.5), t1)
+    return c
+
 def render(t):
     # ---- base layer by section (beats)
     if t < b(4):
@@ -496,19 +572,17 @@ def render(t):
         c = scene_pack(t, b(4), b(8))
     elif t < b(12):
         c = footage(t)
-        lower(c, t, b(8), b(12), 'BUILT TO FLY', 'OFF YOUR SHELVES!')
+        lower(c, t, b(8), b(12), 'BUILT TO FLY', 'BUILT TO SELL!')
     elif t < b(20):
-        k = int((t - b(12)) // b(2)); t0 = b(12) + k * b(2); t1 = t0 + b(2)
-        if k == 2: c = scene_card(t, t0, t1, 'grip.png', 820, -4)
-        elif k == 3: c = scene_card(t, t0, t1, 'darts4.png', 760, 3)
-        else: c = footage(t)
+        k = int((t - b(12)) // b(4)); t0 = b(12) + k * b(4); t1 = t0 + b(4)
+        c = footage(t) if k == 0 else scene_card(t, t0, t1, 'darts4.png', 760, 3)
         c.alpha_composite(grad_top())
         header_chip(c, t, 'KEY FEATURES', b(12), b(20))
-        lab = [('BOLD YELLOW', 'NOZZLE DESIGN'), ('POLICE BADGE', 'DESIGN'), ('TEXTURED', 'EASY GRIP'), ('4 SOFT FOAM DARTS', 'WITH SUCTION TIPS')][k]
+        lab = [('POLICE BADGE', 'DESIGN'), ('4 SOFT FOAM DARTS', 'WITH SUCTION TIPS')][k]
         c.alpha_composite(grad_bottom())
-        pop(c, body('0%d / 04' % (k + 1), 40, YEL), W / 2, 1255, t, t0, t1)
-        pop(c, head(lab[0], 112), W / 2, 1360, t, t0 + 0.04, t1, slide=40)
-        pop(c, head(lab[1], 92, YEL, 8, 5), W / 2, 1472, t, t0 + 0.16, t1, slide=40)
+        pop(c, body('0%d / 02' % (k + 1), 40, YEL), W / 2, 1255, t, t0, t1)
+        pop(c, head(lab[0], 112), W / 2, 1360, t, t0 + 0.1, t1, slide=40)
+        pop(c, head(lab[1], 92, YEL, 8, 5), W / 2, 1472, t, t0 + 0.35, t1, slide=40)
     elif t < b(32):
         if b(24) <= t < b(28):
             c = scene_load(t)
@@ -536,21 +610,11 @@ def render(t):
     elif t < b(44):
         c = scene_styled(t, b(36), b(44))
         c.alpha_composite(grad_bottom())
-        header_chip(c, t, 'WHY RETAILERS STOCK IT', b(36), b(44), bg=WHITE, fg=RED)
-        for i, (txt, dl) in enumerate([('EYE-CATCHING RETAIL PACK', 36), ('4 FOAM DARTS INCLUDED', 38), ('PERFECT FOR GIFTING', 40)]):
+        header_chip(c, t, 'WHY STOCK IT', b(36), b(44), bg=WHITE, fg=RED)
+        for i, (txt, dl) in enumerate([('EYE-CATCHING PACKAGING', 36.5), ('4 FOAM DARTS INCLUDED', 38.5), ('PERFECT FOR GIFTING', 40.5)]):
             pop(c, check_line(txt, 66), W / 2, 1495 + i * 88, t, b(dl), b(44), slide=30)
     elif t < b(52):
-        c = red_bg(t)
-        g = asset('gun_side.png')
-        p = prog(t, b(44), 0.55)
-        x = W / 2 + 900 * (1 - e_out(p)); rot = -8 + 20 * (1 - e_out(p)) + 1.5 * math.sin(t * 2.4)
-        place(c, burst(1150, 24, (255, 196, 40), (255, 230, 120), (232, 60, 40)), W / 2, 790, 0.95 + 0.03 * math.sin(t * 3), (t * 12) % 360, 0.35 * clamp(p * 3))
-        place(c, g, x, 790 + 10 * math.sin(t * 2.1), 0.52, rot, clamp(p * 3))
-        pop(c, logo_sticker(380), W / 2, 228, t, b(44), b(52), rot=-3)
-        pop(c, head('NOW TAKING', 104, WHITE), W / 2, 1150, t, b(44.5), b(52), slide=40)
-        pop(c, head('BULK ORDERS', 150, YEL, 12, 6), W / 2, 1290, t, b(45), b(52), slide=40)
-        for i, (txt, dl) in enumerate([('RETAILERS', 46), ('DISTRIBUTORS', 47), ('WHOLESALERS', 48)]):
-            pop(c, chip(txt, 42, WHITE, RED, F_BODY, 30, 15), W / 2, 1430 + i * 92, t, b(dl), b(52))
+        c = scene_bulk(t, b(44), b(52))
     elif t < b(56):
         c = footage(t)
         ov = Image.new('RGBA', (W, H), (60, 0, 0, 90)); c.alpha_composite(ov)
@@ -558,8 +622,8 @@ def render(t):
             pop(c, impact_txt(wd, sz, col), W / 2, 760 + i * 230, t, b(dl), None, d=0.26, rot=-4, from_scale=1.8)
     else:
         c = scene_end(t)
-    if b(4) <= t < b(44) or b(52) <= t < b(56):
-        place(c, logo_sticker(210), W - 150, 150, 1.0, 0, 0.92)
+    if b(4) <= t < b(56):
+        place(c, logo_sticker(210), 165, 150, 1.0, 0, 0.92)   # Funhoods logo top-LEFT
     # ---- transitions
     for tc, kind in T.CUTS:
         if kind == 'chev': chevron_wipe(c, t, tc)
@@ -589,9 +653,11 @@ def scene_end(t):
     pk = card('pack4.png', 300, 10, 22)
     pp = prog(t, t0 + b(1.5), 0.5)
     place(c, pk, W / 2 + 255 - 600 * (1 - e_out(pp)), 1050, 1.0, 6 - 10 * (1 - e_out(pp)), clamp(pp * 3))
-    pop(c, text_img('BULK & WHOLESALE', F_HEAD, 92, RED, 0), W / 2, 1360, t, t0 + b(2), None, slide=30)
-    pop(c, text_img('ENQUIRIES OPEN', F_HEAD, 92, RED, 0), W / 2, 1455, t, t0 + b(2.5), None, slide=30)
-    pop(c, chip('DM US FOR TRADE PRICING', 46, RED, WHITE, F_BODY, 40, 22), W / 2, 1585, t, t0 + b(4), None)
+    pop(c, text_img('BULK ORDERS ONLY', F_HEAD, 100, RED, 0), W / 2, 1350, t, t0 + b(2), None, slide=30)
+    ca, cb_ = chip('192 PCS / CARTON', 36, YEL, DRED, F_BODY, 24, 14), chip('PAN INDIA DELIVERY', 36, YEL, DRED, F_BODY, 24, 14)
+    pop(c, ca, W / 2 - 6 - ca.width / 2, 1470, t, t0 + b(3), None, slide=20)
+    pop(c, cb_, W / 2 + 6 + cb_.width / 2, 1470, t, t0 + b(3.5), None, slide=20)
+    pop(c, chip('DM US FOR TRADE PRICING', 46, RED, WHITE, F_BODY, 40, 22), W / 2, 1600, t, t0 + b(4.5), None)
     pop(c, body('Target Blaster  •  Foam Dart Blaster  •  Ages 3+', 34, WHITE), W / 2, H - 120, t, t0 + b(5), None)
     return c
 

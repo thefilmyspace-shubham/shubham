@@ -19,21 +19,20 @@ SEG = []
 def seg(v0, v1, shot, src_in, src_out):
     SEG.append((v0, v1, shot, src_in, (src_out - src_in)/(v1 - v0)))
 seg(b(8),  b(12), 'hero_b',   10.10, 11.95)
-seg(b(12), b(14), 'nozzle_c', 10.20, 11.15)
-seg(b(14), b(16), 'badge_c',  8.92,  9.88)
-# 16-20 catalogue cards (grip, 4 darts)
+seg(b(12), b(16), 'badge_c',  8.70,  9.88)   # v5: slower pace -- 2 features x 4 beats
+# 16-20 catalogue card (4 darts)
 seg(b(20), b(24), 'pull_b2',  17.75, 19.10)
 # 24-28 LOAD DARTS = motion graphic: catalogue blaster cut-out + foam dart sliding into the UPPER barrel
 # (no AI clip shows upper-barrel loading; the client's phone video was reference only)
 LOAD = (b(24), b(28))
-LOAD_SEAT = 1.05                         # seconds after LOAD start when the dart seats
+LOAD_SEAT = 1.25                         # seconds after LOAD start when the dart seats
 seg(b(28), b(32), 'aim_c',    20.42, 21.50)
 seg(b(32), b(36), 'fire_c1',  21.50, 22.40)
-# 36-44 styled pack, 44-52 bulk-orders graphic
+# 36-44 styled pack (why stock it), 44-52 BULK ORDERS ONLY (192 pcs carton, pan India delivery)
 seg(b(52), b(53.5), 'close_b', 17.00, 17.66)
 seg(b(53.5), b(56), 'lift_b',  9.20, 10.10)
 # 56 -> end card
 
-CUTS = [(b(4),'chev'),(b(8),'zoom'),(b(12),'chev'),(b(14),'zoom'),(b(16),'zoom'),(b(18),'zoom'),
-        (b(20),'chev'),(b(24),'whip'),(b(28),'zoom'),(b(32),'flash'),(b(36),'chev'),(b(44),'chev'),
+CUTS = [(b(4),'chev'),(b(8),'zoom'),(b(12),'zoom'),(b(16),'zoom'),
+        (b(20),'chev'),(b(24),'zoom'),(b(28),'zoom'),(b(32),'flash'),(b(36),'chev'),(b(44),'chev'),
         (b(52),'flash'),(b(56),'flash')]

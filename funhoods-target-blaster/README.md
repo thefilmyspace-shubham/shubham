@@ -14,18 +14,22 @@ Client corrections applied:
   blaster cut-out with a vector foam dart sliding into the upper barrel, an "UPPER BARREL" ring + label,
   and an "INTO THE UPPER BARREL" caption (`scene_load()` in render.py).
 
+Client round 3 (v5): slower pace (2 feature cards x 4 beats instead of 4 x 2, softer text/transition animation),
+**bulk orders only**, **192 pcs per carton**, **pan India delivery**, Funhoods corner logo moved to the **left**,
+"Retailers" removed everywhere (audience = distributors & wholesalers).
+
 | Time | Scene | Text |
 |---|---|---|
-| 0.0–1.8 | Funhoods logo | NEW LAUNCH · For Retailers • Distributors • Wholesalers |
+| 0.0–1.8 | Funhoods logo | NEW LAUNCH · For Distributors & Wholesalers |
 | 1.8–3.7 | Original 4-dart pack | INTRODUCING TARGET BLASTER · FOAM DART BLASTER • AGES 3+ |
-| 3.7–5.5 | Hero | BUILT TO FLY OFF YOUR SHELVES! |
-| 5.5–9.2 | Key features | Bold yellow nozzle design · Police badge design · Textured easy grip · 4 soft foam darts with suction tips |
+| 3.7–5.5 | Hero | BUILT TO FLY / BUILT TO SELL! |
+| 5.5–9.2 | Key features | 01 Police badge design · 02 4 soft foam darts with suction tips |
 | 9.2–14.8 | How it works | 1 PULL BACK · 2 LOAD DARTS (animation: dart into the upper barrel) · 3 AIM... |
 | 14.8–16.6 | Music drop | FIRE! |
-| 16.6–20.3 | Original packet shot | Why retailers stock it: eye-catching retail pack · 4 foam darts included · perfect for gifting |
-| 20.3–24.0 | Partner | NOW TAKING BULK ORDERS · Retailers / Distributors / Wholesalers |
+| 16.6–20.3 | Original packet shot | Why stock it: eye-catching packaging · 4 foam darts included · perfect for gifting |
+| 20.3–24.0 | Carton graphic | BULK ORDERS ONLY · 192 PCS PER CARTON · PAN INDIA DELIVERY · Distributors / Wholesalers |
 | 24.0–25.8 | — | STOCK UP NOW! |
-| 25.8–30.0 | End card | BULK & WHOLESALE ENQUIRIES OPEN · DM US FOR TRADE PRICING |
+| 25.8–30.0 | End card | BULK ORDERS ONLY · 192 PCS / CARTON · PAN INDIA DELIVERY · DM US FOR TRADE PRICING |
 
 ## v1 — 39 s (superseded)
 

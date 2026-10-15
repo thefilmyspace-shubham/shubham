@@ -93,10 +93,10 @@ place(impact(1.8, 58, 30), T.END_HIT, 0.55)
 # mechanism SFX (synced to the footage)
 place(click(), b(20) + (18.20-17.75)/0.731, 0.38)   # hook pulled back
 place(thwip(), T.DROP + 0.06, 0.48)                   # dart leaves the barrel
-place(whoosh(0.5, 0.75, 0.3), T.LOAD[0] + 0.45, 0.16)             # dart slides in
+place(whoosh(0.6, 0.75, 0.3), T.LOAD[0] + 0.6, 0.16)             # dart slides in
 place(thock(), T.LOAD[0] + T.LOAD_SEAT, 0.40)                      # dart seats in the upper barrel
 # UI pops for text
-for t in [b(12), b(14), b(16), b(18), b(24), b(28), b(36), b(38), b(40), b(46), b(47), b(48), b(53), b(54), b(58), b(60)]:
+for t in [b(12), b(16), b(24.5), b(36.5), b(38.5), b(40.5), b(46), b(47.5), b(49), b(53), b(54), b(58), b(59), b(60.5)]:
     place(blip(), t, 0.10)
 peak = np.abs(out).max()
 ax = np.abs(out); knee = 0.80   # soft knee limiter: untouched below the knee, ceiling 0.97
