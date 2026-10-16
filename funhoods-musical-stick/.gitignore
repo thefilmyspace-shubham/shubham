@@ -1,0 +1,6 @@
+clips/
+stills/
+chunks*/
+*.wav
+music/*.mp3
+video*.mp4
