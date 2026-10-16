@@ -1,0 +1,30 @@
+{
+  "size": [1080, 1920], "fps": 30,
+  "accent": "#FFD27A",
+  "grade": {"contrast": 1.07, "saturation": 1.06, "warm": 0.035},
+  "grain": 0.06,
+  "watermark": "STYLE TEST · stand-in footage",
+  "music": {"file": "music/trap_hamza.mp3", "drop": 11.564,
+            "hook_db": -9, "title_db": -2, "main_db": -16, "outro_db": -5, "fade_out": 1.6},
+  "lower_third": {"at": 10.15, "dur": 3.6, "name": "Guest Name", "role": "Founder, Jalsra"},
+  "timeline": [
+    {"type": "clip", "section": "hook", "src": "stock/s44031.mp4", "in": 1.0, "out": 2.638, "mute": true, "crop_x": 0.5,
+     "captions": [{"words": [["Shuruaat", 1.08], ["zero", 1.32], ["se", 1.56], ["ki", 1.72]], "end": 2.62, "em": "zero"}]},
+    {"type": "clip", "section": "hook", "src": "stock/s44033.mp4", "in": 2.0, "out": 3.638, "mute": true, "crop_x": 0.42,
+     "captions": [{"words": [["Log", 2.06], ["bolte", 2.26], ["the", 2.46], ["nahi", 2.7], ["chalega", 2.95]], "end": 3.62, "em": "chalega"}]},
+    {"type": "clip", "section": "hook", "src": "stock/s44036.mp4", "in": 4.0, "out": 5.638, "mute": true, "crop_x": 0.62,
+     "captions": [{"words": [["Aaj", 4.06], ["wahi", 4.3], ["log", 4.55], ["puchte", 4.8], ["hain", 5.1]], "end": 5.62, "em": "puchte"}]},
+    {"type": "clip", "section": "hook", "src": "stock/s2955.mp4", "in": 3.0, "out": 4.638, "mute": true, "crop_x": 0.3,
+     "captions": [{"words": [["Bas", 3.06], ["ek", 3.3], ["cheez", 3.55], ["yaad", 3.9], ["rakho", 4.15]], "end": 4.62, "em": "cheez"}]},
+    {"type": "title", "dur": 3.0, "title": "JALSRA", "sub": "the interview", "bg": ["stock/s44028.mp4", 5.0]},
+    {"type": "clip", "section": "main", "src": "stock/s44028.mp4", "in": 6.0, "out": 13.0, "mute": true, "crop_x": 0.45,
+     "fade_in": 0.25, "zoom": [1.0, 1.06], "punch": [[3.4, 1.08]],
+     "captions": [
+       {"words": [["Main", 6.2], ["hamesha", 6.45], ["kehta", 6.8], ["hoon", 7.05]], "end": 7.6},
+       {"words": [["ki", 7.7], ["sabse", 7.9], ["zaroori", 8.25], ["hai", 8.7]], "end": 9.3, "em": "zaroori"},
+       {"words": [["apne", 9.4], ["kaam", 9.7], ["se", 10.0], ["pyaar", 10.25]], "end": 11.0, "em": "pyaar"},
+       {"words": [["baaki", 11.1], ["sab", 11.4], ["apne", 11.65], ["aap", 11.9], ["hota", 12.1], ["hai", 12.35]], "end": 12.95, "em": "sab"}
+     ]},
+    {"type": "outro", "dur": 2.8, "kicker": "Full interview", "title": "JALSRA", "sub": "Link in bio", "bg": ["stock/s44028.mp4", 12.0]}
+  ]
+}

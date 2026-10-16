@@ -1,0 +1,7 @@
+stock/*.mp4
+footage/
+stills/
+*_mix.wav
+*.words.json
+out*.mp4
+p[0-9]*.mp4
