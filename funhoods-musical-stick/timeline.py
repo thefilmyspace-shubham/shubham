@@ -1,8 +1,12 @@
 # Musical Stick reel -- 30 s, same music edit / beat grid as the Target Blaster reel. 4K60 output.
 BEAT = 60/130
 def b(n): return n*BEAT
-def mbar(k): return 0.072115 + 4*k*BEAT
-MUSIC = [(0, mbar(22)), (12, mbar(27)), (32, mbar(32)), (52, mbar(47))]
+# music: "Playground Fun" (Ahjay Stelino, Mixkit) -- 130.000 BPM, bar 0 downbeat at 0.4269 s
+def mbar(k): return 0.4269 + 4*k*BEAT
+MUSIC = [(0, mbar(16)),    # bars 16-18: section start, full band (logo, reveal, box)
+         (12, mbar(35)),   # bars 35-39: breakdown (features, how it works) -> return at bar 40
+         (32, mbar(40)),   # bars 40-44: the return = PRESS & PLAY! drop, why stock it, bulk orders
+         (52, mbar(87))]   # bar 87 -> bar 88 downbeat on the end card
 DROP = b(32)
 END_HIT = b(56)
 DUR = 30.0

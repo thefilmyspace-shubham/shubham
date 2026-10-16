@@ -2,7 +2,9 @@
 
 `exports/Funhoods_Musical_Stick_Reel_4K60.mp4` (master) · `exports/Funhoods_Musical_Stick_Reel_1080p.mp4` (share copy)
 
-Same format as the Target Blaster reel (v5): same music edit on the 130 BPM grid, same motion-graphics system,
+Same format as the Target Blaster reel (v5) — same 130 BPM cut grid and motion-graphics system — but its own music:
+**"Playground Fun" — Ahjay Stelino (Mixkit, free license, no attribution required)**, 130 BPM; bars 16-18 → 35-39 (breakdown) →
+40-44 (return on PRESS & PLAY!) → 87-90 (end card).
 Funhoods logo top-left, distributors & wholesalers only (no "retailers"), bulk orders only, pan India delivery.
 Product facts used: display box of **12 pcs**, ages 3+, story mode, music & songs, animal sounds, 10-button panel.
 Carton quantity is not on any material yet, so the reel says "12 PCS PER DISPLAY BOX" and nothing about cartons.

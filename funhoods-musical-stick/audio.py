@@ -6,7 +6,7 @@ SR = 48000
 def load_mp3(p):
     raw = subprocess.run(['ffmpeg','-v','error','-i',p,'-f','s16le','-ac','2','-ar',str(SR),'-'],capture_output=True).stdout
     return np.frombuffer(raw, np.int16).astype(np.float32).reshape(-1,2)/32768
-m = load_mp3('music/m47.mp3')
+m = load_mp3('music/m12.mp3')
 N = int(T.DUR*SR)
 out = np.zeros((N,2), np.float32)
 def S(t): return int(round(t*SR))
@@ -25,7 +25,7 @@ mus = mus[:N]
 mus[:S(0.02)] *= np.linspace(0, 1, S(0.02))[:, None]
 fo0, fo1 = S(T.DUR-1.3), N
 mus[fo0:fo1] *= (np.cos(np.linspace(0, np.pi/2, fo1-fo0))**2)[:, None]
-out += mus*0.79
+out += mus*1.08
 
 rng = np.random.default_rng(7)
 def place(sig, t, gain=1.0, pan=0.0):
