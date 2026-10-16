@@ -106,6 +106,11 @@ place(impact(1.6), T.DROP, 0.55)
 place(chime([784, 988, 1175, 1568, 1976], 0.06), T.DROP + 0.05, 0.14)
 place(impact(1.2, 70, 36), b(52), 0.38)
 place(impact(1.8, 58, 30), T.END_HIT, 0.55)
+place(chime([1319, 1568, 2093, 2637], 0.07), b(8) + 0.45, 0.13)                 # notes pour out of the box
+place(whoosh(0.5, 0.6, 0.35), T.PICK_RISE[0] - 0.05, 0.20)                        # stick rises out of the box
+place(chime([1047, 1568, 2093], 0.08), T.PICK_RISE[0] + T.PICK_RISE[1] * 0.6, 0.15)
+for x, y, tl in T.STACK:                                                         # boxes land on the stack
+    place(thock(0.16), tl, 0.45); place(impact(0.5, 90, 50), tl, 0.12)
 # step 2: three button presses, each answered by a toy chime
 for i, t in enumerate(T.TAPS):
     place(press(), t, 0.30)

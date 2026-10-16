@@ -542,13 +542,110 @@ def scene_end(t):
     pop(c, body('Cartoon Fun Story Musical Stick  •  Ages 3+', 34, WHITE), DW / 2, DH - 120, t, t0 + b(5), None)
     return c
 
+
+# ---------------------------------------------------------------- box motion graphics (v2)
+LIP = 0.79   # top of the box's front lip, as a fraction of the box height
+
+@functools.lru_cache(maxsize=8)
+def box_lip(h):
+    """the front lip of the box on a canvas matching with_shadow('box_open.png', h)"""
+    sh = with_shadow('box_open.png', h); im = scaled('box_open.png', h=h); pad = 60 * K
+    y = int(im.height * LIP)
+    out = Image.new('RGBA', sh.size, (0, 0, 0, 0)); out.paste(im.crop((0, y, im.width, im.height)), (pad, pad + y))
+    return out
+
+def sparkles(c, t, seed, cx, cy, rx, ry, n=10, size=34):
+    rng = np.random.default_rng(seed); sd = SD(c)
+    for i in range(n):
+        x = cx + rng.uniform(-rx, rx); y = cy + rng.uniform(-ry, ry); ph = rng.uniform(0, 6.28); sp = rng.uniform(2.5, 4.5)
+        a = math.sin(t * sp + ph)
+        if a < 0.08: continue
+        s = size * (0.4 + 0.6 * a)
+        pts = [(x, y - s), (x + s * .22, y - s * .22), (x + s, y), (x + s * .22, y + s * .22), (x, y + s), (x - s * .22, y + s * .22), (x - s, y), (x - s * .22, y - s * .22)]
+        sd.polygon(pts, fill=(255, 246, 200, int(255 * a)))
+
+def box_float(t, t0):
+    """gentle idle motion for a hero box: bob, sway, slow breathe"""
+    return 8 * math.sin((t - t0) * 2.0), -2.5 + 2.0 * math.sin((t - t0) * 1.4), 1 + 0.012 * math.sin((t - t0) * 1.7)
+
+def scene_box_hero(t, t0, t1):
+    """STORIES, MUSIC & FUN -- the display box bounces in, notes pour out of it"""
+    c = red_bg(t)
+    p = prog(t, t0, 0.55)
+    place(c, burst(1100, 24, (255, 196, 40), (255, 230, 120), (232, 60, 40)), DW / 2, 720, 0.9 + 0.03 * math.sin(t * 2.5), (t * 10) % 360, 0.30 * clamp(p * 3))
+    bob, rot, br = box_float(t, t0)
+    place(c, with_shadow('box_open.png', 860), DW / 2, 770 + bob + 300 * (1 - e_back(p, 1.3)), (0.7 + 0.3 * e_back(p, 1.5)) * br * (1 + 0.025 * (t - t0)), rot, clamp(p * 3))
+    notes_burst(c, t, t0 + 0.45, DW / 2, 420, n=11, spread=470, dur=1.9, seed=41)
+    sparkles(c, t, 5, DW / 2, 720, 470, 420, n=12)
+    return c
+
+def scene_pick(t, t0, t1):
+    """1 PICK A PAL -- one stick pops up out of the box"""
+    c = red_bg(t)
+    H_BOX = 820; bx, by = DW / 2, 1080
+    bob, rot, br = box_float(t, t0)
+    p = prog(t, t0, 0.45)
+    yb = by + bob + 160 * (1 - e_out(p))
+    place(c, with_shadow('box_open.png', H_BOX), bx, yb, br, rot * 0.5, clamp(p * 3))
+    ts, dur = T.PICK_RISE
+    q = prog(t, ts, dur)
+    if q > 0:
+        e = e_back(q, 0.9)
+        y_hidden = yb - H_BOX / 2 + H_BOX * LIP + 350 + 10      # stick top just under the lip edge
+        sy = y_hidden + (735 - y_hidden) * e + 8 * math.sin((t - ts) * 2.6) * q
+        srot = 14 * (1 - e) - 6 + 3 * math.sin((t - ts) * 2.0) * q
+        lay = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        place(lay, with_shadow('stick.png', 700), bx + 10, sy, 1.0, srot, 1.0)
+        box_bottom = yb + H_BOX / 2 - 6
+        lay.paste((0, 0, 0, 0), (0, int(box_bottom * K), W, H))
+        c.alpha_composite(lay)
+        place(c, box_lip(H_BOX), bx, yb, br, rot * 0.5, 1.0)
+        notes_burst(c, t, ts + dur * 0.55, bx, 420, n=8, spread=380, dur=1.5, seed=43)
+        sparkles(c, t, 7, bx, 640, 330, 300, n=9, size=40)
+    return c
+
+def scene_box_drop(t, shake):
+    """PRESS & PLAY! -- the box punches in on the drop"""
+    c = red_bg(t)
+    p = prog(t, T.DROP, 0.35)
+    place(c, burst(1200, 24, (255, 196, 40), (255, 230, 120), (232, 60, 40)), DW / 2, 700, 1.0, (t * 30) % 360, 0.35)
+    bob, rot, br = box_float(t, T.DROP)
+    sc = (1.35 - 0.35 * e_out(p)) * br
+    place(c, with_shadow('box_open.png', 780), DW / 2 + shake[0], 690 + bob + shake[1], sc, rot, 1.0)
+    return c
+
+def scene_why(t, t0, t1):
+    c = red_bg(t)
+    p = prog(t, t0, 0.6)
+    bob, rot, br = box_float(t, t0)
+    sway = math.sin((t - t0) * 0.9)
+    place(c, with_shadow('box_open.png', 900), DW / 2 + 20 * sway, 790 + bob + 200 * (1 - e_back(p, 1.3)), (0.8 + 0.2 * e_back(p, 1.4)) * br * (1 + 0.012 * (t - t0)), rot + 2.5 * sway, clamp(p * 3))
+    sparkles(c, t, 9, DW / 2, 760, 480, 440, n=10)
+    return c
+
+def scene_stack(t, t0):
+    """STOCK UP NOW! -- display boxes drop in and stack up"""
+    c = red_bg(t)
+    shake = [0.0, 0.0]
+    for i, (x, y, tl) in enumerate(T.STACK):
+        q = prog(t, tl - 0.35, 0.35)
+        if q <= 0: continue
+        yy = y - 1300 * (1 - q) ** 2                       # falls in, accelerating
+        if t >= tl:
+            u = t - tl; yy = y - 40 * math.exp(-u * 9) * abs(math.sin(u * 22))   # bounce on landing
+            amp = 10 * math.exp(-u * 10); shake[0] += amp * math.sin(u * 90); shake[1] += amp * math.cos(u * 70)
+        place(c, with_shadow('box_open.png', 560), x, yy, 1.0, [-3, 3, -1][i] * (1 - 0.6 * clamp((t - tl) * 2)), clamp(q * 3))
+    if any(t >= tl for _, _, tl in T.STACK):
+        c = camera(c, 1.0, shake[0] * K, shake[1] * K)
+    return c
+
 def render(t):
     if t < b(4):
         c = scene_intro(t)
     elif t < b(8):
         c = scene_product(t, b(4), b(8))
     elif t < b(12):
-        c = footage(t)
+        c = scene_box_hero(t, b(8), b(12))
         lower(c, t, b(8), b(12), 'STORIES, MUSIC & FUN', 'IN EVERY PRESS!', 100, 92)
     elif t < b(20):
         k = int((t - b(12)) // b(4)); t0 = b(12) + k * b(4); t1 = t0 + b(4)
@@ -562,8 +659,8 @@ def render(t):
         pop(c, head(lab[1], 92, YEL, 8, 5), DW / 2, 1517, t, t0 + 0.35, t1, slide=40)
     elif t < b(32):
         if t < b(24):
-            c = footage(t); c.alpha_composite(grad_top()); c.alpha_composite(grad_bottom())
-            pop(c, step_badge(1, 'PICK A PAL'), DW / 2, 1430, t, b(20), b(24), slide=40)
+            c = scene_pick(t, b(20), b(24)); c.alpha_composite(grad_bottom())
+            pop(c, step_badge(1, 'PICK A PAL'), DW / 2, 1580, t, b(20), b(24), slide=40)
         else:
             step = 2 if t < b(28) else 3
             c = scene_stick(t, b(24), step)
@@ -574,23 +671,22 @@ def render(t):
     elif t < b(36):
         u = t - T.DROP; amp = 22 * math.exp(-u * 6)
         sh = (amp * math.sin(t * 93), amp * math.cos(t * 71))
-        c = footage(t, sh); c.alpha_composite(grad_bottom())
+        c = scene_box_drop(t, sh); c.alpha_composite(grad_bottom())
         place(c, burst(760), DW / 2, 1440, 0.3 + 0.75 * e_back(prog(t, T.DROP, 0.3), 1.6), (t * 40) % 360, 0.95 * (1 - prog(t, b(35.4), 0.25)))
         pop(c, impact_txt('PRESS', 200, WHITE), DW / 2 + sh[0] * 0.5, 1340 + sh[1] * 0.5, t, T.DROP, b(36), d=0.3, rot=-6, from_scale=1.9)
         pop(c, impact_txt('& PLAY!', 210, YEL), DW / 2 + sh[0] * 0.5, 1560 + sh[1] * 0.5, t, T.DROP + 0.12, b(36), d=0.3, rot=-6, from_scale=1.9)
         notes_burst(c, t, T.DROP + 0.05, DW / 2, 1300, n=14, spread=600, dur=1.7, seed=31)
     elif t < b(44):
-        c = footage(t); c.alpha_composite(grad_bottom())
+        c = scene_why(t, b(36), b(44)); c.alpha_composite(grad_bottom())
         header_chip(c, t, 'WHY STOCK IT', b(36), b(44), bg=WHITE, fg=RED)
         for i, (txt, dl) in enumerate([('READY-TO-DISPLAY BOX', 36.5), ('12 PCS IN EVERY BOX', 38.5), ('EDUCATIONAL & FUN', 40.5)]):
             pop(c, check_line(txt, 70), DW / 2, 1440 + i * 100, t, b(dl), b(44), slide=30)
     elif t < b(52):
         c = scene_bulk(t, b(44), b(52))
     elif t < b(56):
-        c = footage(t)
-        c.alpha_composite(Image.new('RGBA', (W, H), (60, 0, 0, 90)))
-        for i, (wd, dl, col, sz) in enumerate([('STOCK', 52, WHITE, 200), ('UP', 53, YEL, 220), ('NOW!', 54, WHITE, 230)]):
-            pop(c, impact_txt(wd, sz, col), DW / 2, 760 + i * 230, t, b(dl), None, d=0.3, rot=-4, from_scale=1.8)
+        c = scene_stack(t, b(52))
+        for i, (wd, dl, col, sz) in enumerate([('STOCK', 52, WHITE, 190), ('UP', 53, YEL, 210), ('NOW!', 54, WHITE, 220)]):
+            pop(c, impact_txt(wd, sz, col), DW / 2, 370 + i * 185, t, b(dl), None, d=0.3, rot=-4, from_scale=1.8)
     else:
         c = scene_end(t)
     if b(4) <= t < b(56):

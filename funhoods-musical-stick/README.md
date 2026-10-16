@@ -11,13 +11,13 @@ Carton quantity is not on any material yet, so the reel says "12 PCS PER DISPLAY
 |---|---|---|
 | 0.0–1.8 | Funhoods logo | NEW LAUNCH · For Distributors & Wholesalers |
 | 1.8–3.7 | Stick pops up, music notes | INTRODUCING · CARTOON FUN STORY · MUSICAL STICK · PACK OF 12 PCS • AGES 3+ |
-| 3.7–5.5 | AI b-roll 1 (box push-in) | STORIES, MUSIC & FUN / IN EVERY PRESS! |
+| 3.7–5.5 | Display box bounces in, notes pour out | STORIES, MUSIC & FUN / IN EVERY PRESS! |
 | 5.5–9.2 | Key features | 01 button panel lights up: STORIES, SONGS & ANIMAL SOUNDS · 02 AI b-roll 3 (stick): CUTE, LIGHTWEIGHT & EASY TO HOLD |
-| 9.2–14.8 | How it works | 1 PICK A PAL (AI b-roll 2) · 2 PRESS A BUTTON (tap rings + chimes) · 3 LISTEN & LEARN (stories / songs / animal sounds) |
-| 14.8–16.6 | Drop, AI b-roll 4 | PRESS & PLAY! |
-| 16.6–20.3 | AI b-roll 2 | Why stock it: ready-to-display box · 12 pcs in every box · educational & fun |
+| 9.2–14.8 | How it works | 1 PICK A PAL (a stick rises out of the box) · 2 PRESS A BUTTON (tap rings + chimes) · 3 LISTEN & LEARN (stories / songs / animal sounds) |
+| 14.8–16.6 | Drop: box punches in | PRESS & PLAY! |
+| 16.6–20.3 | Box sways on brand red | Why stock it: ready-to-display box · 12 pcs in every box · educational & fun |
 | 20.3–24.0 | Display box graphic | BULK ORDERS ONLY · 12 PCS PER DISPLAY BOX · PAN INDIA DELIVERY · Distributors / Wholesalers |
-| 24.0–25.8 | AI b-roll 1 | STOCK UP NOW! |
+| 24.0–25.8 | Three display boxes drop in and stack | STOCK UP NOW! |
 | 25.8–30.0 | End card | BULK ORDERS ONLY · 12 PCS / BOX · PAN INDIA DELIVERY · DM US FOR TRADE PRICING |
 
 ## Sources
@@ -26,14 +26,16 @@ Carton quantity is not on any material yet, so the reel says "12 PCS PER DISPLAY
   the left one because the catalogue had Chase covering it), `assets/panel.png` (catalogue button panel, rebuilt
   without the callout lines), `assets/logo_rgba.png` (logo, Real-ESRGAN x4 then 2x).
 - The client's phone videos are reference only — none of their footage is in the edit.
-- AI b-roll: Magnific Space "Funhoods Musical Stick B-roll" — 4 x Kling 2.5 (9:16, 1080p, 5 s) from the start
-  frames in `sf/` (built by `tools/startframes.py`). Run it in the Magnific app (unlimited applies there, not via the API).
-  Until the clips exist, `render.py` uses the start frames with a matching camera move.
+- v2 (client): the box on a blurred photo background didn't work — every box shot is now a motion graphic on the
+  brand red background (`scene_box_hero`, `scene_pick`, `scene_box_drop`, `scene_why`, `scene_stack`).
+- AI b-roll: only feature 02 (5.5–9.2 s, stick) still has a Kling slot — Magnific Space "Funhoods Musical Stick
+  B-roll", Scene 3 (Kling 2.5, 9:16, 1080p, 5 s). Run it in the Magnific app (unlimited applies there, not via the API).
+  Until that clip exists, `render.py` uses its start frame (`sf/sf2_stick.png`) with a matching camera move.
 
 ## Render
 ```sh
 sh music/get_music.sh && python3 audio.py               # mix.wav
-# after the Kling clips are generated: tools/ingest_clip.sh k1 scene1.mp4  (k1 box push-in, k2 box arc, k3 stick, k4 sticks glide)
+# after the Kling stick clip (Space Scene 3) is generated: tools/ingest_clip.sh k3 scene3.mp4
 python3 render.py --start 0 --end 7.5 --out c0.mp4      # ... 4 chunks in parallel, then concat
 ffmpeg -f concat -i list.txt -c copy video.mp4
 ffmpeg -i video.mp4 -i mix.wav -map 0:v -map 1:a -c:v copy -af alimiter=limit=0.891:level=false -c:a aac -b:a 256k Funhoods_Musical_Stick_Reel_4K60.mp4

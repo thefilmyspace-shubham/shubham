@@ -13,12 +13,10 @@ DW, DH = 1080, 1920
 # AI b-roll (Kling 2.5, 5 s, 1080x1920): (v_start, v_end, clip, src_in, src_out)
 SEG = []
 def seg(v0, v1, clip, s0, s1): SEG.append((v0, v1, clip, s0, s1))
-seg(b(8),  b(12), 'k1', 0.2, 2.4)    # box push-in      -- STORIES, MUSIC & FUN
-seg(b(16), b(20), 'k3', 0.3, 2.4)    # stick hero float -- feature 02
-seg(b(20), b(24), 'k2', 0.2, 2.2)    # box arc          -- 1 PICK A PAL
-seg(b(32), b(36), 'k4', 0.6, 2.6)    # sticks glide     -- PRESS & PLAY! (drop)
-seg(b(36), b(44), 'k2', 1.2, 4.9)    # box arc          -- WHY STOCK IT
-seg(b(52), b(56), 'k1', 2.5, 4.9)    # box push-in      -- STOCK UP NOW!
+seg(b(16), b(20), 'k3', 0.3, 2.4)    # stick hero float -- feature 02 (Kling clip or start-frame move)
+# v2: every box shot is a motion graphic on the brand background (no photo/blur backgrounds)
+PICK_RISE = (b(20) + 0.30, 0.75)     # stick rises out of the box: start, duration
+STACK = [(290, 1600, b(52) + 0.30), (790, 1600, b(52) + 0.75), (540, 1225, b(53) + 0.45)]   # x, y, landing time
 
 CUTS = [(b(4),'chev'),(b(8),'zoom'),(b(12),'chev'),(b(16),'zoom'),(b(20),'chev'),(b(24),'zoom'),
         (b(32),'flash'),(b(36),'chev'),(b(44),'chev'),(b(52),'flash'),(b(56),'flash')]
