@@ -46,14 +46,22 @@ Everything below comes from Shubham's own messages in the TFS promo / brand-reel
 | Letter-by-letter type-in for small words | Micro-motion between hero words | Any talking head | YES | DISCOVERED | Brand Buddies ref |
 | Grey/blur exit instead of a hard cut | Smooth sentence handover | Talking head | PARTIAL | DISCOVERED | Brand Buddies ref |
 | Location hop per script beat (same outfit) | Visual reset without B-roll | Founder / presenter reels | Shoot planning | DISCOVERED | Brand Buddies ref: 8 setups in 58 s |
-| Metaphor graphic (headcount pile-up, lines → node, tile grid, progress bar) | Explains an idea faster than stock B-roll | Agency, service and education content | PARTIAL | DISCOVERED | Brand Buddies ref |
-| Paper / cut-out explainer with person stickers | Handmade premium feel, depth | Brand reels | PARTIAL | TESTING | Hyper Visuals ref → TFS brand reel v3 |
+| Metaphor graphic (headcount pile-up, lines → node, tile grid, progress bar, cash staircase, product selector) | Explains an idea faster than stock B-roll | Agency, service, education and brand-story content | PARTIAL | **VERIFIED** (2 creators) | Brand Buddies ref; Asma × Changan ref |
+| B&W person cut-out / caricature sticker with one colour accent | Handmade premium feel; puts a person inside the graphic | Brand reels, explainers, creator stories | PARTIAL | **VERIFIED** (3 creators) · TESTING in TFS | Hyper Visuals ref → TFS brand reel v3; Brand Buddies (armchair man); Asma (big-head self + husband stickers) |
 | 3D emoji / 3D objects as accents | Depth, playfulness | Brand reels, explainers | YES (PNG/loop overlays) | TESTING | TFS brand reel v3 (Fluent 3D emoji, 3D globe) |
 | Real client work as proof cards on the matching line | Proof beats claims | Agency promos | YES | DISCOVERED | Brand Buddies ref; TFS brand reel v3 uses client reels |
-| Music drop-out under the CTA | Makes the CTA land | Any reel with a CTA | YES (volume keyframes) | DISCOVERED | Brand Buddies ref (53.5–56 s) |
-| CTA shown as a UI action (WhatsApp pill → chat) | Shows exactly what to do | Agency, services, D2C | PARTIAL | DISCOVERED | Brand Buddies ref |
+| Music drop-out as punctuation (CTA, intro, chapter changes, before a reveal) | Makes key lines land; the viewer hears the structure | Any VO / talking-head reel | YES (volume keyframes) | **VERIFIED** (2 creators) | Brand Buddies (CTA 53.5–56 s); Asma (6 drop-outs at chapter changes) |
+| UI / cursor interaction graphics (WhatsApp pill → chat, game-style product selector) | Shows an action or a choice | Agency, services, D2C, multi-product brands | PARTIAL | RISING (2 creators) | Brand Buddies CTA; Asma car selector + ecosystem signpost |
 | Sparse SFX (≈8 hits per minute, on cuts and reveals only) | Sound restraint, premium feel | Talking head promos | YES | DISCOVERED | Brand Buddies ref |
 | Whip / zoom transitions synced to music hits | Energy | Music-led brand reels | YES | RISING | TFS brand reel v2–v3 |
+| Personal-stake hook (the brand story told as the creator's or founder's own story) | Trust before facts; a sponsored video feels genuine | Collabs, founder reels, brand journeys | n/a (script) | DISCOVERED | Asma ref ("4 years ago I bought my first car — a Changan") |
+| Hook first, self-intro second (with silence under the intro) | The curiosity gap is set before "Hi, I'm…" | Creator / host-led series | YES | DISCOVERED | Asma ref (intro at 18 s) |
+| B&W meme inserts + B&W self-asides | Humour stays on-brand; B&W = "aside mode" | Creator-led stories, explainers | YES (desaturate) | DISCOVERED | Asma ref. Avoid copyrighted film clips in client work |
+| Document "receipts" (screenshot blur-in + highlighted line) | Credibility; feels researched | Explainers, brand facts, launches | YES | DISCOVERED | Asma ref |
+| Reusable graphic components + callbacks (product tag card, road "stage", selector reused at the end) | Continuity and a premium system feel; the story closes | Multi-product brands, series | YES (templates) | DISCOVERED | Asma ref |
+| Single talking-head setup carried by about 55% cutaways + punch-ins + rack-focus returns | Retention without changing location | Studio / home-setup creators | YES | DISCOVERED | Asma ref (contrast: Brand Buddies changes location instead) |
+| Minimal top captions (2–3 words, thin); big type only inside graphics | A clean frame lets the graphics carry emphasis | Story-led, longer reels | YES | DISCOVERED | Asma ref (watch the top safe zone) |
+| Open-loop ending ("deserves its own video") instead of a CTA | Drives follows; builds a series | Series content, collabs | n/a (script) | DISCOVERED | Asma ref |
 
 ---
 
@@ -81,6 +89,7 @@ No client-specific editing feedback recorded yet. Add per client: pace, energy, 
 | 2026-10 | Foretell-style reel (IG DRxMlniDbzR) | Clean minimal text reel | Shubham wants reference format, font feel and timing kept closely | — |
 | 2026-10 | Hyper Visuals reel (IG DZxV_EEqKAj) | Brand reel, paper/cut-out explainer | Text must lead the VO; big layouts; depth via texture, shadow and 3D | — |
 | 2026-10-17 | Brand Buddies Studio (IG DejZPQ1zkxE) | Presenter + kinetic type + motion graphics | Keep the shot long, change the layer; text behind subject; one outfit with many locations | [breakdown](references/2026-10-17_brandbuddies_DejZPQ1zkxE.md) |
+| 2026-10-17 | Asma × Changan Pakistan (IG Deje_IEhM8c) | Creator-led brand story / collab, 130 s | Brand story as a personal story; chapters marked by music drops; one reusable graphic system + callbacks; B&W memes and receipts; open-loop ending | [breakdown](references/2026-10-17_asma_changan_Deje_IEhM8c.md) |
 
 ---
 
@@ -88,4 +97,12 @@ No client-specific editing feedback recorded yet. Add per client: pace, energy, 
 
 1. **TFS "why TFS" presenter reel.** Shubham or a team face on camera in one outfit across 6–8 locations, editorial hero-word typography with text behind subject, a headcount pile-up graphic for the in-house problem, and real client reels as proof. Hook without price. Needs a shoot. CapCut handles about 80%; graphics in our code pipeline or After Effects.
 2. **Client founder reel** (whichever client is happy on camera). Same system, one beat per location, music drop under the CTA.
-3. **A/B the caption system** on one client: the current big centred word vs. editorial hero + connectors. Compare 3-second hold and average watch time when Insights are available.
+3. **"Local brand stories" series on the TFS page** (Asma format). A TFS host tells one client's journey per episode:
+   - a personal-stake hook
+   - 3 chapters marked by music drops
+   - a reusable product tag card + sticker system
+   - receipts from the client's own footage
+   - an open-loop "part 2" ending
+
+   45–75 s per episode. Mostly CapCut with templates; the stickers come from our cut-out pipeline.
+4. **A/B the caption system** on one client: the current big centred word vs. editorial hero + connectors. Compare 3-second hold and average watch time when Insights are available.
