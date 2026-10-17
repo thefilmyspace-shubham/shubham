@@ -49,3 +49,19 @@ python3 brand2_audio.py && python3 brand2.py --scale 2 --fps 60 --start 0 --end 
 v2 ki timing/music + 3D assets (Microsoft Fluent 3D emoji — MIT; NASA earth texture via three.js), ambientCG Paper001 (CC0),
 DeepLabV3 person cut-outs (`assets3d/cut_*.png`), warm footage grade + caption-safe crops, bigger framing, words 0.06s before VO.
 Note: brand3.py expects the paper texture at assets3d/paper/Paper001_2K-JPG_Color.jpg (copied here to assets3d/).
+
+## Motion-graphic film "Every brand deserves a blockbuster" (9:16, 41.7s, 4K60) — `exports/TFS_Blockbuster_MG_4K60.mp4`
+Own concept: TFS ka promo ek movie trailer ki tarah. Pure motion graphics, koi client footage nahi, aur zero paid credits.
+Scenes: green rating card ("approved for all brands") → film-leader countdown 3-2-1 → "In a world of endless scrolling" (grey 'extras' feed)
+→ spotlight "The lead." → clapperboard → WRITTEN BY (screenplay typing) → DIRECTED BY (viewfinder focus pull) → SHOT BY (lens + iris)
+→ EDITED FOR (NLE timeline, "the first 3 seconds") → STARRING (17 clients + "& 20+ brands") → split-flap "NOW SHOWING / ON YOUR FEED"
+(music drop) → letterbox opens: "Every brand deserves a BLOCKBUSTER." → film strip stops on the T/F/S logo blocks (original logo).
+Music: Mixkit "Epical Drums 05" (https://assets.mixkit.co/music/680/680.mp3, Mixkit license); every cut is on the fitted beat grid (`beats680.json`).
+SFX: synthesised in `film_audio.py` (braam, boom, riser, beeps, clap, typing, flap clicks) + earlier ElevenLabs whoosh/impact files.
+Fonts: Cinzel, Courier Prime, Inter Tight (Google Fonts, OFL), Anton, Bebas Neue.
+```sh
+cd film && sh get_music.sh
+python3 film_audio.py                                   # film_mix.wav (-14 LUFS)
+python3 film.py --scale 2 --fps 60 --start 0 --end 10.433333 --out c0.mp4   # 4 chunks in parallel, then concat
+python3 film.py --scale 0.5 --stills 10.5,22,29         # quick style frames
+```

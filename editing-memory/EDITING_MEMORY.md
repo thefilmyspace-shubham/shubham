@@ -29,6 +29,10 @@ Everything below comes from Shubham's own messages in the TFS promo / brand-reel
 - **Never repeat the same clip or moment** inside one edit ("ek hi chiz repeat mai mat use kro"). Pull from many different client reels (Funhoods was missed once and called out).
 - A generic animation style that doesn't match the reference ("refrence jese animation nhi hai").
 - A montage tacked on at the end ("outro edit") was removed from the vertical reel.
+- **Dull client clips** in a promo ("bahut dull clips aa gayi thi", Oct 2026). When Shubham asks for a motion-graphic video, make it pure motion graphics with no feed footage, unless he supplies hero clips.
+- **Spending credits on his behalf.** He asked for "koi bhi token kharch nahi hona chahiye". Use only free tools: the code renderer, Mixkit music and synth SFX.
+  - Magnific Kling 2.5 costs **325 credits per 5 s** through the API connector here. Unlimited mode only applies inside the Magnific app.
+  - Ask him to generate B-roll there himself if needed.
 
 **Open signals (investigate, don't just store the word)**
 - Brand reel v1: "video is not engaging, edit wesa nhi hai". The underlying causes found were reused clips, small text layouts, timing off the music, and flat 2D graphics with no depth.
@@ -54,6 +58,11 @@ Everything below comes from Shubham's own messages in the TFS promo / brand-reel
 | UI / cursor interaction graphics (WhatsApp pill → chat, game-style product selector) | Shows an action or a choice | Agency, services, D2C, multi-product brands | PARTIAL | RISING (2 creators) | Brand Buddies CTA; Asma car selector + ecosystem signpost |
 | Sparse SFX (≈8 hits per minute, on cuts and reveals only) | Sound restraint, premium feel | Talking head promos | YES | DISCOVERED | Brand Buddies ref |
 | Whip / zoom transitions synced to music hits | Energy | Music-led brand reels | YES | RISING | TFS brand reel v2–v3 |
+| Concept-as-format ("brand promo as a movie trailer": green rating card, film-leader countdown, credits, NOW SHOWING) | An own concept instead of a template; every scene is one metaphor | Agency self-promo, launches | PARTIAL | TESTING | TFS motion-graphic film 2026-10-17 |
+| Letterbox → full 9:16 reveal ("cinema becomes your feed") | The frame change is the punchline | Promos, launches | YES (keyframed black bars) | TESTING | TFS film 2026-10-17 |
+| Match transition via shape (camera iris closes on one scene, opens the next) | Seamless, purposeful transition | Any MG piece | PARTIAL (mask keyframes) | TESTING | TFS film 2026-10-17 |
+| Split-flap board text change | Satisfying mechanical reveal + built-in SFX | Announcements, launches, offers | NO (AE / code) | TESTING | TFS film 2026-10-17 |
+| Film strip that stops on the logo blocks | Logo reveal tied to the concept; the logo itself is unchanged | TFS brand assets | NO (AE / code) | TESTING | TFS film 2026-10-17 |
 | Personal-stake hook (the brand story told as the creator's or founder's own story) | Trust before facts; a sponsored video feels genuine | Collabs, founder reels, brand journeys | n/a (script) | DISCOVERED | Asma ref ("4 years ago I bought my first car — a Changan") |
 | Hook first, self-intro second (with silence under the intro) | The curiosity gap is set before "Hi, I'm…" | Creator / host-led series | YES | DISCOVERED | Asma ref (intro at 18 s) |
 | B&W meme inserts + B&W self-asides | Humour stays on-brand; B&W = "aside mode" | Creator-led stories, explainers | YES (desaturate) | DISCOVERED | Asma ref. Avoid copyrighted film clips in client work |
@@ -70,6 +79,7 @@ Everything below comes from Shubham's own messages in the TFS promo / brand-reel
 - **Big centred motion-blur word entrance:** used across all TFS self-promo edits this month (horizontal promo, vertical reel, brand reel v1–v3).
   - Status: **HIGH USE**. It isn't fatigued yet, because there's no negative feedback specific to it.
   - Next TFS promo: test the editorial hero-word + connector layout with text behind subject instead.
+- **TFS motion-graphic film (2026-10-17)** deliberately avoided the big centred motion-blur word. Each scene got a different entrance: tracking-in, mask rise, typewriter, focus pull, split-flap, credit-roll stagger and film-strip stop. Watch Shubham's reaction to this variety.
 - **Same footage moment reused within one edit:** **REJECTED** by Shubham (brand reel v1). Always log clip + timestamp per shot and check for duplicates before rendering.
 
 ---
