@@ -158,7 +158,8 @@ def main():
     pl(W3[:int(2.0 * SR)], G(68) - 0.3, -16)
     pl(boom(1.5), G(68), -10); pl(chime(), G(68.2), -14)
     pl(chime(), G(77.6), -16)
-    pl(I4, G(78), -12)
+    for i in range(20): pl(tick(1800 + 60 * i, 0.03, 0.7), G(F.STAR_K0 + i * F.STAR_DK), -15)
+    pl(I4, G(77.2), -10); pl(boom(1.0), G(77.2), -14)
     # now showing (music drop) — one click per flap step, generated from the board timing
     pl(W2, G(80) - 0.18, -10)
     for (row_from, row_to, k0, row) in [('', 'COMING SOON', 80.2, 0), ('COMING SOON', 'NOW SHOWING', 82, 1), ('', 'ON YOUR FEED', 84, 3)]:

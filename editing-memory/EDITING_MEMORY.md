@@ -18,7 +18,7 @@ Everything below comes from Shubham's own messages in the TFS promo / brand-reel
 - **The TFS logo must never be changed** (use the original file only).
 - Agency promo ending: **no outro, just the logo**.
 - Royalty-free music + **sound effects are expected**. ElevenLabs is used for VO/SFX.
-- **Client logos and client reels may be used** in TFS promos.
+- **Client logos and client reels may be used** in TFS promos (brand reel, Oct 2026). **Update 2026-10-17:** for the motion-graphic film he said *"kisi bhi client ko mention mat karo"* and to write only **"20+ brands"**. Default to no client names unless he asks for them.
 - "Clean and minimal" when the reference is clean and minimal: follow the reference's format, font feel, animation and timing closely.
 - English only when asked (Foretell-style reel).
 - Claim allowed: **20+ brands**.

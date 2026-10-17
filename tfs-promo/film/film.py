@@ -705,50 +705,92 @@ def s_edited(c, t):
                 xr = x0 + ((kb - 60) * 0.55) * sec
                 c.drawLine(xr, py + 50, xr, py + ph - 10, SP(hexc(WHITE, 0.9 * (1 - ur)), 3))
 
-# ---- S10  starring (G68 .. G80) ----
-CLIENTS = ['THE FIVE ELEMENTS', 'PHULWARI', 'FUNHOODS', 'HOUSE OF STRENGTH', 'SWAD EXOTICA', 'R.O.W',
-           'SCIENCE ACADEMY', 'GHUNGHAT GHAR', 'JALSARA', 'TEQUILA', 'BATTLE & BOUNCE', 'EMINENCE',
-           'IBRAHIM FOOTWEARS', 'COLSEE PAINTS', 'SAI SHREE ACADEMY', 'HALLBERD', 'TRENDSPIRE']
+# ---- S10  starring (G68 .. G80): no client names — STARRING YOUR BRAND, 20 stars + odometer ----
+def star_path(cx, cy, r, k=0.45):
+    pth = skia.Path()
+    for i in range(10):
+        rr = r if i % 2 == 0 else r * k; a = math.radians(-90 + i * 36)
+        (pth.moveTo if i == 0 else pth.lineTo)(cx + rr * math.cos(a), cy + rr * math.sin(a))
+    pth.close(); return pth
+
+STAR_K0, STAR_DK = 71.0, 0.3            # star i pops at beat 71 + i*0.3  (20 stars -> beat 76.7)
+def star_tile(c, cx, cy, u, glow):
+    s = 0.0 if u <= 0 else eback(clamp(u), 2.2)
+    if s <= 0: return
+    with Tx(c, s=s, px=cx, py=cy):
+        rrect(c, cx - 46, cy - 46, 92, 92, 14, P(hexc('#1A1F28')))
+        rrect(c, cx - 46, cy - 46, 92, 92, 14, SP(hexc(SAND, 0.35), 1.5))
+        if glow > 0:
+            with Layer(c, glow, (14, 14)):
+                c.drawPath(star_path(cx, cy, 34), P(hexc('#FFD98A')))
+        c.drawPath(star_path(cx, cy, 30), skia.Paint(AntiAlias=True, Shader=lin(cx, cy - 30, cx, cy + 30, [hexc('#FFF1C9'), hexc('#C9A55A')])))
+
 def s_starring(c, t):
     c.drawPaint(skia.Paint(Shader=rad(W / 2, 420, 1300, [hexc('#1E2633'), hexc('#07080A')])))
-    # top light
     c.drawPaint(skia.Paint(Shader=rad(W / 2, 330, 700, [hexc('#FFF4DC', 0.10), hexc('#FFF4DC', 0.0)])))
-    drift = -40 * prog(t, G(68), G(80))
-    fS = font('cin', 100)
+    fS = font('cin', 92)
     u = prog(t, G(68), G(70))
-    with Tx(c, y=drift * 0.5):
-        sh = lin(0, 520, 0, 600, [hexc('#F7E2A8'), hexc('#C9A55A')])
-        if u > 0:
-            tr = lerp(60, 14, eo5(u))
-            with Layer(c, clamp(u * 1.5), (10 * (1 - u), 0)):
-                text(c, 'STARRING', W / 2, capc(fS, 560), fS, None, 'c', tr, paint=skia.Paint(AntiAlias=True, Shader=sh))
-        c.drawLine(W / 2 - 220 * eo5(u), 640, W / 2 + 220 * eo5(u), 640, SP(hexc(SAND, 0.7), 2, cap=skia.Paint.kButt_Cap))
-    with Tx(c, y=drift):
-        for i, nm in enumerate(CLIENTS):
-            col_, row = i % 2, i // 2
-            if i == 16: x, y = W / 2, 722 + 8 * 88
-            else: x, y = (290 if col_ == 0 else 790), 722 + row * 88
-            k0 = 69 + i * 0.5
-            uu = eo3(prog(t, G(k0), G(k0) + 0.45))
-            fk = 'cins' if i % 3 == 0 else 'tm'
-            sz = 42 if fk == 'cins' else 38
-            f = font(fk, sz); tr = 1.5 if fk == 'cins' else 4
-            wmax = 450
-            if text_w(nm, f, tr) > wmax: f = font(fk, sz * wmax / text_w(nm, f, tr))
-            t_unblur(c, nm, x, y, f, hexc(WHITE, 0.92), uu, track=tr, rise=14, blur=10)
-    # light sweep over names
+    gold = skia.Paint(AntiAlias=True, Shader=lin(0, 470, 0, 540, [hexc('#F7E2A8'), hexc('#C9A55A')]))
+    if u > 0:
+        with Layer(c, clamp(u * 1.5), (10 * (1 - u), 0)):
+            text(c, 'STARRING', W / 2, capc(fS, 505), fS, None, 'c', lerp(60, 14, eo5(u)), paint=gold)
+    # YOUR BRAND
+    fY = font('cin', 128)
+    uy = eo3(prog(t, G(69.5), G(69.5) + 0.55))
+    if uy > 0:
+        with Tx(c, s=1 + 0.12 * (1 - eo5(uy)), px=W / 2, py=660):
+            with Layer(c, uy, (14 * (1 - uy), 14 * (1 - uy))):
+                text(c, 'YOUR BRAND', W / 2, capc(fY, 660), fY, hexc(WHITE), 'c', 3)
+                us = prog(t, G(70.5), G(72))
+                if 0 < us < 1:
+                    xs = lerp(-300, W + 300, eio3(us))
+                    p = skia.Paint(AntiAlias=True, Shader=lin(xs - 110, 0, xs + 110, 120, [hexc('#FFFFFF', 0), hexc('#FFE7B0', 0.9), hexc('#FFFFFF', 0)]))
+                    p.setBlendMode(skia.BlendMode.kSrcATop)
+                    c.drawRect(R(0, 560, W, 200), p)
+    c.drawLine(W / 2 - 230 * uy, 760, W / 2 + 230 * uy, 760, SP(hexc(SAND, 0.6), 2, cap=skia.Paint.kButt_Cap))
+    # walk-of-fame grid: 20 anonymous stars, one per 0.3 beat
+    n_on = 0
+    for i in range(20):
+        r_, k = divmod(i, 5)
+        cx, cy = W / 2 + (k - 2) * 118, 870 + r_ * 118
+        k0 = STAR_K0 + i * STAR_DK
+        ui = prog(t, G(k0), G(k0) + 0.32)
+        if t >= G(k0): n_on = i + 1
+        glow = 0.8 * (1 - prog(t, G(k0), G(k0) + 0.5)) + 0.35 * eo3(prog(t, G(77.5), G(78.3))) * (1 - prog(t, G(79), G(80)))
+        star_tile(c, cx, cy, ui, glow if ui > 0 else 0)
+    # odometer: count follows the stars, then '+' pops
+    fN = font('anton', 150); fB = font('tx', 64)
+    ua = eo3(prog(t, G(70.8), G(71.4)))
+    if ua > 0:
+        num = f'{n_on:d}'
+        plus = prog(t, G(77.2), G(77.2) + 0.3)
+        wn = text_w('20', fN); wp = text_w('+', fN); wb = text_w('BRANDS', fB, 6)
+        tot = wn + wp * 0.9 + 26 + wb; x0 = W / 2 - tot / 2; yb = 1505
+        with Layer(c, ua):
+            # digits roll: previous value slides up, new one comes from below
+            cap = fN.getMetrics().fCapHeight; rd = cap + 24
+            c.save(); c.clipRect(R(x0 - 10, yb - cap - 6, wn + 20, cap + 12))
+            if n_on > 0:
+                kk = STAR_K0 + (n_on - 1) * STAR_DK
+                ur = eo3(prog(t, G(kk), G(kk) + 0.16))
+                text(c, num, x0 + wn, yb + rd * (1 - ur), fN, hexc(WHITE), 'r')
+                if n_on > 1 and ur < 1: text(c, f'{n_on - 1:d}', x0 + wn, yb - rd * ur, fN, hexc(WHITE), 'r')
+            else:
+                text(c, '0', x0 + wn, yb, fN, hexc(WHITE), 'r')
+            c.restore()
+            if plus > 0:
+                with Tx(c, s=eback(plus, 2.5), px=x0 + wn + wp * 0.45, py=yb - 55):
+                    text(c, '+', x0 + wn, yb, fN, hexc(SAND))
+            text(c, 'BRANDS', x0 + wn + wp * 0.9 + 26, yb - 4, fB, hexc(WHITE), 'l', 6)
+        ft = font('tm', 30)
+        t_unblur(c, 'ALREADY ON SCREEN WITH US', W / 2, 1338, ft, hexc(WHITE, 0.7), eo3(prog(t, G(71), G(72.2))), track=6)
+    # final light sweep across the stars
     us = prog(t, G(77.5), G(79.3))
     if 0 < us < 1:
         xs = lerp(-500, W + 500, eio3(us))
-        p = skia.Paint(Shader=lin(xs - 220, 0, xs + 220, 300, [hexc('#FFFFFF', 0), hexc('#FFF4DC', 0.16), hexc('#FFFFFF', 0)]))
+        p = skia.Paint(Shader=lin(xs - 160, 0, xs + 160, 0, [hexc('#FFFFFF', 0), hexc('#FFF4DC', 0.22), hexc('#FFFFFF', 0)]))
         p.setBlendMode(skia.BlendMode.kScreen)
-        c.drawRect(R(0, 650, W, 900), p)
-    fA = font('tx', 50)
-    ua = prog(t, G(78), G(78.6))
-    if ua > 0:
-        with Tx(c, y=drift, s=1 + 0.1 * (1 - eo5(ua)), px=W / 2, py=1490):
-            with Layer(c, eo3(ua)):
-                text(c, '& 20+ BRANDS', W / 2, capc(fA, 1490), fA, hexc(SAND), 'c', 8)
+        c.drawRect(R(W / 2 - 300, 815, 600, 470), p)
 
 # ---- S11  now showing: split-flap (G80 .. G88) ----
 FLAP_CH = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'

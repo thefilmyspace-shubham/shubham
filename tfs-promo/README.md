@@ -54,7 +54,7 @@ Note: brand3.py expects the paper texture at assets3d/paper/Paper001_2K-JPG_Colo
 Own concept: TFS ka promo ek movie trailer ki tarah. Pure motion graphics, koi client footage nahi, aur zero paid credits.
 Scenes: green rating card ("approved for all brands") → film-leader countdown 3-2-1 → "In a world of endless scrolling" (grey 'extras' feed)
 → spotlight "The lead." → clapperboard → WRITTEN BY (screenplay typing) → DIRECTED BY (viewfinder focus pull) → SHOT BY (lens + iris)
-→ EDITED FOR (NLE timeline, "the first 3 seconds") → STARRING (17 clients + "& 20+ brands") → split-flap "NOW SHOWING / ON YOUR FEED"
+→ EDITED FOR (NLE timeline, "the first 3 seconds") → STARRING "YOUR BRAND" (20 anonymous stars + odometer "20+ BRANDS"; no client names, per Shubham) → split-flap "NOW SHOWING / ON YOUR FEED"
 (music drop) → letterbox opens: "Every brand deserves a BLOCKBUSTER." → film strip stops on the T/F/S logo blocks (original logo).
 Music: Mixkit "Epical Drums 05" (https://assets.mixkit.co/music/680/680.mp3, Mixkit license); every cut is on the fitted beat grid (`beats680.json`).
 SFX: synthesised in `film_audio.py` (braam, boom, riser, beeps, clap, typing, flap clicks) + earlier ElevenLabs whoosh/impact files.
