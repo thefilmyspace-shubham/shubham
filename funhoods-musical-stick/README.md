@@ -1,26 +1,29 @@
 # Funhoods — Cartoon Fun Story Musical Stick, B2B Reel (9:16, 2160x3840, 60 fps, 30 s)
 
-`exports/Funhoods_Musical_Stick_Reel_4K60.mp4` (master) · `exports/Funhoods_Musical_Stick_Reel_1080p.mp4` (share copy)
+Red backdrop: `exports/Funhoods_Musical_Stick_Reel_4K60.mp4` (master) · `exports/Funhoods_Musical_Stick_Reel_1080p.mp4` (share copy)
+White backdrop: `exports/Funhoods_Musical_Stick_Reel_White_4K60.mp4` · `exports/Funhoods_Musical_Stick_Reel_White_1080p.mp4`
+(`BG=white python3 render.py ...` — product scenes on white, red type, yellow lines with a red outline; intro and end card unchanged)
+Caption: `CAPTION.md`
 
 Same format as the Target Blaster reel (v5) — same 130 BPM cut grid and motion-graphics system — but its own music:
 **"Playground Fun" — Ahjay Stelino (Mixkit, free license, no attribution required)**, 130 BPM; bars 16-18 → 35-39 (breakdown) →
 40-44 (return on PRESS & PLAY!) → 87-90 (end card).
 Funhoods logo top-left, distributors & wholesalers only (no "retailers"), bulk orders only, pan India delivery.
-Product facts used: display box of **12 pcs**, ages 3+, story mode, music & songs, animal sounds, 10-button panel.
-Carton quantity is not on any material yet, so the reel says "12 PCS PER DISPLAY BOX" and nothing about cartons.
+Product facts used: **12 PCS / PACKAGING** (display box of 12), ages 3+, story mode, music & songs, animal sounds, 10-button panel.
+Client wording: "12 PCS / PACKAGING" (used in the intro chip, why-stock-it list, bulk scene and end card).
 
 | Time | Scene | Text |
 |---|---|---|
 | 0.0–1.8 | Funhoods logo | NEW LAUNCH · For Distributors & Wholesalers |
-| 1.8–3.7 | Stick pops up, music notes | INTRODUCING · CARTOON FUN STORY · MUSICAL STICK · PACK OF 12 PCS • AGES 3+ |
+| 1.8–3.7 | Stick pops up, music notes | INTRODUCING · CARTOON FUN STORY · MUSICAL STICK · 12 PCS / PACKAGING • AGES 3+ |
 | 3.7–5.5 | Display box bounces in, notes pour out | STORIES, MUSIC & FUN / IN EVERY PRESS! |
 | 5.5–9.2 | Key features | 01 button panel lights up: STORIES, SONGS & ANIMAL SOUNDS · 02 AI b-roll 3 (stick): CUTE, LIGHTWEIGHT & EASY TO HOLD |
 | 9.2–14.8 | How it works | 1 PICK A PAL (a stick rises out of the box) · 2 PRESS A BUTTON (tap rings + chimes) · 3 LISTEN & LEARN (stories / songs / animal sounds) |
 | 14.8–16.6 | Drop: box punches in | PRESS & PLAY! |
-| 16.6–20.3 | Box sways on brand red | Why stock it: ready-to-display box · 12 pcs in every box · educational & fun |
-| 20.3–24.0 | Display box graphic | BULK ORDERS ONLY · 12 PCS PER DISPLAY BOX · PAN INDIA DELIVERY · Distributors / Wholesalers |
+| 16.6–20.3 | Box sways on brand red | Why stock it: ready-to-display box · 12 pcs / packaging · educational & fun |
+| 20.3–24.0 | Display box graphic | BULK ORDERS ONLY · 12 PCS / PACKAGING · PAN INDIA DELIVERY · Distributors / Wholesalers |
 | 24.0–25.8 | Three display boxes drop in and stack | STOCK UP NOW! |
-| 25.8–30.0 | End card | BULK ORDERS ONLY · 12 PCS / BOX · PAN INDIA DELIVERY · DM US FOR TRADE PRICING |
+| 25.8–30.0 | End card | BULK ORDERS ONLY · 12 PCS / PACKAGING · PAN INDIA DELIVERY · DM US FOR TRADE PRICING |
 
 ## Sources
 - Product cut-outs: `assets/box_open.png` (BiRefNet cut-out of a 4K frame of the client's reference video — used only as a

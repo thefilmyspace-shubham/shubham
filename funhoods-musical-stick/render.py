@@ -19,6 +19,9 @@ F_HEAD = os.path.join(FONTS, 'LilitaOne-Regular.ttf')
 F_IMPACT = os.path.join(FONTS, 'LuckiestGuy-Regular.ttf')
 F_BODY = os.path.join(FONTS, 'Inter-ExtraBold.ttf')
 GEOM = json.load(open(P('assets', 'geom.json')))
+LIGHT = os.environ.get('BG', 'red') == 'white'   # BG=white: product scenes on a white backdrop, red type
+_ON = [False]                                     # True while rendering a product scene (not intro / end card)
+def lit(): return LIGHT and _ON[0]
 
 # ---------------------------------------------------------------- easing
 def clamp(x, a=0.0, b_=1.0): return max(a, min(b_, x))
@@ -59,8 +62,12 @@ def text_img(txt, path, size, fill=WHITE, stroke=0, stroke_fill=DRED, extrude=0,
     d.text((pad - l, pad - t_), txt, font=f, fill=fill, stroke_width=st, stroke_fill=stroke_fill)
     return im
 
-@functools.lru_cache(maxsize=64)
 def chip(txt, size=46, bg=YEL, fg=DRED, path=F_BODY, padx=34, pady=18, shadow=True):
+    if lit() and bg == WHITE: bg, fg = RED, WHITE
+    return _chip(txt, size, bg, fg, path, padx, pady, shadow)
+
+@functools.lru_cache(maxsize=64)
+def _chip(txt, size=46, bg=YEL, fg=DRED, path=F_BODY, padx=34, pady=18, shadow=True):
     t = text_img(txt, path, size, fill=fg)
     px, py = padx * K, pady * K
     w, h = t.width + 2 * px, t.height + 2 * py; r = h // 2; o = 8 * K
@@ -129,7 +136,25 @@ def sunburst(k):
     arr = arr * (1 - 0.10 * ht) + np.array([90, 0, 6]) * 0.10 * ht
     return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
 
-def red_bg(t): return sunburst(int((t * 6) % 30)).convert('RGBA')
+@functools.lru_cache(maxsize=30)
+def sunburst_light(k):
+    S = 2300 * K; n = 24
+    im = Image.new('RGB', (S, S), (255, 255, 255)); d = ImageDraw.Draw(im)
+    c = S / 2; off = (k / 30) * (360 / n)
+    for i in range(0, n, 2):
+        a0 = math.radians(i * 360 / n + off); a1 = math.radians((i + 1) * 360 / n + off)
+        d.polygon([(c, c), (c + 2 * S * math.cos(a0), c + 2 * S * math.sin(a0)), (c + 2 * S * math.cos(a1), c + 2 * S * math.sin(a1))], fill=(255, 246, 243))
+    im = im.crop(((S - W) // 2, (S - H) // 2 - 120 * K, (S - W) // 2 + W, (S - H) // 2 - 120 * K + H))
+    arr = np.asarray(im).astype(np.float32)
+    v = np.clip(1.0 - 0.06 * np.maximum(0, (1 - _radial()[..., 0] / 1.05)), 0.97, 1.0)[..., None]
+    arr = arr * v
+    ht = np.asarray(halftone()).astype(np.float32)[..., None] / 255
+    arr = arr * (1 - 0.035 * ht) + np.array(RED, np.float32) * 0.035 * ht
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+
+def red_bg(t):
+    k = int((t * 6) % 30)
+    return (sunburst_light(k) if LIGHT else sunburst(k)).convert('RGBA')
 
 @functools.lru_cache(maxsize=1)
 def cream_bg():
@@ -139,13 +164,19 @@ def cream_bg():
     return Image.fromarray(arr.astype(np.uint8)).convert('RGBA')
 
 @functools.lru_cache(maxsize=1)
-def grad_bottom():
+def _clear(): return Image.new('RGBA', (W, H), (0, 0, 0, 0))
+
+def grad_bottom(): return _clear() if lit() else _grad_bottom()
+def grad_top(): return _clear() if lit() else _grad_top()
+
+@functools.lru_cache(maxsize=1)
+def _grad_bottom():
     y = np.arange(H) / K
     a = (np.clip((y - 1020) / 700, 0, 1) ** 1.3 * 0.72)[:, None].repeat(W, 1)
     im = Image.new('RGBA', (W, H), (20, 0, 0, 0)); im.putalpha(Image.fromarray((a * 255).astype(np.uint8))); return im
 
 @functools.lru_cache(maxsize=1)
-def grad_top():
+def _grad_top():
     y = np.arange(H) / K
     a = (np.clip(1 - y / 520, 0, 1) ** 1.5 * 0.55)[:, None].repeat(W, 1)
     im = Image.new('RGBA', (W, H), (20, 0, 0, 0)); im.putalpha(Image.fromarray((a * 255).astype(np.uint8))); return im
@@ -218,7 +249,7 @@ def note_img(size, col, kind=0):
     out.alpha_composite(sh, (5 * K, 6 * K)); out.alpha_composite(im, (0, 0))
     return out
 
-NOTE_COLS = [YEL, WHITE, (120, 210, 255), (255, 150, 60)]
+NOTE_COLS = [YEL, (120, 210, 255) if not LIGHT else SKY, (255, 150, 60), WHITE if not LIGHT else RED]
 def notes_burst(c, t, t0, cx, cy, n=10, spread=420, dur=1.6, seed=1, size=(56, 96)):
     """music notes flying out of a point"""
     if t < t0: return
@@ -311,9 +342,23 @@ def footage(t, shake=(0, 0)):
     return camera(img, sc, shake[0] * K, shake[1] * K).convert('RGBA')
 
 # ---------------------------------------------------------------- shared blocks
-def head(txt, size=118, fill=WHITE, ext=10, stroke=5): return text_img(txt, F_HEAD, size, fill, stroke, DRED, ext, DRED)
-def impact_txt(txt, size=250, fill=YEL): return text_img(txt, F_IMPACT, size, fill, 8, DRED, 16, DRED)
-def body(txt, size=46, fill=WHITE): return text_img(txt, F_BODY, size, fill, 0)
+def _map(fill):
+    if lit():
+        if fill == WHITE: return RED
+        if fill == YEL: return SECOND
+    return fill
+SECOND = YEL
+def head(txt, size=118, fill=WHITE, ext=10, stroke=5):
+    if lit():
+        if fill == WHITE: return text_img(txt, F_HEAD, size, RED, 0, DRED, max(4, round(ext * 0.55)), DRED)
+        if fill == YEL: return text_img(txt, F_HEAD, size, YEL, 4, RED, ext, DRED)
+    return text_img(txt, F_HEAD, size, fill, stroke, DRED, ext, DRED)
+def impact_txt(txt, size=250, fill=YEL):
+    if lit():
+        if fill == WHITE: return text_img(txt, F_IMPACT, size, RED, 0, DRED, 11, DRED)
+        if fill == YEL: return text_img(txt, F_IMPACT, size, YEL, 6, RED, 14, DRED)
+    return text_img(txt, F_IMPACT, size, fill, 8, DRED, 16, DRED)
+def body(txt, size=46, fill=WHITE): return text_img(txt, F_BODY, size, RED if (lit() and fill in (WHITE, YEL)) else fill, 0)
 
 def lower(c, t, t0, t1, l1, l2=None, s1=112, s2=96):
     c.alpha_composite(grad_bottom())
@@ -442,7 +487,7 @@ def scene_product(t, t0, t1):
     pop(c, body('INTRODUCING', 44, YEL), DW / 2, 205, t, t0 + 0.05, t1)
     pop(c, head('CARTOON FUN STORY', 104, WHITE, 9, 5), DW / 2, 300, t, t0 + b(0.5), t1)
     pop(c, head('MUSICAL STICK', 132, YEL, 11, 6), DW / 2, 420, t, t0 + b(1), t1)
-    pop(c, chip('PACK OF 12 PCS  •  AGES 3+', 44, YEL, DRED), DW / 2, 1690, t, t0 + b(2), t1, slide=30)
+    pop(c, chip('12 PCS / PACKAGING  •  AGES 3+', 44, YEL, DRED), DW / 2, 1690, t, t0 + b(2), t1, slide=30)
     return c
 
 def scene_panel(t, t0, t1):
@@ -489,7 +534,7 @@ def scene_stick(t, t0, step):
                     qq = clamp(q * 1.2 - k_ * 0.25)
                     if qq <= 0: continue
                     rr = br * (0.4 + 1.3 * e_out(qq))
-                    sd.ellipse((bx - rr, by - rr, bx + rr, by + rr), width=12, outline=(255, 255, 255, int(230 * (1 - qq))))
+                    sd.ellipse((bx - rr, by - rr, bx + rr, by + rr), width=12, outline=(RED if lit() else WHITE) + (int(230 * (1 - qq)),))
             # finger: a soft white dot pressing in
             fq = prog(t, tt - 0.18, 0.18) * (1 - prog(t, tt + 0.12, 0.2))
             if fq > 0:
@@ -501,7 +546,7 @@ def scene_stick(t, t0, step):
         for k_ in range(3):   # sound waves both sides
             q = ((t - b(28)) * 0.9 + k_ / 3) % 1
             a = int(200 * (1 - q) * mv); rr = 200 + 200 * q
-            sd.arc((bx - rr, by - rr, bx + rr, by + rr), 150, 205, width=12, fill=(255, 255, 255, a))
+            sd.arc((bx - rr, by - rr, bx + rr, by + rr), 150, 205, width=12, fill=(RED if lit() else WHITE) + (a,))
         notes_burst(c, t, b(28.1), bx, by - 160, n=10, spread=420, dur=2.2, seed=21)
         for i, (idx, lbl, y, dl) in enumerate([(B_BOOK, 'STORIES', 560, 28.6), (B_NOTE, 'SONGS', 800, 29.3), (B_CAT, 'ANIMAL SOUNDS', 1040, 30.0)]):
             im = icon_label(idx, lbl)
@@ -515,7 +560,7 @@ def scene_bulk(t, t0, t1):
     if p > 0:
         place(c, burst(980, 24, (255, 196, 40), (255, 230, 120), (232, 60, 40)), DW / 2, 790, 0.95 + 0.02 * math.sin(t * 2), (t * 8) % 360, 0.28 * clamp(p * 3))
         place(c, with_shadow('box_open.png', 720), DW / 2, 820 + 6 * math.sin(t * 1.8) + 140 * (1 - e_back(p, 1.3)), 0.75 + 0.25 * e_back(p, 1.3), -2 + 1.5 * math.sin(t * 1.5), clamp(p * 3))
-    pop(c, icon_row('box', '12 PCS PER DISPLAY BOX'), DW / 2, 1230, t, t0 + b(2), t1, slide=30)
+    pop(c, icon_row('box', '12 PCS / PACKAGING'), DW / 2, 1230, t, t0 + b(2), t1, slide=30)
     pop(c, icon_row('truck', 'PAN INDIA DELIVERY'), DW / 2, 1370, t, t0 + b(3.5), t1, slide=30)
     pop(c, chip('DISTRIBUTORS', 42, WHITE, RED, F_BODY, 30, 15), DW / 2 - 200, 1530, t, t0 + b(5), t1)
     pop(c, chip('WHOLESALERS', 42, WHITE, RED, F_BODY, 30, 15), DW / 2 + 200, 1530, t, t0 + b(5.5), t1)
@@ -535,7 +580,7 @@ def scene_end(t):
     ps = prog(t, t0 + b(1.5), 0.5)
     place(c, with_shadow('stick.png', 500), DW / 2 - 225 - 600 * (1 - e_out(ps)), 1000 + 5 * math.sin(t * 2.2), 1.0, -8 + 12 * (1 - e_out(ps)), clamp(ps * 3))
     pop(c, text_img('BULK ORDERS ONLY', F_HEAD, 100, RED, 0), DW / 2, 1385, t, t0 + b(2), None, slide=30)
-    ca, cb_ = chip('12 PCS / BOX', 36, YEL, DRED, F_BODY, 24, 14), chip('PAN INDIA DELIVERY', 36, YEL, DRED, F_BODY, 24, 14)
+    ca, cb_ = chip('12 PCS / PACKAGING', 36, YEL, DRED, F_BODY, 24, 14), chip('PAN INDIA DELIVERY', 36, YEL, DRED, F_BODY, 24, 14)
     pop(c, ca, DW / 2 - 6 - ca.width / K / 2, 1495, t, t0 + b(3), None, slide=20)
     pop(c, cb_, DW / 2 + 6 + cb_.width / K / 2, 1495, t, t0 + b(3.5), None, slide=20)
     pop(c, chip('DM US FOR TRADE PRICING', 46, RED, WHITE, F_BODY, 40, 22), DW / 2, 1620, t, t0 + b(4.5), None)
@@ -562,7 +607,7 @@ def sparkles(c, t, seed, cx, cy, rx, ry, n=10, size=34):
         if a < 0.08: continue
         s = size * (0.4 + 0.6 * a)
         pts = [(x, y - s), (x + s * .22, y - s * .22), (x + s, y), (x + s * .22, y + s * .22), (x, y + s), (x - s * .22, y + s * .22), (x - s, y), (x - s * .22, y - s * .22)]
-        sd.polygon(pts, fill=(255, 246, 200, int(255 * a)))
+        sd.polygon(pts, fill=((255, 186, 0) if lit() else (255, 246, 200)) + (int(255 * a),))
 
 def box_float(t, t0):
     """gentle idle motion for a hero box: bob, sway, slow breathe"""
@@ -639,7 +684,17 @@ def scene_stack(t, t0):
         c = camera(c, 1.0, shake[0] * K, shake[1] * K)
     return c
 
+def scene_feature_stick(t, t0, t1):
+    c = red_bg(t)
+    p = prog(t, t0, 0.5)
+    place(c, burst(1050, 24, (255, 196, 40), (255, 230, 120), (232, 60, 40)), DW / 2, 760, 0.95 + 0.03 * math.sin(t * 2.5), (t * 10) % 360, 0.28 * clamp(p * 3))
+    sway = math.sin((t - t0) * 1.6)
+    place(c, with_shadow('stick.png', 900), DW / 2 + 10 * sway, 770 + 10 * math.sin((t - t0) * 2.2) + 220 * (1 - e_back(p, 1.3)), 1.0 + 0.015 * (t - t0), -4 + 5 * sway, clamp(p * 3))
+    sparkles(c, t, 13, DW / 2, 760, 430, 420, n=10)
+    return c
+
 def render(t):
+    _ON[0] = b(4) <= t < b(56)
     if t < b(4):
         c = scene_intro(t)
     elif t < b(8):
@@ -649,7 +704,7 @@ def render(t):
         lower(c, t, b(8), b(12), 'STORIES, MUSIC & FUN', 'IN EVERY PRESS!', 100, 92)
     elif t < b(20):
         k = int((t - b(12)) // b(4)); t0 = b(12) + k * b(4); t1 = t0 + b(4)
-        c = scene_panel(t, t0, t1) if k == 0 else footage(t)
+        c = scene_panel(t, t0, t1) if k == 0 else (scene_feature_stick(t, t0, t1) if LIGHT else footage(t))
         c.alpha_composite(grad_top())
         header_chip(c, t, 'KEY FEATURES', b(12), b(20))
         lab = [('STORIES, SONGS', '& ANIMAL SOUNDS'), ('CUTE, LIGHTWEIGHT', '& EASY TO HOLD')][k]
@@ -679,7 +734,7 @@ def render(t):
     elif t < b(44):
         c = scene_why(t, b(36), b(44)); c.alpha_composite(grad_bottom())
         header_chip(c, t, 'WHY STOCK IT', b(36), b(44), bg=WHITE, fg=RED)
-        for i, (txt, dl) in enumerate([('READY-TO-DISPLAY BOX', 36.5), ('12 PCS IN EVERY BOX', 38.5), ('EDUCATIONAL & FUN', 40.5)]):
+        for i, (txt, dl) in enumerate([('READY-TO-DISPLAY BOX', 36.5), ('12 PCS / PACKAGING', 38.5), ('EDUCATIONAL & FUN', 40.5)]):
             pop(c, check_line(txt, 70), DW / 2, 1440 + i * 100, t, b(dl), b(44), slide=30)
     elif t < b(52):
         c = scene_bulk(t, b(44), b(52))
