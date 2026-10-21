@@ -49,3 +49,20 @@ What changed:
 python3 teaser2.py --base && python3 teaser2_audio.py
 python3 teaser2.py --scale 2 --start 0 --end 3.75 --out t0.mp4   # 4 chunks, concat, mux teaser2_mix.wav
 ```
+
+## v3 — opening line only, then a visual edit (`Jalsara_ProjectB_Teaser_v3_4K60.mp4`)
+Feedback on v2: everything after the opening line felt chopped together. So v3 changes the structure:
+- **0–2.7 s:** only "Project B abhi toh main reveal nahi karunga" is spoken.
+- **2.7–12.45 s:** a silent visual edit of 10 clean shots, under these headlines:
+  - three B&W flashes + father → since 1990
+  - both together → ten years in the making
+  - son → father → for Ratlam
+  - son → both → a whole new experience
+  - son → what's next?
+- **12.45 s:** end card.
+
+Music: add "Daydream" (Günter Kallmann Choir) on Instagram, with the start point set where the lyrics come in after the intro.
+```sh
+python3 teaser3.py --base && python3 teaser3_audio.py
+python3 teaser3.py --scale 2 --start 0 --end 3.75 --out t0.mp4   # 4 chunks, concat, mux teaser3_mix.wav
+```
