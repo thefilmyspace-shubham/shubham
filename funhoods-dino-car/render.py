@@ -153,7 +153,7 @@ def _radial():
     r = np.sqrt(((xx - W / 2) / W) ** 2 + ((yy - H * 0.42) / H) ** 2)
     return np.clip(1.08 - r * 1.05, 0.55, 1.05).astype(np.float32)
 
-@functools.lru_cache(maxsize=30)
+@functools.lru_cache(maxsize=3)     # consecutive frames share k; a small cache keeps 4 parallel renders in memory
 def sunburst_light(k):
     S = 2300 * K; n = 24
     im = Image.new('RGB', (S, S), (255, 255, 255)); d = ImageDraw.Draw(im)
@@ -289,7 +289,7 @@ def _interp(poly, x):
         if x0 <= x <= x1: return y0 + (y1 - y0) * (x - x0) / max(1e-6, x1 - x0)
     return poly[-1][1]
 
-@functools.lru_cache(maxsize=48)
+@functools.lru_cache(maxsize=12)
 def car_side(hd, wheel=0, jaw=0.0, pad=False):
     """side view of height hd (design units, without headroom); wheel = rim angle (deg, + = rolling right);
        jaw = shell lift in degrees (the dino mouth opens on its rear pivot); pad keeps the headroom canvas"""
@@ -895,7 +895,7 @@ if __name__ == '__main__':
         sys.exit()
     n0, n1 = int(round(a.start * FPS)), int(round(a.end * FPS))
     ff = subprocess.Popen(['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-',
-                           '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-level', '5.2',
+                           '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-threads', '2', '-x264-params', 'rc-lookahead=20', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-level', '5.2',
                            '-movflags', '+faststart', a.out], stdin=subprocess.PIPE)
     for n in range(n0, n1):
         ff.stdin.write(render(n / FPS).tobytes())
