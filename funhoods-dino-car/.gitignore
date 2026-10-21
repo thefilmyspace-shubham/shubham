@@ -1,0 +1,6 @@
+stills/
+chunks*/
+*.wav
+music/*.mp3
+video*.mp4
+__pycache__/
