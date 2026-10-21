@@ -106,15 +106,20 @@ place(whoosh(0.4, 0.6, 0.35), T.LAUNCH - 0.25, 0.16)
 place(spin(T.LAND - T.LAUNCH), T.LAUNCH, 0.24)
 place(thock(0.16), T.LAND, 0.45); place(impact(0.7, 85, 45), T.LAND, 0.22)
 place(chime([784, 988, 1175, 1568], 0.06), T.w(2, 2), 0.11)                                             # 360°
-# mouth opens: a little growl + creak
-place(fade(norm(roar, 0.9), 0.002, 0.15)[:S(0.55)], T.JAW_OPEN + 0.05, 0.20)
-place(thock(0.1), T.JAW_OPEN, 0.18); place(blip(0.12, 300, 700), T.JAW_WIDE, 0.10)
+# mouth chomps: a plastic clack each time the head snaps shut, a little growl on the wide one
+def clack(d=0.09):
+    n = S(d); t = np.arange(n) / SR
+    y = np.sin(2 * np.pi * (900 + 1400 * np.exp(-t * 90)) * t) * np.exp(-t * 70) + rng.standard_normal(n) * np.exp(-t * 260) * 0.8
+    return y / np.abs(y).max()
+for t in T.CHOMP_SHUT: place(clack(), t, 0.34); place(thock(0.1), t, 0.22)
+for t0, amp, hold in T.CHOMPS: place(blip(0.08, 420, 760), t0, 0.06)
+place(fade(norm(roar, 0.9), 0.002, 0.15)[:S(0.5)], T.CHOMPS[-1][0] + 0.02, 0.18)
 # colours / safety rows
 for i, t in enumerate(T.COL_POPS): place(chime([[1047, 1319], [1175, 1480], [1319, 1568], [1568, 2093]][i], 0.06, 0.45), t, 0.12); place(pop_snd(), t, 0.18)
 for t in T.SAFE_POPS: place(blip(), t, 0.10); place(pop_snd(), t, 0.14)
 # display box: lands, fills with 12 trucks, counter slides in
 place(whoosh(0.36, 0.8, 0.3), T.BOX_LAND - 0.34, 0.16); place(thock(0.16), T.BOX_LAND, 0.45); place(impact(0.6, 90, 50), T.BOX_LAND, 0.16)
-for i, t in enumerate(T.FILL): place(pop_snd(0.06), t + 0.12, 0.13, pan=[-0.3, -0.1, 0.1, 0.3][i % 4])
+place(chime([1047, 1319, 1568, 2093], 0.06), T.BOX_LAND + 0.08, 0.11)
 place(whoosh(0.45, 0.5, 0.3), T.COUNTER - 0.05, 0.16); place(chime([1319, 1568, 2093, 2637], 0.07), T.COUNTER + 0.25, 0.12)
 # cartons land, truck delivers
 for x, y, tl in T.STACK: place(thock(0.16), tl, 0.45); place(impact(0.5, 90, 50), tl, 0.12)

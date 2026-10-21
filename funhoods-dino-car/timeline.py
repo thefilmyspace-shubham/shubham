@@ -20,8 +20,9 @@ S_STUNT = VO[2]['start']
 LAUNCH = S_STUNT + 0.62        # car leaves the ramp
 LAND = LAUNCH + 0.70
 S_MOUTH = w(2, 5) - 0.10       # "its"
-JAW_OPEN = w(2, 8) - 0.15      # "opens"
-JAW_WIDE = w(2, 9) - 0.04      # "wide"
+# the head chomps like the real toy: (open time, lift in degrees, hold open) -- the last one wide on "wide"
+CHOMPS = [(S_MOUTH + 0.18, 12, 0.08), (w(2, 7) - 0.04, 13, 0.06), (w(2, 9) - 0.14, 16, 0.32)]
+CHOMP_SHUT = [t0 + 0.16 + hold + 0.10 for t0, amp, hold in CHOMPS]
 # 3+4 Four fun colours. Blue, pink, green and yellow.
 S_COLORS = gap(3)
 COL_POPS = [w(4, 0), w(4, 1), w(4, 2), w(4, 4)]
@@ -31,7 +32,6 @@ SAFE_POPS = [w(5, 0), w(5, 2), w(5, 6), w(5, 6) + 0.55]
 # 6 12 per display box, it sells itself on the counter.
 S_BOX = gap(6)
 BOX_LAND = S_BOX + 0.42
-FILL = [BOX_LAND + 0.10 + 0.085 * i for i in range(12)]
 COUNTER = w(6, 4)              # "it sells itself on the counter"
 # 7 192 pieces per carton with pan India delivery.
 S_CARTON = gap(7)

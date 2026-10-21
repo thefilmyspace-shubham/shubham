@@ -270,14 +270,15 @@ def speed_lines(c, t, y0, y1, n=12, seed=3, alpha=1.0, x0=-100, x1=1180):
         sd.line([(x, y), (x + ln, y)], width=rng.uniform(5, 10), fill=col + (int(200 * alpha),))
 
 # ---------------------------------------------------------------- the car (side view, faces right)
-PAD = 380        # headroom above the side view for the lifted shell
+PAD = 380        # headroom above the side view for the lifted head
 TYRE_R = 390     # tyre radius in source pixels (source car height = GEO['size'][1])
 
 @functools.lru_cache(maxsize=1)
 def side_src():
     w, h = GEO['size']
-    shp = Image.new('RGBA', (w, h + PAD), (0, 0, 0, 0)); shp.alpha_composite(asset('car_shell.png'), (0, PAD))
-    return shp, asset('car_base.png'), asset('rim.png')
+    def padded(name):
+        im = Image.new('RGBA', (w, h + PAD), (0, 0, 0, 0)); im.alpha_composite(asset(name), (0, PAD)); return im
+    return padded('car_shell.png'), padded('car_body.png'), padded('car_head.png'), asset('car_base.png'), asset('rim.png')
 
 def _rot_pt(x, y, cx, cy, ang):
     """point rotated like PIL's Image.rotate(ang) (counter-clockwise on screen), image coords"""
@@ -292,27 +293,31 @@ def _interp(poly, x):
 @functools.lru_cache(maxsize=12)
 def car_side(hd, wheel=0, jaw=0.0, pad=False):
     """side view of height hd (design units, without headroom); wheel = rim angle (deg, + = rolling right);
-       jaw = shell lift in degrees (the dino mouth opens on its rear pivot); pad keeps the headroom canvas"""
-    shp, base, rim = side_src(); w, h = GEO['size']; r = GEO['rim_r']
+       jaw = head lift in degrees -- as on the real toy only the head moves: it hinges at its back-top
+       (GEO head_pivot) and the mouth opens over the fixed lower jaw; pad keeps the headroom canvas"""
+    shp, body_, head, base, rim = side_src(); w, h = GEO['size']; r = GEO['rim_r']
     c = Image.new('RGBA', (w, h + PAD), (0, 0, 0, 0))
-    px, py = GEO['pivot']; py += PAD
+    px, py = GEO['head_pivot']; py += PAD
     if jaw > 0.05:
-        seam = [(x, y + PAD) for x, y in GEO['seam']]
-        lower = [p for p in seam if px <= p[0] <= 1690] + [(1702, 885 + PAD)]
-        upper = [_rot_pt(x, y, px, py, jaw) for x, y in seam if px <= x <= 1790]
+        back = [(x, y + PAD) for x, y in GEO['head_back'] if y >= 400]           # head's rear edge below the spikes
+        seam = [(x, y + PAD) for x, y in GEO['seam'] if x > back[-1][0]]         # head's lower edge, back to snout
+        chain = back + seam; rot = [_rot_pt(x, y, px, py, jaw) for x, y in chain if x <= 1790]
+        lower = [p for p in chain if p[0] <= 1690] + [(1702, 885 + PAD)]         # stops at the tip of the lower jaw
         d = ImageDraw.Draw(c)
-        d.polygon(lower + upper[::-1], fill=(98, 14, 30, 255))
-        bl = [p for p in lower if p[0] <= 1120]; bu = [p for p in upper if p[0] <= 1120]          # behind the jaw: shell underside
-        d.polygon(bl + bu[::-1], fill=(222, 196, 150, 255))
-        d.ellipse((1120, 742 + PAD, 1560, 872 + PAD), fill=(236, 96, 116, 255))                 # tongue
-        up = sorted(upper)
-        for k in range(6):                                                                      # little upper teeth
-            x0 = 1290 + k * 78; ya, yb = _interp(up, x0), _interp(up, x0 + 44)
-            d.polygon([(x0, ya - 4), (x0 + 44, yb - 4), (x0 + 22, (ya + yb) / 2 + 40)], fill=(255, 252, 244, 255))
+        d.polygon(lower + rot[::-1], fill=(72, 34, 12, 255))                     # inside of the mouth
+        nb = [p for p in chain if p[0] <= 1150]; nr = [_rot_pt(x, y, px, py, jaw) for x, y in nb]
+        d.polygon(nb + nr[::-1], fill=(206, 150, 22, 255))                       # neck / hinge, head-coloured plastic
+        up = sorted(_rot_pt(x, y, px, py, jaw) for x, y in seam)
+        for k in range(6):                                                       # upper teeth
+            x0 = 1290 + k * 76; ya, yb = _interp(up, x0), _interp(up, x0 + 46)
+            d.polygon([(x0, ya - 6), (x0 + 46, yb - 6), (x0 + 23, (ya + yb) / 2 + 42)], fill=(255, 226, 120, 255), outline=(214, 160, 30, 255))
     c.alpha_composite(base, (0, PAD))
     rr = rim.rotate(-wheel, Image.BICUBIC) if wheel % 360 else rim
     for hx, hy in GEO['hubs']: c.alpha_composite(rr, (hx - r, hy - r + PAD))
-    c.alpha_composite(shp.rotate(jaw, Image.BICUBIC, center=(px, py)) if jaw > 0.05 else shp)
+    if jaw > 0.05:
+        c.alpha_composite(body_); c.alpha_composite(head.rotate(jaw, Image.BICUBIC, center=(px, py)))
+    else:
+        c.alpha_composite(shp)
     if not pad: c = c.crop((0, PAD, w, h + PAD))
     s = hd * K / h
     return c.resize((max(1, int(c.width * s)), max(1, int(c.height * s))), Image.LANCZOS)
@@ -412,124 +417,16 @@ def no_battery(S=250):
     d.line([(19 * u, 81 * u), (81 * u, 19 * u)], fill=RED, width=int(9 * u))
     return drop_shadow(im, 10, 10, 70, 20)
 
-@functools.lru_cache(maxsize=8)
-def pkg_icon(kind, S=110, col=DTEAL):
-    """line icons in the style of the packaging's feature tiles"""
-    s = int(S * K); u = s / 100; im = Image.new('RGBA', (s, s), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
-    lw = max(2, int(5 * u))
-    d.rounded_rectangle((3 * u, 3 * u, 97 * u, 97 * u), 18 * u, fill=WHITE, outline=col, width=lw)
-    if kind == 'climb':
-        d.polygon([(14 * u, 78 * u), (42 * u, 26 * u), (58 * u, 54 * u), (66 * u, 42 * u), (86 * u, 78 * u)], fill=col)
-        d.polygon([(42 * u, 26 * u), (50 * u, 41 * u), (44 * u, 38 * u), (36 * u, 38 * u)], fill=WHITE)
-    elif kind == '360':
-        d.arc((16 * u, 16 * u, 84 * u, 84 * u), 200, 520, fill=col, width=lw)
-        d.polygon([(14 * u, 38 * u), (26 * u, 30 * u), (28 * u, 45 * u)], fill=col)
-        d.text((50 * u, 52 * u), '360°', font=font(F_HEAD, int(24 * u)), fill=col, anchor='mm')
-    elif kind == 'brain':
-        d.ellipse((30 * u, 18 * u, 70 * u, 58 * u), outline=col, width=lw)
-        d.rectangle((40 * u, 58 * u, 60 * u, 70 * u), outline=col, width=lw); d.line([(42 * u, 76 * u), (58 * u, 76 * u)], fill=col, width=lw)
-        for a in (-150, -120, -90, -60, -30):
-            r0, r1 = 26 * u, 36 * u; ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
-            d.line([(50 * u + r0 * ca, 38 * u + r0 * sa), (50 * u + r1 * ca, 38 * u + r1 * sa)], fill=col, width=lw)
-    elif kind == 'hand':
-        d.rounded_rectangle((30 * u, 46 * u, 70 * u, 84 * u), 12 * u, outline=col, width=lw)
-        for x0 in (32, 42, 52, 62):
-            d.rounded_rectangle((x0 * u, 22 * u, (x0 + 7) * u, 50 * u), 4 * u, outline=col, width=max(2, lw - 1))
-        d.rounded_rectangle((18 * u, 50 * u, 32 * u, 70 * u), 6 * u, outline=col, width=max(2, lw - 1))
-    return im
-
-@functools.lru_cache(maxsize=4)
-def pkg_tile(kind, l1, l2=None, S=150):
-    ic = pkg_icon(kind, S); t1 = body(l1, 26, DTEAL); t2 = body(l2, 20, (60, 120, 128)) if l2 else None
-    hgt = ic.height + 8 * K + t1.height + (t2.height if t2 else 0)
-    wd = max(ic.width, t1.width, t2.width if t2 else 0)
-    im = Image.new('RGBA', (wd, hgt), (0, 0, 0, 0))
-    im.alpha_composite(ic, ((wd - ic.width) // 2, 0)); im.alpha_composite(t1, ((wd - t1.width) // 2, ic.height + 8 * K))
-    if t2: im.alpha_composite(t2, ((wd - t2.width) // 2, ic.height + 8 * K + t1.height - 4 * K))
-    return im
-
-# ---------------------------------------------------------------- 12 pcs display box (drawn, packaging text as printed)
-BW, BH = 880, 870
 BOX_COLS = ['c_pink.png', 'c_blue.png', 'c_green.png', 'c_yellow.png']
-def box_slots():
-    """(x, base y, height, asset) for the 12 cars, back row first, in box coordinates (design units)"""
-    out = []
-    for r, (yb, hh, f) in enumerate([(560, 168, 0.0), (618, 182, 0.5), (684, 196, 1.0)]):
-        for k in range(4):
-            xb = [148, 343, 537, 732][k]; xf = [112, 333, 553, 774][k]
-            out.append((xb + (xf - xb) * f * 0.85, yb, hh, BOX_COLS[k]))
-    return out
 
 def _blit(canvas, img, x, y):
-    """paste img centred at box coords (x, y) on a box canvas"""
+    """paste img centred at (x, y) design units on a prop canvas"""
     canvas.alpha_composite(img, (int(x * K - img.width / 2), int(y * K - img.height / 2)))
 
-@functools.lru_cache(maxsize=1)
-def box_back():
-    im = Image.new('RGBA', (BW * K, BH * K), (0, 0, 0, 0)); sd = SD(im)
-    sd.rrect((50, 0, 830, 452), 26, fill=WHITE + (255,), outline=(214, 214, 214, 255), width=2)
-    sd.rrect((64, 14, 816, 440), 18, fill=TEAL + (255,))
-    sd.polygon([(64, 300), (816, 220), (816, 440), (64, 440)], fill=(0, 132, 145, 255))      # panel swoosh
-    _blit(im, text_img('DINOSAUR', F_IMPACT, 96, WHITE, 4, DTEAL, 7, DTEAL), 300, 96)
-    _blit(im, body('DINOSAUR 4WD OFF-ROAD ROLLOVER VEHICLE', 17, WHITE), 300, 160)
-    _blit(im, chip('NEW DESIGN', 20, YEL, DRED, F_BODY, 16, 8, False), 300, 205)
-    _blit(im, logo_sticker(110), 720, 66)
-    _blit(im, drop_shadow(scaled('c_yellow.png', h=250), 8, 8, 90, 20), 668, 300)
-    _blit(im, drop_shadow(scaled('c_pink.png', h=130), 6, 6, 90, 16), 160, 330)
-    _blit(im, text_img('360 DEGREE', F_HEAD, 30, WHITE, 0, DTEAL, 3, DTEAL), 384, 362)
-    _blit(im, text_img('TUMBLING STUNT CAR', F_HEAD, 30, WHITE, 0, DTEAL, 3, DTEAL), 384, 400)
-    sd.polygon([(50, 452), (830, 452), (880, 604), (0, 604)], fill=(214, 240, 242, 255))      # tray floor
-    sd.polygon([(0, 604), (50, 452), (64, 452), (24, 604)], fill=(0, 132, 145, 255))         # inner side walls
-    sd.polygon([(880, 604), (830, 452), (816, 452), (856, 604)], fill=(0, 132, 145, 255))
-    return im
-
-@functools.lru_cache(maxsize=1)
-def box_lip():
-    im = Image.new('RGBA', (BW * K, BH * K), (0, 0, 0, 0)); sd = SD(im)
-    sd.rectangle((0, 588, 880, 604), fill=(236, 236, 236, 255))
-    sd.rectangle((0, 604, 880, 862), fill=WHITE + (255,))
-    sd.line([(0, 604), (880, 604)], width=2, fill=(214, 214, 214, 255))
-    sd.rectangle((0, 812, 880, 862), fill=TEAL + (255,))
-    _blit(im, body('360 DEGREE TUMBLING STUNT CAR', 20, WHITE), 440, 837)
-    _blit(im, logo_sticker(120), 440, 652)
-    _blit(im, text_img('DINOSAUR', F_IMPACT, 66, TEAL, 0, DTEAL, 5, DTEAL), 440, 728)
-    _blit(im, body('DINOSAUR 4WD OFF-ROAD ROLLOVER VEHICLE', 15, DTEAL), 440, 784)
-    for i, k in enumerate(('climb', '360', 'brain', 'hand')):
-        _blit(im, pkg_icon(k, 52), 62 + (i % 2) * 62, 668 + (i // 2) * 64)
-    _blit(im, text_img('12 PCS', F_HEAD, 56, TEAL, 0, DTEAL, 3, DTEAL), 778, 680)
-    _blit(im, body('AVAILABLE IN', 15, DTEAL), 778, 730); _blit(im, body('4 COLORS', 15, DTEAL), 778, 752)
-    _blit(im, body('3+ AGES', 15, RED), 778, 780)
-    sd.rectangle((0, 862, 880, 870), fill=(224, 224, 224, 255))
-    return im
-
-@functools.lru_cache(maxsize=1)
-def box_full():
-    """the filled box, for still use"""
-    im = box_back().copy()
-    for x, yb, hh, a in box_slots(): _blit(im, scaled(a, h=hh), x, yb - hh / 2)
-    im.alpha_composite(box_lip())
-    return im
-
-def draw_box(c, cx, cy, scale=1.0, rot=0.0, fill_t=None, t=0.0):
-    """box centred at (cx, cy); fill_t = list of drop-in times per slot (None = full)"""
-    lay = Image.new('RGBA', (BW * K, BH * K), (0, 0, 0, 0)); lay.alpha_composite(box_back())
-    for i, (x, yb, hh, a) in enumerate(box_slots()):
-        if fill_t is None: _blit(lay, scaled(a, h=hh), x, yb - hh / 2); continue
-        q = prog(t, fill_t[i], 0.24)
-        if q <= 0: continue
-        y = yb - hh / 2 - 300 * (1 - e_back(q, 1.2))
-        _blit(lay, scaled(a, h=hh), x, y)
-    lay.alpha_composite(box_lip())
-    place(c, box_shadow(), cx + 10 * scale, cy + 22 * scale, scale, rot)
-    place(c, lay, cx, cy, scale, rot)
-
-@functools.lru_cache(maxsize=1)
-def box_shadow():
-    im = box_full(); pad = 40 * K
-    sh = Image.new('RGBA', (im.width + 2 * pad, im.height + 2 * pad), (60, 0, 0, 0))
-    sh.putalpha(Image.new('L', sh.size, 0)); a = Image.new('L', sh.size, 0); a.paste(im.getchannel('A').point(lambda v: int(v * 90 / 255)), (pad, pad))
-    sh.putalpha(a.filter(ImageFilter.GaussianBlur(16 * K)))
-    return sh
+@functools.lru_cache(maxsize=None)
+def logo_img(width):
+    """the Funhoods logo on its own (no sticker behind it), width in design units"""
+    lg = asset('logo_rgba.png'); return lg.resize((int(width * K), int(lg.height * width * K / lg.width)), Image.LANCZOS)
 
 # ---------------------------------------------------------------- carton + truck
 @functools.lru_cache(maxsize=2)
@@ -542,20 +439,18 @@ def carton(wd=400):
     sd.polygon([(wd * 0.44, th), (wd * 0.56, th), (wd * 0.56 + sk, 0), (wd * 0.44 + sk, 0)], fill=(238, 214, 168, 255))   # tape
     sd.rectangle((wd * 0.44, th, wd * 0.56, th + fh * 0.16), fill=(238, 214, 168, 255))
     sd.line([(0, th), (wd, th)], width=2, fill=(160, 110, 62, 255))
-    sd.rrect((wd * 0.12, th + fh * 0.24, wd * 0.88, th + fh * 0.92), 14, fill=WHITE + (255,))
-    _blit(im, logo_sticker(int(wd * 0.30)), wd * 0.5, th + fh * 0.40)
-    _blit(im, body('DINO CAR  •  MT-03', wd * 0.055, DRED), wd * 0.5, th + fh * 0.62)
-    _blit(im, text_img('192 PCS', F_HEAD, wd * 0.14, RED, 0, DRED, 3, DRED), wd * 0.5, th + fh * 0.79)
+    _blit(im, logo_img(int(wd * 0.50)), wd * 0.5, th + fh * 0.40)                                     # printed on the board
+    _blit(im, body('DINO CAR  •  MT-03', wd * 0.058, (92, 50, 20)), wd * 0.5, th + fh * 0.68)
+    _blit(im, text_img('192 PCS', F_HEAD, wd * 0.15, RED, 0, DRED, 3, DRED), wd * 0.5, th + fh * 0.85)
     return drop_shadow(im, 14, 18, 90, 30)
 
 @functools.lru_cache(maxsize=2)
 def truck(wd=560):
     hh = wd * 0.52
     im = Image.new('RGBA', (int(wd * K), int(hh * K)), (0, 0, 0, 0)); sd = SD(im)
-    sd.rrect((0, 0, wd * 0.70, hh * 0.74), 18, fill=WHITE + (255,), outline=(220, 210, 205, 255), width=3)
-    sd.rectangle((0, hh * 0.60, wd * 0.70, hh * 0.70), fill=RED + (255,))
-    sd.rectangle((0, hh * 0.70, wd * 0.70, hh * 0.74), fill=YEL + (255,))
-    _blit(im, logo_sticker(int(wd * 0.32)), wd * 0.35, hh * 0.30)
+    sd.rrect((0, 0, wd * 0.70, hh * 0.74), 18, fill=YEL + (255,), outline=(232, 176, 0, 255), width=3)
+    sd.rectangle((0, hh * 0.62, wd * 0.70, hh * 0.74), fill=RED + (255,))
+    _blit(im, logo_img(int(wd * 0.46)), wd * 0.35, hh * 0.31)
     sd.polygon([(wd * 0.72, hh * 0.18), (wd * 0.88, hh * 0.18), (wd, hh * 0.42), (wd, hh * 0.80), (wd * 0.72, hh * 0.80)], fill=RED + (255,))
     sd.polygon([(wd * 0.76, hh * 0.24), (wd * 0.86, hh * 0.24), (wd * 0.95, hh * 0.42), (wd * 0.76, hh * 0.42)], fill=(190, 232, 245, 255))
     sd.rectangle((wd * 0.70, hh * 0.74, wd, hh * 0.80), fill=DRED + (255,))
@@ -715,8 +610,11 @@ def scene_stunt(t, t0, t1):
     return c
 
 def jaw_angle(t):
-    a = 8.5 * e_back(prog(t, T.JAW_OPEN, 0.28), 1.6)
-    a += 3.0 * e_back(prog(t, T.JAW_WIDE, 0.24), 2.0)
+    """head lift: quick open, short hold, snap shut -- the chomp of the real toy"""
+    a = 0.0
+    for t0, amp, hold in T.CHOMPS:
+        up = e_back(prog(t, t0, 0.16), 1.2); down = e_in(prog(t, t0 + 0.16 + hold, 0.10))
+        a = max(a, amp * up * (1 - down))
     return a
 
 def scene_mouth(t, t0, t1):
@@ -725,14 +623,14 @@ def scene_mouth(t, t0, t1):
     p = prog(t, t0, 0.42)
     place(c, soft_burst(1100), 640, 1050, 0.95 + 0.02 * math.sin(t * 2), (t * 9) % 360, 0.26 * clamp(p * 3))
     ja = jaw_angle(t)
-    im = car_side(Hc, 0, round(ja * 5) / 5, True)
+    im = car_side(Hc, 0, round(ja * 4) / 4, True)
     ground_shadow(c, DW / 2 + 10, gy + 8, car_w(Hc) * 0.9, clamp(p * 3))
     s = (0.82 + 0.18 * e_back(p, 1.4)) * (1 + 0.02 * (t - t0))
     cy = gy - (Hc + PAD * Hc / GEO['size'][1]) / 2 * s
     place(c, im, DW / 2 + 10 + 140 * (1 - e_out(p)), cy, s, 0, clamp(p * 3))
-    if ja > 1:                                                     # up / down arrows at the snout
+    if t > T.CHOMPS[0][0]:                                         # up / down arrows at the snout
         ax, ay = DW / 2 + 10 + car_w(Hc) * 0.43 * s + 40, gy - Hc * 0.62 * s
-        sd = SD(c); a = int(255 * clamp((ja - 1) / 4)); bob = 10 * math.sin(t * 9)
+        sd = SD(c); a = int(255 * clamp((t - T.CHOMPS[0][0]) / 0.2)); bob = 10 * ja / 16
         sd.line([(ax, ay - 120 - bob), (ax, ay + 120 + bob)], width=14, fill=RED + (a,))
         sd.polygon([(ax - 34, ay - 110 - bob), (ax + 34, ay - 110 - bob), (ax, ay - 170 - bob)], fill=RED + (a,))
         sd.polygon([(ax - 34, ay + 110 + bob), (ax + 34, ay + 110 + bob), (ax, ay + 170 + bob)], fill=RED + (a,))
@@ -773,18 +671,21 @@ def scene_safe(t, t0, t1):
         pop(c, im, 110 + im.width / K / 2, 1190 + i * 132, t, tp - 0.04, None, slide=30)
     return c
 
+BOX_H = 900
 def scene_box(t, t0, t1):
-    """12 PCS DISPLAY BOX -- the box drops in, fills with 12 trucks, a shop counter slides in under it"""
+    """12 PCS DISPLAY BOX -- the real display box drops in and lands on a shop counter"""
     c = bg(t); cx, cy = DW / 2, 1060
     pop(c, impact_txt('12 PCS', 200, YEL), DW / 2, 320, t, T.w(6, 0) - 0.06, None, d=0.34, from_scale=1.7, rot=-3)
     pop(c, head('DISPLAY BOX', 110), DW / 2, 490, t, T.w(6, 2) - 0.08, None, slide=30)
     cp = e_out(prog(t, T.COUNTER - 0.05, 0.45))
-    if cp > 0: place(c, counter_top(), DW / 2 - DW * (1 - cp), cy + BH / 2 - 20 + 85)
+    if cp > 0: place(c, counter_top(), DW / 2 - DW * (1 - cp), cy + BOX_H / 2 + 55)
     q = prog(t, T.BOX_LAND - 0.34, 0.34)
     if q > 0:
-        y = cy - 1300 * (1 - e_in(q)) if t < T.BOX_LAND else cy - 30 * math.exp(-(t - T.BOX_LAND) * 9) * abs(math.sin((t - T.BOX_LAND) * 22))
+        if t < T.BOX_LAND: y, rot = cy - 1300 * (1 - e_in(q)), -4 * (1 - q)
+        else:
+            u = t - T.BOX_LAND; y = cy - 30 * math.exp(-u * 9) * abs(math.sin(u * 22)); rot = 0.8 * math.sin(u * 1.6)
         sh = shake_xy(t, T.BOX_LAND, 10, 10) if t >= T.BOX_LAND else (0, 0)
-        draw_box(c, cx + sh[0], y + sh[1], 1.0 + 0.012 * max(0, t - T.BOX_LAND), 0, T.FILL, t)
+        place(c, with_shadow('box_real.png', BOX_H, 16, 20, 90), cx + sh[0], y + sh[1], 1.0 + 0.012 * max(0, t - T.BOX_LAND), rot)
     if t > T.COUNTER: sparkles(c, t, 17, cx, cy - 60, 470, 420, n=12, size=40)
     pop(c, chip('COUNTER-READY DISPLAY', 46, RED, WHITE), DW / 2, 1745, t, T.COUNTER + 0.12, None, slide=30)
     return c
