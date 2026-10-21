@@ -1,23 +1,29 @@
-# Funhoods — Dino Car (Dinosaur Monster Truck, MT-03) · B2B reel · voice-over script (draft v1, 30 s)
+# Funhoods — Dino Car (MT-03) · VO script (approved, English)
 
-Source: `funhoods_catalogue-Oct.pdf` p.9 — Dino Car MT-03, outer carton 192 pcs, BIS Approved · Virgin Polymer;
-packaging mock-up — 12 pcs display box, 360° tumbling stunt car, climb, dinosaur mouth opens; colours blue / pink / green / yellow.
-Format: same as the Musical Stick white-backdrop reel (motion graphics, 9:16, 4K60), plus voice-over and the real friction sound.
+Reel: 30 s · 9:16 · white background motion graphics · B2B (distributors & wholesalers only).
+No phone number on screen. Car is push-and-go (friction) — no pull-back needed.
+Real cleaned friction sound (`audio/Dino_Car_friction_sound_clean.mp3`) plays at "push and go… zoom!".
 
-| Time | Screen | Voice-over |
+```
+[cheerful] Funhoods presents... the Dino Monster Truck! [playful] Rawr!
+No batteries needed — just push and go... zoom!
+It flips 360, climbs like a champ, and its dino mouth opens wide!
+Four fun colours — blue, pink, green and yellow!
+BIS approved, made of virgin polymer — safe for little hands.
+Twelve per display box — it sells itself on the counter!
+One ninety-two pieces per carton, with pan India delivery.
+Distributors and wholesalers — place your bulk order today!
+[excited] Funhoods — Childhood Full of Fun!
+```
+
+## VO samples (`vo_samples/`)
+
+ElevenLabs returned `429 rate_limited` on every request (nothing ran, no credits used),
+so these drafts were made locally with the open-source Kokoro TTS (`tools/vo_kokoro.py`),
+pitched +2 st (formant preserved) and tightened to ~27 s:
+
+| File | Voice | Feel |
 |---|---|---|
-| 0–2 s | Funhoods logo | Funhoods पेश करता है… |
-| 2–4.5 s | Dino car pops in | डीनो मॉन्स्टर ट्रक! रोआर! |
-| 4.5–8 s | Push → release (real sound) | बस पीछे खींचो… छोड़ो… और ज़ूम! |
-| 8–11.5 s | Features | 360° पलटी, ऊँची चढ़ाई, और खुलता हुआ डीनो मुँह! |
-| 11.5–14 s | 4 colours | चार प्यारे रंग — नीला, गुलाबी, हरा, पीला! |
-| 14–17 s | BIS badge | BIS अप्रूव्ड, वर्जिन पॉलीमर — बच्चों के लिए पूरी तरह सेफ़। |
-| 17–20.5 s | 12 pcs display box | 12 पीस का डिस्प्ले बॉक्स — काउंटर पर रखते ही बिकेगा! |
-| 20.5–24.5 s | Carton stack | एक कार्टन में 192 पीस, और पैन इंडिया डिलीवरी। |
-| 24.5–28 s | Bulk orders | डिस्ट्रीब्यूटर्स और होलसेलर्स — बल्क ऑर्डर के लिए आज ही WhatsApp करें! |
-| 28–30 s | End card | Funhoods — चाइल्डहुड फुल ऑफ़ फ़न! |
-
-Open questions for the client: push-and-go friction motor (add "बैटरी की ज़रूरत नहीं"?), mouth-open feature,
-WhatsApp +91 9039040598 on the end card, Hindi vs English/Hinglish.
-
-`audio/Dino_Car_friction_sound_clean.mp3` — client's close-up sound file, denoised (noise floor −35 → −51 dB), EQ'd, −16.5 LUFS.
+| Dino_VO_Sample_1.mp3 | af_heart | warm & sweet |
+| Dino_VO_Sample_2.mp3 | af_sky | light & bright |
+| Dino_VO_Sample_3.mp3 | af_bella | soft & bubbly |
