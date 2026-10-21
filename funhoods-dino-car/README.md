@@ -43,6 +43,6 @@ python3 tools/vo_retime.py                              # audio/vo_timed.wav + v
 sh music/get_music.sh && python3 audio.py               # mix.wav (-14 LUFS)
 python3 render.py --start 0 --end 7.5 --out c0.mp4      # ... 4 chunks in parallel, then concat
 ffmpeg -f concat -i list.txt -c copy video.mp4
-ffmpeg -i video.mp4 -i mix.wav -map 0:v -map 1:a -c:v copy -af alimiter=limit=0.891:level=false -c:a aac -b:a 256k Funhoods_Dino_Car_Reel_4K60.mp4
+ffmpeg -i video.mp4 -i mix.wav -map 0:v -map 1:a -c:v copy -af aresample=192000,alimiter=limit=0.84:level=false:attack=2:release=60,aresample=48000 -c:a aac -b:a 256k Funhoods_Dino_Car_Reel_4K60.mp4
 ```
 Fonts come from `../funhoods-target-blaster/fonts` (Lilita One, Luckiest Guy, Inter ExtraBold).
