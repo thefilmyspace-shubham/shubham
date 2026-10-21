@@ -5,7 +5,7 @@ Caption: `CAPTION.md` · VO script: `SCRIPT.md`
 
 The reel uses the same motion-graphics system as the Musical Stick reel. It has the **white backdrop** of that reel's white version: white sunburst, red type, and yellow lines with a red outline.
 The cut follows the client's **ElevenLabs voice-over** instead of a beat grid.
-Every shot is animated, including how the toy works. None of the client's phone footage is used as footage. One frame of it is used as a still: the cut-out of the real display box.
+Every shot is animated, including how the toy works. None of the client's phone footage is used; it was reference only.
 Logo is top-left. Audience is distributors & wholesalers only, no retailers. Bulk orders only, pan India delivery, **no phone number**.
 On-screen packaging wording is spelled exactly as on the box: "DINOSAUR 4WD OFF-ROAD ROLLOVER VEHICLE", "360 DEGREE TUMBLING STUNT CAR", "NEW DESIGN", "3+ AGES", "AVAILABLE IN 4 COLORS", "CLIMB - MULTIPLE VENUES", "INERTIAL POWER", "360 DEGREE FLIP, COOL STUNTS, MORE ADDICTIVE", "DINOSAUR MOUTH CAN BE OPENED UP AND DOWN", "SPECIFICATIONS COLOURS AND CONTENTS MAY VARY FROM ILLUSTRATIONS".
 
@@ -17,7 +17,7 @@ On-screen packaging wording is spelled exactly as on the box: "DINOSAUR 4WD OFF-
 | 7.8–9.8 | its dino mouth opens wide. | Close-up: as on the real toy, only the head moves. It hinges at its back-top and chomps open and shut twice, then opens wide on "wide" (upper teeth over the fixed lower jaw, a clack on each close) · DINOSAUR MOUTH CAN BE OPENED UP AND DOWN |
 | 9.8–13.1 | Four fun colours. Blue, pink, green and yellow. | AVAILABLE IN 4 COLORS · each colour pops in on its word |
 | 13.1–17.2 | BIS approved, made of virgin polymer, safe for little hands. | BIS APPROVED · VIRGIN POLYMER · SAFE FOR LITTLE HANDS · 3+ AGES |
-| 17.2–20.4 | 12 per display box, it sells itself on the counter. | 12 PCS DISPLAY BOX: the real display box (cut-out) drops in and lands on a shop counter that slides in · COUNTER-READY DISPLAY |
+| 17.2–20.4 | 12 per display box, it sells itself on the counter. | 12 PCS DISPLAY BOX: the display box from the client's 360° packaging mockup (garbled print replaced with the packaging text) drops in and lands on a shop counter that slides in · COUNTER-READY DISPLAY |
 | 20.4–24.0 | 192 pieces per carton with pan India delivery. | 192 PCS PER CARTON: three cartons drop and stack (logo printed straight on the board); a yellow Funhoods truck drives in · PAN INDIA DELIVERY |
 | 24.0–27.2 | Distributors and wholesalers, place your bulk order today. | FOR DISTRIBUTORS & WHOLESALERS · 4 trucks line up · BULK ORDERS ONLY · ORDER TODAY! |
 | 27.2–30.0 | Funhoods, childhood full of fun. | End card: logo (with "Childhood Full of Fun"), trucks, DINO CAR • MT-03 • 3+ AGES, BULK ORDERS ONLY, 192 PCS / CARTON, PAN INDIA DELIVERY, packaging disclaimer |
@@ -27,8 +27,10 @@ On-screen packaging wording is spelled exactly as on the box: "DINOSAUR 4WD OFF-
   side view, front view, and the 4 colour variants. `tools/prep_assets.py` splits the side view into the body (tail and spikes),
   the head, the chassis + lower jaw, and a wheel rim, so the rims can spin and the head can chomp on its hinge
   (`assets/geom.json`: seam, head rear edge, head pivot, hubs). The real video showed that the head moves on its own.
-- Display box: `assets/box_real.png`, cut out by `tools/prep_box.py` from the frame at 5.62 s of the client's reference video
-  (`assets/src/box_frame_5.62.png`). A blue car in the foreground covered the lip's left end, so that strip is patched and inpainted.
+- Display box: `assets/box_real.png`, made by `tools/prep_box.py` from the FRONT VIEW of the client's "360° packaging mockup"
+  (`assets/src/box_front_up.png`, Real-ESRGAN x4). The mockup is AI-made and its small print is garbled. Every garbled line is
+  painted out and re-set with the client's packaging text, and both logo tags carry the real logo (`assets/logo_banner.png` =
+  the logo without its tagline; the tagline is set as text). A box cut out of the phone video was tried, but its right side was cut off by the frame edge.
 - Cartons, truck, glove, icons: drawn in `render.py`. The Funhoods logo is placed straight on the carton and the truck, with no white sticker behind it.
 - Audio:
   - VO: client's ElevenLabs file `audio/vo_elevenlabs.mp3`, re-timed by `tools/vo_retime.py`.

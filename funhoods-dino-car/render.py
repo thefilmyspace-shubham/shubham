@@ -671,7 +671,7 @@ def scene_safe(t, t0, t1):
         pop(c, im, 110 + im.width / K / 2, 1190 + i * 132, t, tp - 0.04, None, slide=30)
     return c
 
-BOX_H = 900
+BOX_H = 860
 def scene_box(t, t0, t1):
     """12 PCS DISPLAY BOX -- the real display box drops in and lands on a shop counter"""
     c = bg(t); cx, cy = DW / 2, 1060
