@@ -34,6 +34,15 @@ Everything below comes from Shubham's own messages in the TFS promo / brand-reel
   - Magnific Kling 2.5 costs **325 credits per 5 s** through the API connector here. Unlimited mode only applies inside the Magnific app.
   - Ask him to generate B-roll there himself if needed.
 
+- **Jalsara teaser (2026-10-21):**
+  - **Rejected:** beat-pulse zooms and shake (he called it "video jitter kar rhi hai"), text over faces, and punchy pop-scale caption animation.
+  - **Asked for:**
+    - the vertical canvas with the footage in a **rounded 3:4 window** with side margins
+    - text above or below the window, or over a shadow
+    - an elegant, dreamy text feel
+    - "Daydream" (Günter Kallmann Choir) as the music, to be added via Instagram's library, not ripped
+    - motion graphics around the footage are welcome
+
 **Open signals (investigate, don't just store the word)**
 - Brand reel v1: "video is not engaging, edit wesa nhi hai". The underlying causes found were reused clips, small text layouts, timing off the music, and flat 2D graphics with no depth.
 - Brand reel v2: "not getting the feel". Causes found: text arriving late versus the VO, layouts too small, no texture/depth, no 3D assets. These were fixed in v3, which is **awaiting feedback**.
