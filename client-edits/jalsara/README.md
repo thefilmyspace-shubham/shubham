@@ -27,3 +27,25 @@ python3 teaser.py --base                        # base.mp4: graded, concatenated
 python3 teaser_audio.py                         # teaser_mix.wav
 python3 teaser.py --scale 2 --start 0 --end 3.75 --out t0.mp4   # 4 chunks, then concat + mux
 ```
+
+## v2 — dreamy, text-led (`Jalsara_ProjectB_Teaser_v2_4K60.mp4`)
+Shubham's feedback on v1:
+- music → Daydream
+- no text on faces
+- better text animation
+- fix the jitter
+- 3:4 rounded frame with side margins
+
+What changed:
+- **Frame:** the interview sits in a rounded 3:4 window (960×1280 design px, 60 px side margins). The crop stops above the burned-in subtitles, so no patch is needed.
+- **Background:** warm terracotta background with line arches (the venue's niche motif) drawing in, plus drifting light orbs and grain.
+- **Text placement:**
+  - Headlines sit above the window: Project B → since 1990 → ten years in the making → for Ratlam → a whole new experience → what's next?
+  - Speech captions sit inside the window bottom, over a soft shadow, away from faces.
+- **Fonts:** Playfair Display + Allura script (gold) + Inter Tight. Every letter fades up from a blur.
+- **Jitter:** no beat pulses or shake. Only a slow push per shot, with a soft light-bloom across cuts.
+- **Audio:** voice + soft SFX only, with **no music bed**. Add "Daydream" (Günter Kallmann Choir) from Instagram's music library when posting. It's licensed there, and a baked-in copy may get muted.
+```sh
+python3 teaser2.py --base && python3 teaser2_audio.py
+python3 teaser2.py --scale 2 --start 0 --end 3.75 --out t0.mp4   # 4 chunks, concat, mux teaser2_mix.wav
+```
