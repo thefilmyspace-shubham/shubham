@@ -1,0 +1,6 @@
+Sound effects in this folder were generated for The Filmy Space with Magnific's SFX generator (ElevenLabs engine),
+except hit_synth.wav, which is synthesized in code (original). Use under the Magnific/Freepik terms of the generating account.
+whoosh_1-3   fast airy whoosh, 1 s          bigwhoosh_1-2  cinematic whoosh with sub rumble, 2 s
+hit_2        padel/tennis ball pop, 1 s     hit_synth      synthesized padel pop
+swing_1-2    racket swing swish, 1 s        squeak_1-2     sneaker squeak, 1 s
+logo_hit     bass boom with shimmer tail, 3 s

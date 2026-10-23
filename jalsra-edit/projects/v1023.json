@@ -1,0 +1,1059 @@
+{
+ "size": [
+  1080,
+  1920
+ ],
+ "fps": 60,
+ "grade": {
+  "contrast": 1.0,
+  "saturation": 1.0,
+  "warm": 0.0
+ },
+ "grain": 0.0,
+ "vignette": 0.0,
+ "audio_passthrough": true,
+ "sfx": true,
+ "timeline": [
+  {
+   "type": "clip",
+   "section": "main",
+   "src": "../footage/V1023.mp4",
+   "in": 0.0,
+   "out": 28.2,
+   "zoom": [
+    1.0,
+    1.0
+   ]
+  }
+ ],
+ "text": [
+  {
+   "anchor": [
+    0.07,
+    0.15
+   ],
+   "end": 1.2,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "Something",
+       "t": 0.05,
+       "weight": "light_i",
+       "size": 112
+      }
+     ]
+    },
+    {
+     "dx": 40,
+     "gap": 0.86,
+     "words": [
+      {
+       "w": "new",
+       "t": 0.52,
+       "weight": "bold",
+       "size": 260,
+       "fill": "chrome"
+      }
+     ]
+    },
+    {
+     "dx": 300,
+     "gap": 0.9,
+     "words": [
+      {
+       "w": "is",
+       "t": 0.82,
+       "weight": "thin",
+       "size": 100
+      },
+      {
+       "w": "coming",
+       "t": 1.07,
+       "weight": "thin",
+       "size": 100
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.15
+   ],
+   "end": 2.95,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "to",
+       "t": 1.24,
+       "weight": "thin",
+       "size": 110
+      }
+     ]
+    },
+    {
+     "dx": 30,
+     "gap": 0.78,
+     "words": [
+      {
+       "w": "Ratlam",
+       "t": 1.45,
+       "weight": "bold",
+       "size": 230,
+       "fill": "chrome",
+       "track": -0.04
+      }
+     ]
+    },
+    {
+     "dx": 60,
+     "gap": 0.92,
+     "words": [
+      {
+       "w": "for",
+       "t": 1.8,
+       "weight": "light_i",
+       "size": 96
+      },
+      {
+       "w": "the",
+       "t": 2.0,
+       "weight": "light_i",
+       "size": 96
+      },
+      {
+       "w": "first",
+       "t": 2.16,
+       "weight": "light_i",
+       "size": 96
+      },
+      {
+       "w": "time.",
+       "t": 2.58,
+       "weight": "light_i",
+       "size": 96
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.15
+   ],
+   "end": 5.75,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "And",
+       "t": 3.33,
+       "weight": "thin",
+       "size": 100
+      },
+      {
+       "w": "it's",
+       "t": 3.58,
+       "weight": "thin",
+       "size": 100
+      },
+      {
+       "w": "not",
+       "t": 3.84,
+       "weight": "thin",
+       "size": 100
+      },
+      {
+       "w": "just",
+       "t": 3.94,
+       "weight": "thin",
+       "size": 100
+      }
+     ]
+    },
+    {
+     "dx": 40,
+     "gap": 0.86,
+     "words": [
+      {
+       "w": "another",
+       "t": 4.26,
+       "weight": "light_i",
+       "size": 130
+      }
+     ]
+    },
+    {
+     "dx": 10,
+     "gap": 0.9,
+     "words": [
+      {
+       "w": "sports",
+       "t": 4.5,
+       "weight": "bold",
+       "size": 175,
+       "fill": "cyan"
+      }
+     ]
+    },
+    {
+     "dx": 220,
+     "gap": 0.86,
+     "words": [
+      {
+       "w": "court.",
+       "t": 4.99,
+       "weight": "bold",
+       "size": 175
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.15
+   ],
+   "end": 7.15,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "Introducing",
+       "t": 5.94,
+       "weight": "light_i",
+       "size": 116
+      }
+     ]
+    },
+    {
+     "dx": 25,
+     "gap": 0.76,
+     "words": [
+      {
+       "w": "Ratlam's",
+       "t": 6.52,
+       "weight": "bold",
+       "size": 220,
+       "fill": "chrome",
+       "track": -0.04
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.58
+   ],
+   "end": 9.3,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "First",
+       "t": 7.31,
+       "weight": "thin",
+       "size": 120
+      }
+     ]
+    },
+    {
+     "dx": 40,
+     "gap": 0.86,
+     "words": [
+      {
+       "w": "Padel",
+       "t": 7.7,
+       "weight": "bold_i",
+       "size": 190,
+       "fill": "cyan"
+      },
+      {
+       "w": "&",
+       "t": 7.98,
+       "weight": "thin",
+       "size": 120
+      }
+     ]
+    },
+    {
+     "dx": 0,
+     "gap": 0.84,
+     "words": [
+      {
+       "w": "Pickleball",
+       "t": 8.37,
+       "weight": "bold",
+       "size": 165
+      }
+     ]
+    },
+    {
+     "dx": 380,
+     "gap": 0.8,
+     "words": [
+      {
+       "w": "Club.",
+       "t": 8.76,
+       "weight": "light_i",
+       "size": 112
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.15
+   ],
+   "end": 10.86,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "More",
+       "t": 9.49,
+       "weight": "thin",
+       "size": 104,
+       "shadow": 0.4
+      },
+      {
+       "w": "than",
+       "t": 9.68,
+       "weight": "thin",
+       "size": 104,
+       "shadow": 0.4
+      },
+      {
+       "w": "just",
+       "t": 9.91,
+       "weight": "thin",
+       "size": 104,
+       "shadow": 0.4
+      }
+     ]
+    },
+    {
+     "dx": 40,
+     "gap": 0.9,
+     "words": [
+      {
+       "w": "a",
+       "t": 10.1,
+       "weight": "light_i",
+       "size": 120,
+       "shadow": 0.4
+      },
+      {
+       "w": "place",
+       "t": 10.23,
+       "weight": "light_i",
+       "size": 120,
+       "shadow": 0.4
+      }
+     ]
+    },
+    {
+     "dx": 0,
+     "gap": 0.9,
+     "words": [
+      {
+       "w": "to",
+       "t": 10.44,
+       "weight": "bold",
+       "size": 190,
+       "shadow": 0.4
+      },
+      {
+       "w": "play.",
+       "t": 10.6,
+       "weight": "bold",
+       "size": 190,
+       "shadow": 0.4
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.58
+   ],
+   "end": 12.98,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "A",
+       "t": 10.94,
+       "weight": "light",
+       "size": 112,
+       "shadow": 0.5
+      },
+      {
+       "w": "new",
+       "t": 11.31,
+       "weight": "light",
+       "size": 112,
+       "shadow": 0.5
+      },
+      {
+       "w": "way",
+       "t": 11.52,
+       "weight": "light",
+       "size": 112,
+       "shadow": 0.5
+      }
+     ]
+    },
+    {
+     "dx": 50,
+     "gap": 0.9,
+     "words": [
+      {
+       "w": "to",
+       "t": 11.76,
+       "weight": "light_i",
+       "size": 104,
+       "shadow": 0.5
+      },
+      {
+       "w": "experience",
+       "t": 11.92,
+       "weight": "light_i",
+       "size": 104,
+       "shadow": 0.5
+      }
+     ]
+    },
+    {
+     "dx": 10,
+     "gap": 0.78,
+     "words": [
+      {
+       "w": "sport.",
+       "t": 12.4,
+       "weight": "bold",
+       "size": 240,
+       "fill": "cyan",
+       "track": -0.03
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.15
+   ],
+   "end": 15.22,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "Two",
+       "t": 13.37,
+       "weight": "light_i",
+       "size": 120
+      }
+     ]
+    },
+    {
+     "dx": 30,
+     "gap": 0.8,
+     "words": [
+      {
+       "w": "modern",
+       "t": 13.64,
+       "weight": "bold",
+       "size": 190,
+       "fill": "chrome"
+      }
+     ]
+    },
+    {
+     "dx": 120,
+     "gap": 0.9,
+     "words": [
+      {
+       "w": "racket",
+       "t": 14.1,
+       "weight": "thin",
+       "size": 104,
+       "shadow": 0.4
+      },
+      {
+       "w": "sports.",
+       "t": 14.36,
+       "weight": "thin",
+       "size": 104,
+       "shadow": 0.4
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.15
+   ],
+   "end": 18.82,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "Padel.",
+       "t": 15.38,
+       "weight": "bold_i",
+       "size": 210,
+       "fill": "blue"
+      }
+     ]
+    },
+    {
+     "dx": 50,
+     "gap": 0.78,
+     "words": [
+      {
+       "w": "Dynamic,",
+       "t": 16.18,
+       "weight": "light_i",
+       "size": 112,
+       "shadow": 0.4
+      }
+     ]
+    },
+    {
+     "dx": 20,
+     "gap": 0.95,
+     "words": [
+      {
+       "w": "fast-paced",
+       "t": 16.89,
+       "weight": "bold",
+       "size": 150,
+       "shadow": 0.4
+      }
+     ]
+    },
+    {
+     "dx": 60,
+     "gap": 0.8,
+     "words": [
+      {
+       "w": "and",
+       "t": 17.5,
+       "weight": "thin",
+       "size": 104,
+       "shadow": 0.4
+      },
+      {
+       "w": "super",
+       "t": 17.72,
+       "weight": "thin",
+       "size": 104,
+       "shadow": 0.4
+      }
+     ]
+    },
+    {
+     "dx": 10,
+     "gap": 0.95,
+     "words": [
+      {
+       "w": "engaging.",
+       "t": 18.02,
+       "weight": "bold_i",
+       "size": 165,
+       "shadow": 0.4
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.58
+   ],
+   "end": 22.32,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "Quick,",
+       "t": 20.4,
+       "weight": "light_i",
+       "size": 120
+      },
+      {
+       "w": "fun",
+       "t": 20.52,
+       "weight": "bold_i",
+       "size": 160
+      }
+     ]
+    },
+    {
+     "dx": 10,
+     "gap": 0.9,
+     "words": [
+      {
+       "w": "and",
+       "t": 20.66,
+       "weight": "thin",
+       "size": 104
+      },
+      {
+       "w": "easy",
+       "t": 20.9,
+       "weight": "bold",
+       "size": 160
+      }
+     ]
+    },
+    {
+     "dx": 60,
+     "gap": 0.82,
+     "words": [
+      {
+       "w": "to",
+       "t": 21.34,
+       "weight": "thin",
+       "size": 104
+      },
+      {
+       "w": "get",
+       "t": 21.5,
+       "weight": "thin",
+       "size": 104
+      },
+      {
+       "w": "into.",
+       "t": 21.66,
+       "weight": "thin",
+       "size": 104
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.15
+   ],
+   "end": 23.48,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "Battle",
+       "t": 22.49,
+       "weight": "bold",
+       "size": 210,
+       "fill": "navy",
+       "shadow": 0
+      }
+     ]
+    },
+    {
+     "dx": 60,
+     "gap": 0.82,
+     "words": [
+      {
+       "w": "&",
+       "t": 22.71,
+       "weight": "light",
+       "size": 130,
+       "fill": "navy",
+       "shadow": 0
+      },
+      {
+       "w": "Bounce",
+       "t": 22.86,
+       "weight": "bold",
+       "size": 210,
+       "fill": "blue"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "anchor": [
+    0.07,
+    0.15
+   ],
+   "end": 24.86,
+   "lines": [
+    {
+     "words": [
+      {
+       "w": "Stay",
+       "t": 23.58,
+       "weight": "regular_i",
+       "size": 120,
+       "fill": "navy",
+       "shadow": 0
+      },
+      {
+       "w": "Tuned.",
+       "t": 23.9,
+       "weight": "bold",
+       "size": 170,
+       "fill": "navy",
+       "shadow": 0
+      }
+     ]
+    },
+    {
+     "dx": 60,
+     "gap": 0.86,
+     "words": [
+      {
+       "w": "Follow",
+       "t": 24.44,
+       "weight": "light",
+       "size": 112,
+       "fill": "navy",
+       "shadow": 0
+      },
+      {
+       "w": "us.",
+       "t": 24.66,
+       "weight": "bold",
+       "size": 150,
+       "fill": "blue"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "sfx_events": [
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 0.633,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 1.367,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 2.067,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 2.367,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 3.3,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 7.0,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 7.633,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 8.0,
+   "gain_db": -17
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 8.33,
+   "gain_db": -17
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 8.567,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 9.3,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 10.0,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 10.6,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 11.4,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 11.633,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 12.367,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 12.7,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 13.033,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 13.33,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 14.0,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 14.8,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 15.4,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 16.033,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 16.433,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 16.933,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 17.467,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 18.933,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 20.367,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_2.mp3",
+   "t": 20.9,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 21.533,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/whoosh_1.mp3",
+   "t": 22.167,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/bigwhoosh_2.mp3",
+   "t": 2.62,
+   "gain_db": -11
+  },
+  {
+   "file": "../sfx/bigwhoosh_1.mp3",
+   "t": 6.0,
+   "gain_db": -11
+  },
+  {
+   "file": "../sfx/bigwhoosh_2.mp3",
+   "t": 21.77,
+   "gain_db": -11
+  },
+  {
+   "file": "../sfx/bigwhoosh_1.mp3",
+   "t": 24.9,
+   "gain_db": -13,
+   "reverse": true,
+   "align": "end"
+  },
+  {
+   "file": "../sfx/bigwhoosh_2.mp3",
+   "t": 24.93,
+   "gain_db": -10
+  },
+  {
+   "file": "../sfx/logo_hit.mp3",
+   "t": 25.28,
+   "gain_db": -7
+  },
+  {
+   "file": "../sfx/whoosh_3.mp3",
+   "t": 7.33,
+   "gain_db": -16
+  },
+  {
+   "file": "../sfx/hit_2.mp3",
+   "t": 7.82,
+   "gain_db": -8
+  },
+  {
+   "file": "../sfx/hit_2.mp3",
+   "t": 12.0,
+   "gain_db": -8
+  },
+  {
+   "file": "../sfx/hit_synth.wav",
+   "t": 12.86,
+   "gain_db": -11
+  },
+  {
+   "file": "../sfx/hit_synth.wav",
+   "t": 17.96,
+   "gain_db": -11
+  },
+  {
+   "file": "../sfx/hit_2.mp3",
+   "t": 18.82,
+   "gain_db": -8
+  },
+  {
+   "file": "../sfx/hit_synth.wav",
+   "t": 20.08,
+   "gain_db": -11
+  },
+  {
+   "file": "../sfx/hit_2.mp3",
+   "t": 20.8,
+   "gain_db": -8
+  },
+  {
+   "file": "../sfx/hit_synth.wav",
+   "t": 20.92,
+   "gain_db": -11
+  },
+  {
+   "file": "../sfx/hit_synth.wav",
+   "t": 21.1,
+   "gain_db": -11
+  },
+  {
+   "file": "../sfx/hit_2.mp3",
+   "t": 21.37,
+   "gain_db": -8
+  },
+  {
+   "file": "../sfx/hit_synth.wav",
+   "t": 21.9,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/swing_1.mp3",
+   "t": 11.93,
+   "gain_db": -12
+  },
+  {
+   "file": "../sfx/swing_2.mp3",
+   "t": 12.8,
+   "gain_db": -12
+  },
+  {
+   "file": "../sfx/swing_1.mp3",
+   "t": 15.62,
+   "gain_db": -12
+  },
+  {
+   "file": "../sfx/swing_2.mp3",
+   "t": 17.9,
+   "gain_db": -12
+  },
+  {
+   "file": "../sfx/swing_1.mp3",
+   "t": 18.76,
+   "gain_db": -12
+  },
+  {
+   "file": "../sfx/swing_2.mp3",
+   "t": 20.03,
+   "gain_db": -12
+  },
+  {
+   "file": "../sfx/swing_1.mp3",
+   "t": 20.74,
+   "gain_db": -12
+  },
+  {
+   "file": "../sfx/squeak_1.mp3",
+   "t": 0.75,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/squeak_2.mp3",
+   "t": 1.62,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/squeak_1.mp3",
+   "t": 2.15,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/squeak_2.mp3",
+   "t": 6.33,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/squeak_1.mp3",
+   "t": 9.45,
+   "gain_db": -15
+  },
+  {
+   "file": "../sfx/squeak_2.mp3",
+   "t": 16.6,
+   "gain_db": -15
+  }
+ ]
+}

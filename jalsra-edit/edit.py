@@ -305,6 +305,17 @@ def sfx_whoosh(d=0.6, gain=0.35, rise=True):
     x = (lo * (1 - mix) + hi * mix) * env
     return (x / (np.abs(x).max() + 1e-9) * gain).astype(np.float32)
 
+_sfx = {}
+def sfx_clip(path, reverse=False):
+    if (path, reverse) not in _sfx:
+        a = load_audio(path)
+        _sfx[(path, reverse)] = a[::-1].copy() if reverse else a
+    return _sfx[(path, reverse)]
+
+def sfx_peak(a):
+    env = np.sqrt(np.convolve((a ** 2).mean(1), np.ones(480) / 480, 'same'))
+    return float(np.argmax(env)) / SR
+
 def place(buf, clip, t):
     i = int(round(t * SR))
     if i >= len(buf): return
@@ -353,6 +364,12 @@ def render_audio(ed, out_wav, base):
         place(fx, sfx_impact(0.42), ed.title_start)
         for it in ed.items:
             if it['type'] == 'outro': place(fx, sfx_whoosh(0.6, 0.14, rise=False), it['start'] - 0.2)
+    # hand-placed sound effects: {"file", "t", "gain_db", "align": peak|start|end, "reverse"}
+    for ev in e.get('sfx_events', []):
+        clip = sfx_clip(os.path.join(base, ev['file']), ev.get('reverse', False))
+        align = ev.get('align', 'peak')
+        off = sfx_peak(clip) if align == 'peak' else len(clip) / SR if align == 'end' else 0.0
+        place(fx, clip * db(ev.get('gain_db', -10)), ev['t'] - off)
     mix = dia + mus + fx
     peak = np.abs(mix).max()
     if peak > 0.98: mix = np.tanh(mix / peak * 1.2) / np.tanh(1.2) * 0.98
