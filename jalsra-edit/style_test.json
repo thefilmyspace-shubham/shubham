@@ -1,30 +1,489 @@
 {
-  "size": [1080, 1920], "fps": 30,
-  "accent": "#FFD27A",
-  "grade": {"contrast": 1.07, "saturation": 1.06, "warm": 0.035},
-  "grain": 0.06,
-  "watermark": "STYLE TEST · stand-in footage",
-  "music": {"file": "music/trap_hamza.mp3", "drop": 11.564,
-            "hook_db": -9, "title_db": -2, "main_db": -16, "outro_db": -5, "fade_out": 1.6},
-  "lower_third": {"at": 10.15, "dur": 3.6, "name": "Guest Name", "role": "Founder, Jalsra"},
-  "timeline": [
-    {"type": "clip", "section": "hook", "src": "stock/s44031.mp4", "in": 1.0, "out": 2.638, "mute": true, "crop_x": 0.5,
-     "captions": [{"words": [["Shuruaat", 1.08], ["zero", 1.32], ["se", 1.56], ["ki", 1.72]], "end": 2.62, "em": "zero"}]},
-    {"type": "clip", "section": "hook", "src": "stock/s44033.mp4", "in": 2.0, "out": 3.638, "mute": true, "crop_x": 0.42,
-     "captions": [{"words": [["Log", 2.06], ["bolte", 2.26], ["the", 2.46], ["nahi", 2.7], ["chalega", 2.95]], "end": 3.62, "em": "chalega"}]},
-    {"type": "clip", "section": "hook", "src": "stock/s44036.mp4", "in": 4.0, "out": 5.638, "mute": true, "crop_x": 0.62,
-     "captions": [{"words": [["Aaj", 4.06], ["wahi", 4.3], ["log", 4.55], ["puchte", 4.8], ["hain", 5.1]], "end": 5.62, "em": "puchte"}]},
-    {"type": "clip", "section": "hook", "src": "stock/s2955.mp4", "in": 3.0, "out": 4.638, "mute": true, "crop_x": 0.3,
-     "captions": [{"words": [["Bas", 3.06], ["ek", 3.3], ["cheez", 3.55], ["yaad", 3.9], ["rakho", 4.15]], "end": 4.62, "em": "cheez"}]},
-    {"type": "title", "dur": 3.0, "title": "JALSRA", "sub": "the interview", "bg": ["stock/s44028.mp4", 5.0]},
-    {"type": "clip", "section": "main", "src": "stock/s44028.mp4", "in": 6.0, "out": 13.0, "mute": true, "crop_x": 0.45,
-     "fade_in": 0.25, "zoom": [1.0, 1.06], "punch": [[3.4, 1.08]],
-     "captions": [
-       {"words": [["Main", 6.2], ["hamesha", 6.45], ["kehta", 6.8], ["hoon", 7.05]], "end": 7.6},
-       {"words": [["ki", 7.7], ["sabse", 7.9], ["zaroori", 8.25], ["hai", 8.7]], "end": 9.3, "em": "zaroori"},
-       {"words": [["apne", 9.4], ["kaam", 9.7], ["se", 10.0], ["pyaar", 10.25]], "end": 11.0, "em": "pyaar"},
-       {"words": [["baaki", 11.1], ["sab", 11.4], ["apne", 11.65], ["aap", 11.9], ["hota", 12.1], ["hai", 12.35]], "end": 12.95, "em": "sab"}
-     ]},
-    {"type": "outro", "dur": 2.8, "kicker": "Full interview", "title": "JALSRA", "sub": "Link in bio", "bg": ["stock/s44028.mp4", 12.0]}
-  ]
+ "size": [
+  1080,
+  1920
+ ],
+ "fps": 30,
+ "grade": {
+  "contrast": 1.05,
+  "saturation": 1.06,
+  "warm": 0.03
+ },
+ "grain": 0.04,
+ "vignette": 0.15,
+ "watermark": "STYLE TEST \u00b7 stand-in footage \u00b7 sample text",
+ "music": {
+  "file": "music/trap_hamza.mp3",
+  "drop": 11.564,
+  "hook_db": -9,
+  "title_db": -2,
+  "main_db": -16,
+  "outro_db": -5,
+  "fade_out": 1.6
+ },
+ "lower_third": {
+  "at": 10.3,
+  "dur": 3.2,
+  "name": "Guest Name",
+  "role": "Founder, Jalsra"
+ },
+ "timeline": [
+  {
+   "type": "clip",
+   "section": "hook",
+   "src": "stock/s44031.mp4",
+   "in": 1.0,
+   "out": 2.638,
+   "mute": true,
+   "crop_x": 0.5,
+   "text": [
+    {
+     "anchor": [
+      0.11,
+      0.6
+     ],
+     "end": 2.5,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "maine",
+         "t": 1.06,
+         "weight": "thin",
+         "size": 120
+        }
+       ]
+      },
+      {
+       "dx": 40,
+       "gap": 0.86,
+       "words": [
+        {
+         "w": "zero",
+         "t": 1.22,
+         "weight": "bold",
+         "size": 250,
+         "fill": "cyan"
+        }
+       ]
+      },
+      {
+       "dx": 150,
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "se",
+         "t": 1.5,
+         "weight": "light_i",
+         "size": 96
+        },
+        {
+         "w": "shuru",
+         "t": 1.62,
+         "weight": "light_i",
+         "size": 96
+        },
+        {
+         "w": "kiya",
+         "t": 1.74,
+         "weight": "light_i",
+         "size": 96
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "clip",
+   "section": "hook",
+   "src": "stock/s44033.mp4",
+   "in": 2.0,
+   "out": 3.638,
+   "mute": true,
+   "crop_x": 0.42,
+   "text": [
+    {
+     "anchor": [
+      0.09,
+      0.58
+     ],
+     "end": 3.5,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "log",
+         "t": 2.05,
+         "weight": "thin",
+         "size": 104
+        },
+        {
+         "w": "bolte",
+         "t": 2.15,
+         "weight": "thin",
+         "size": 104
+        },
+        {
+         "w": "the",
+         "t": 2.25,
+         "weight": "thin",
+         "size": 104
+        }
+       ]
+      },
+      {
+       "dx": 30,
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "nahi",
+         "t": 2.4,
+         "weight": "bold_i",
+         "size": 215,
+         "fill": "blue"
+        }
+       ]
+      },
+      {
+       "dx": 120,
+       "gap": 0.82,
+       "words": [
+        {
+         "w": "chalega",
+         "t": 2.62,
+         "weight": "medium",
+         "size": 150
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "clip",
+   "section": "hook",
+   "src": "stock/s44036.mp4",
+   "in": 4.0,
+   "out": 5.638,
+   "mute": true,
+   "crop_x": 0.62,
+   "text": [
+    {
+     "anchor": [
+      0.12,
+      0.3
+     ],
+     "end": 5.5,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "aaj",
+         "t": 4.05,
+         "weight": "light_i",
+         "size": 110
+        }
+       ]
+      },
+      {
+       "dx": 45,
+       "gap": 0.66,
+       "words": [
+        {
+         "w": "wahi",
+         "t": 4.22,
+         "weight": "bold",
+         "size": 240,
+         "fill": "chrome",
+         "track": -0.045
+        }
+       ]
+      },
+      {
+       "dx": 200,
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "log",
+         "t": 4.6,
+         "weight": "thin",
+         "size": 100
+        },
+        {
+         "w": "puchte",
+         "t": 4.72,
+         "weight": "thin",
+         "size": 100
+        },
+        {
+         "w": "hain",
+         "t": 4.84,
+         "weight": "thin",
+         "size": 100
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "clip",
+   "section": "hook",
+   "src": "stock/s2955.mp4",
+   "in": 3.0,
+   "out": 4.638,
+   "mute": true,
+   "crop_x": 0.3,
+   "text": [
+    {
+     "style": "caps",
+     "y": 0.64,
+     "size": 77,
+     "end": 4.6,
+     "words": [
+      [
+       "bas",
+       3.05
+      ],
+      [
+       "ek",
+       3.3
+      ],
+      [
+       "cheez",
+       3.55
+      ],
+      [
+       "yaad",
+       3.95
+      ],
+      [
+       "rakho",
+       4.2
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "type": "title",
+   "dur": 3.0,
+   "title": "JALSRA",
+   "sub": "the interview",
+   "bg": [
+    "stock/s44028.mp4",
+    5.0
+   ]
+  },
+  {
+   "type": "clip",
+   "section": "main",
+   "src": "stock/s44028.mp4",
+   "in": 6.0,
+   "out": 13.0,
+   "mute": true,
+   "crop_x": 0.45,
+   "fade_in": 0.25,
+   "zoom": [
+    1.0,
+    1.05
+   ],
+   "punch": [
+    [
+     4.2,
+     1.07
+    ]
+   ],
+   "text": [
+    {
+     "anchor": [
+      0.1,
+      0.5
+     ],
+     "end": 7.85,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "Main",
+         "t": 6.2,
+         "weight": "medium",
+         "size": 205
+        }
+       ]
+      },
+      {
+       "dx": 85,
+       "gap": 0.84,
+       "words": [
+        {
+         "w": "hamesha",
+         "t": 6.5,
+         "weight": "thin",
+         "size": 118
+        }
+       ]
+      },
+      {
+       "dx": 120,
+       "gap": 0.92,
+       "words": [
+        {
+         "w": "kehta",
+         "t": 6.8,
+         "weight": "bold",
+         "size": 142,
+         "fill": "cyan"
+        },
+        {
+         "w": "hoon",
+         "t": 7.02,
+         "weight": "bold",
+         "size": 142,
+         "fill": "cyan"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "anchor": [
+      0.1,
+      0.42
+     ],
+     "end": 9.95,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "sabse",
+         "t": 8.1,
+         "weight": "light_i",
+         "size": 112
+        }
+       ]
+      },
+      {
+       "dx": 60,
+       "gap": 0.86,
+       "words": [
+        {
+         "w": "zaroori",
+         "t": 8.38,
+         "weight": "bold_i",
+         "size": 200,
+         "fill": "blue",
+         "layer": "behind"
+        }
+       ]
+      },
+      {
+       "dx": 330,
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "hai",
+         "t": 8.8,
+         "weight": "thin",
+         "size": 104
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "anchor": [
+      0.08,
+      0.36
+     ],
+     "end": 12.85,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "apne",
+         "t": 10.2,
+         "weight": "thin",
+         "size": 96
+        },
+        {
+         "w": "kaam",
+         "t": 10.38,
+         "weight": "thin",
+         "size": 96
+        },
+        {
+         "w": "se",
+         "t": 10.56,
+         "weight": "thin",
+         "size": 96
+        }
+       ]
+      },
+      {
+       "dx": 40,
+       "gap": 0.66,
+       "words": [
+        {
+         "w": "pyaar",
+         "t": 10.75,
+         "weight": "bold",
+         "size": 245,
+         "fill": "chrome",
+         "layer": "behind",
+         "track": -0.045
+        }
+       ]
+      },
+      {
+       "dx": 0,
+       "gap": 1.6,
+       "align": "left",
+       "words": [
+        {
+         "w": "baaki",
+         "t": 11.5,
+         "weight": "light_i",
+         "size": 84
+        },
+        {
+         "w": "sab",
+         "t": 11.66,
+         "weight": "light_i",
+         "size": 84
+        },
+        {
+         "w": "apne",
+         "t": 11.82,
+         "weight": "light_i",
+         "size": 84
+        },
+        {
+         "w": "aap",
+         "t": 11.98,
+         "weight": "light_i",
+         "size": 84
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "outro",
+   "dur": 2.8,
+   "kicker": "full interview",
+   "title": "JALSRA",
+   "sub": "link in bio",
+   "bg": [
+    "stock/s44028.mp4",
+    12.0
+   ]
+  }
+ ]
 }
