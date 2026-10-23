@@ -10,7 +10,8 @@ speaker via a person matte). Driven by an EDL json (see style_test.json):
   python3 edit.py edl.json --start 0 --end 20 --no-audio --out p0.mp4   # render a chunk
 
 Text word times inside clips are in SOURCE time (seconds in the source file), as they come out of transcribe.py.
-Title / outro text times are relative to the start of that card; lower_third times are timeline times.
+Title / outro text times are relative to the start of that card; lower_third and top-level "text" blocks use
+timeline time (top-level blocks are drawn over every shot, so a sentence can run across cuts).
 """
 import argparse, json, math, os, subprocess
 import numpy as np
@@ -146,6 +147,7 @@ class Edit:
         self.total = t
         self.title_start = next((i['start'] for i in self.items if i['type'] == 'title'), 0.0)
         self.lt_block = self.lower_third_block(edl.get('lower_third'))
+        self.gtext = edl.get('text', [])          # timeline-time blocks, drawn over every shot (can span cuts)
         self.grain = self._grain()
 
     def card_text(self, it):
@@ -250,10 +252,10 @@ class Edit:
                 if img is not None: self.draw_img(c, img, tf)
                 lt_src = it['in'] + lt
                 blocks = it.get('text', [])
-                self.K.draw(c, blocks, lt_src, 'behind')
+                self.K.draw(c, blocks, lt_src, 'behind'); self.K.draw(c, self.gtext, t, 'behind')
                 if person is not None: self.draw_img(c, person, tf)
                 self.vignette(c)
-                self.K.draw(c, blocks, lt_src, 'front')
+                self.K.draw(c, blocks, lt_src, 'front'); self.K.draw(c, self.gtext, t, 'front')
                 if it.get('section') == 'hook':
                     fl = 1 - prog(lt, 0, 0.12)
                     if fl > 0: c.drawPaint(P(hexc('#FFFFFF', 0.55 * fl)))
@@ -262,6 +264,7 @@ class Edit:
                     if fl > 0: c.drawPaint(P(hexc('#000000', eo3(fl))))
             else:
                 self.draw_card(c, it, lt)
+                self.K.draw(c, self.gtext, t, 'behind'); self.K.draw(c, self.gtext, t, 'front')
             if self.lt_block: self.K.draw(c, [self.lt_block], t, 'front')
             gp = skia.Paint(); gp.setBlendMode(skia.BlendMode.kOverlay)
             c.drawImageRect(self.grain[int(t * fps) % 4], R(0, 0, W, H), LINEAR, gp)

@@ -7,7 +7,8 @@
 The .txt has one line per segment with source timestamps, for picking hook lines and the story arc.
 The .words.json word times are what edl.json captions use (source time).
 """
-import argparse, json, os, subprocess, tempfile
+import argparse, json, os, subprocess
+import numpy as np
 from faster_whisper import WhisperModel
 
 # biases Hindi output toward Roman-script Hinglish instead of Devanagari
@@ -22,16 +23,18 @@ def main():
     a = ap.parse_args()
     model = WhisperModel(a.model, device='cpu', compute_type='int8')
     for f in a.files:
-        with tempfile.NamedTemporaryFile(suffix='.wav') as tmp:
-            subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', f, '-vn', '-ac', '1', '-ar', '16000', tmp.name], check=True)
-            segs, info = model.transcribe(tmp.name, language=a.lang, word_timestamps=True, vad_filter=True,
-                                          beam_size=5, initial_prompt=HINGLISH_PROMPT if a.roman else None)
-            out, lines = [], []
-            for s in segs:
-                ws = [{'w': w.word.strip(), 't0': round(w.start, 3), 't1': round(w.end, 3), 'p': round(w.probability, 2)}
-                      for w in (s.words or []) if w.word.strip()]
-                out.append({'t0': round(s.start, 3), 't1': round(s.end, 3), 'text': s.text.strip(), 'words': ws})
-                lines.append(f'[{s.start:7.2f} - {s.end:7.2f}] {s.text.strip()}')
+        # decode with ffmpeg ourselves (faster-whisper's PyAV path breaks on some av versions)
+        raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', f, '-vn', '-ac', '1', '-ar', '16000', '-f', 'f32le', '-'],
+                             capture_output=True, check=True).stdout
+        audio = np.frombuffer(raw, np.float32).copy()
+        segs, info = model.transcribe(audio, language=a.lang, word_timestamps=True, vad_filter=True,
+                                      beam_size=5, initial_prompt=HINGLISH_PROMPT if a.roman else None)
+        out, lines = [], []
+        for s in segs:
+            ws = [{'w': w.word.strip(), 't0': round(w.start, 3), 't1': round(w.end, 3), 'p': round(w.probability, 2)}
+                  for w in (s.words or []) if w.word.strip()]
+            out.append({'t0': round(s.start, 3), 't1': round(s.end, 3), 'text': s.text.strip(), 'words': ws})
+            lines.append(f'[{s.start:7.2f} - {s.end:7.2f}] {s.text.strip()}')
         stem = os.path.splitext(f)[0]
         json.dump({'file': os.path.basename(f), 'language': info.language, 'segments': out},
                   open(stem + '.words.json', 'w'), ensure_ascii=False, indent=1)
