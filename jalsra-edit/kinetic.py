@@ -51,6 +51,7 @@ FILLS = {   # sampled from the reference frames
 ENTRY_D, ENTRY_DY, ENTRY_FADE = 0.33, 1.35, 0.025
 EXIT_D, EXIT_DY, EXIT_STAGGER = 0.10, 1.35, 1 / 60
 SUBSAMPLES = 10
+SHUTTER = 1 / 30          # blur length in seconds = one reference frame, independent of the output fps
 
 def clamp(x, a=0.0, b=1.0): return max(a, min(b, x))
 def hexc(h, a=1.0):
@@ -166,7 +167,7 @@ class Kinetic:
 
     def draw_word(self, c, w, t, blk):
         x, y = w['_x'], w['_y']
-        dt = 1.0 / self.fps
+        dt = SHUTTER
         samples = [t + dt * (k / (SUBSAMPLES - 1) - 0.5) for k in range(SUBSAMPLES)]   # centred 360 deg shutter
         st = [self.state(w, ts, blk) for ts in samples]
         st = [s for s in st if s is not None]
@@ -207,10 +208,13 @@ class Kinetic:
             s = s.upper()
             wd = sum(f.measureText(ch) + tr for ch in s) - tr
             x = self.W / 2 - wd / 2
-            w = {'w': s, '_f': f, '_tr': tr, '_sz': sz, '_wd': wd, '_wt': blk.get('weight', 'medium')}
-            sp = skia.Paint(AntiAlias=True, Color=hexc('#000000', 0.5 * a),
-                            MaskFilter=skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, 9 * S + blur))
-            self.glyphs(c, w, x, cy + 4 * S, sp)
+            w = {'w': s, '_f': f, '_tr': tr, '_sz': sz, '_wd': wd, '_wt': blk.get('weight', 'medium'),
+                 'fill': blk.get('fill', 'white'), 'color': blk.get('color', '#FFFFFF'), 'sheen': False}
+            sh = blk.get('shadow', 0.5)
+            if sh > 0:
+                sp = skia.Paint(AntiAlias=True, Color=hexc('#000000', sh * a),
+                                MaskFilter=skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, 9 * S + blur))
+                self.glyphs(c, w, x, cy + 4 * S, sp)
             p = self.paint_for(w, t, x, cy); p.setAlphaf(a)
             if blur > 0.3: p.setMaskFilter(skia.MaskFilter.MakeBlur(skia.kNormal_BlurStyle, blur))
             self.glyphs(c, w, x, cy, p)

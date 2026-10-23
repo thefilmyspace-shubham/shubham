@@ -317,18 +317,48 @@ def render_audio(ed, out_wav, base):
     dia = np.zeros((n, 2), np.float32)
     speech = np.zeros(n, np.float32)
     target = db(e.get('dialogue_rms_db', -20))
+    if e.get('audio_passthrough'):          # an already-cut video: keep its own soundtrack as one continuous track
+        src = next(i['src'] for i in ed.items if i['type'] == 'clip')
+        a = load_audio(src, 0.0, ed.total) * db(e.get('audio_gain_db', 0))
+        place(dia, a, 0.0)
+        speech[:len(a)] = 0.0
     for it in ed.items:
+        if e.get('audio_passthrough'): break
         if it['type'] != 'clip' or it.get('mute'): continue
         a = load_audio(it['src'], it['in'], it['out'] - it['in'])
         if not len(a): continue
         mono = a.mean(1); loud = np.abs(mono) > 0.01
         rms = np.sqrt(np.mean(mono[loud] ** 2)) if loud.any() else 0
-        a *= (clamp(target / rms, 0.25, 6.0) if rms > 0 else 1.0) * db(it.get('gain_db', 0))
+        norm = clamp(target / rms, 0.25, 6.0) if (rms > 0 and e.get('normalize_dialogue', True)) else 1.0
+        a *= norm * db(it.get('gain_db', 0))
         fd = int(SR * 0.012); ramp = np.linspace(0, 1, fd)[:, None]
         a[:fd] *= ramp; a[-fd:] *= ramp[::-1]
         place(dia, a, it['start'])
         i0 = int(it['start'] * SR); speech[i0:i0 + len(a)] = 1.0
-    m = e['music']
+    m = e.get('music')
+    if not m:
+        mus = np.zeros_like(dia)
+    else:
+        mus = music_track(ed, m, base, n, speech)
+    end_i = int(ed.total * SR)
+    fx = np.zeros_like(dia)
+    if e.get('sfx', True) and any(i['type'] == 'title' for i in ed.items):
+        for it in ed.items:
+            if it.get('section') == 'hook' and it['start'] > 0.05:
+                place(fx, sfx_whoosh(0.35, 0.12, rise=False), it['start'] - 0.17)
+        place(fx, sfx_whoosh(1.4, 0.22, rise=True), ed.title_start - 1.4)
+        place(fx, sfx_impact(0.42), ed.title_start)
+        for it in ed.items:
+            if it['type'] == 'outro': place(fx, sfx_whoosh(0.6, 0.14, rise=False), it['start'] - 0.2)
+    mix = dia + mus + fx
+    peak = np.abs(mix).max()
+    if peak > 0.98: mix = np.tanh(mix / peak * 1.2) / np.tanh(1.2) * 0.98
+    pcm = (np.clip(mix[:end_i], -1, 1) * 32767).astype('<i2')
+    with wave.open(out_wav, 'wb') as w:
+        w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes())
+
+def music_track(ed, m, base, n, speech):
+    from scipy.ndimage import uniform_filter1d
     mus_all = load_audio(os.path.join(base, m['file']))
     off = m.get('drop', 0.0) - ed.title_start + m.get('nudge', 0.0)
     mus = mus_all[int(off * SR):] if off >= 0 else np.concatenate([np.zeros((int(-off * SR), 2), np.float32), mus_all])
@@ -344,22 +374,7 @@ def render_audio(ed, out_wav, base):
     end_i = int(ed.total * SR); fo = int(SR * m.get('fade_out', 2.0))
     gain[end_i - fo:end_i] *= np.linspace(1, 0, fo) ** 1.5
     gain[end_i:] = 0
-    mus *= gain[:, None] * db(m.get('gain_db', 0))
-    fx = np.zeros_like(dia)
-    if e.get('sfx', True):
-        for it in ed.items:
-            if it.get('section') == 'hook' and it['start'] > 0.05:
-                place(fx, sfx_whoosh(0.35, 0.12, rise=False), it['start'] - 0.17)
-        place(fx, sfx_whoosh(1.4, 0.22, rise=True), ed.title_start - 1.4)
-        place(fx, sfx_impact(0.42), ed.title_start)
-        for it in ed.items:
-            if it['type'] == 'outro': place(fx, sfx_whoosh(0.6, 0.14, rise=False), it['start'] - 0.2)
-    mix = dia + mus + fx
-    peak = np.abs(mix).max()
-    if peak > 0.98: mix = np.tanh(mix / peak * 1.2) / np.tanh(1.2) * 0.98
-    pcm = (np.clip(mix[:end_i], -1, 1) * 32767).astype('<i2')
-    with wave.open(out_wav, 'wb') as w:
-        w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes())
+    return mus * gain[:, None] * db(m.get('gain_db', 0))
 
 # ---------------------------------------------------------------- main
 def main():

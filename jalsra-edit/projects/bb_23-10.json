@@ -1,0 +1,596 @@
+{
+ "size": [
+  1080,
+  1920
+ ],
+ "fps": 60,
+ "grade": {
+  "contrast": 1.0,
+  "saturation": 1.0,
+  "warm": 0.0
+ },
+ "grain": 0.0,
+ "vignette": 0.0,
+ "audio_passthrough": true,
+ "sfx": false,
+ "timeline": [
+  {
+   "type": "clip",
+   "section": "main",
+   "src": "../footage/BB_23-10.mp4",
+   "in": 0.0,
+   "out": 1.36667,
+   "zoom": [
+    1.0,
+    1.0
+   ],
+   "text": [
+    {
+     "anchor": [
+      0.1,
+      0.11
+     ],
+     "end": 1.22,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "Something",
+         "t": 0.3,
+         "weight": "light_i",
+         "size": 112
+        }
+       ]
+      },
+      {
+       "dx": 40,
+       "gap": 0.86,
+       "words": [
+        {
+         "w": "new",
+         "t": 0.55,
+         "weight": "bold",
+         "size": 270,
+         "fill": "blue"
+        }
+       ]
+      },
+      {
+       "dx": 300,
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "is",
+         "t": 0.85,
+         "weight": "thin",
+         "size": 100
+        },
+        {
+         "w": "coming",
+         "t": 0.98,
+         "weight": "thin",
+         "size": 100
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "clip",
+   "section": "main",
+   "src": "../footage/BB_23-10.mp4",
+   "in": 1.36667,
+   "out": 3.21667,
+   "zoom": [
+    1.0,
+    1.0
+   ],
+   "text": [
+    {
+     "anchor": [
+      0.075,
+      0.355
+     ],
+     "end": 3.06,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "to",
+         "t": 1.5,
+         "weight": "thin",
+         "size": 124,
+         "fill": "navy",
+         "shadow": 0
+        }
+       ]
+      },
+      {
+       "dx": 28,
+       "gap": 0.72,
+       "words": [
+        {
+         "w": "Ratlam",
+         "t": 1.68,
+         "weight": "bold",
+         "size": 255,
+         "fill": "navy",
+         "layer": "behind",
+         "track": -0.045
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "matte": true
+  },
+  {
+   "type": "clip",
+   "section": "main",
+   "src": "../footage/BB_23-10.mp4",
+   "in": 3.21667,
+   "out": 16.6,
+   "zoom": [
+    1.0,
+    1.0
+   ],
+   "text": [
+    {
+     "anchor": [
+      0.08,
+      0.7
+     ],
+     "end": 5.08,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "Ratlam's",
+         "t": 3.4,
+         "weight": "thin",
+         "size": 100
+        },
+        {
+         "w": "first",
+         "t": 3.55,
+         "weight": "thin",
+         "size": 100
+        }
+       ]
+      },
+      {
+       "dx": 35,
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "Pickleball",
+         "t": 3.8,
+         "weight": "bold",
+         "size": 190,
+         "fill": "cyan"
+        }
+       ]
+      },
+      {
+       "dx": 210,
+       "gap": 0.86,
+       "words": [
+        {
+         "w": "&",
+         "t": 4.15,
+         "weight": "light_i",
+         "size": 96
+        },
+        {
+         "w": "Padel",
+         "t": 4.27,
+         "weight": "light_i",
+         "size": 96
+        },
+        {
+         "w": "club",
+         "t": 4.39,
+         "weight": "light_i",
+         "size": 96
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "style": "caps",
+     "y": 0.74,
+     "size": 96,
+     "end": 6.9,
+     "words": [
+      [
+       "fast",
+       5.3
+      ],
+      [
+       "social",
+       5.99
+      ],
+      [
+       "seriously",
+       6.32
+      ],
+      [
+       "fun",
+       6.65
+      ]
+     ]
+    },
+    {
+     "anchor": [
+      0.08,
+      0.64
+     ],
+     "end": 8.7,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "Padel.",
+         "t": 7.05,
+         "weight": "bold_i",
+         "size": 200,
+         "fill": "azure"
+        }
+       ]
+      },
+      {
+       "dx": 60,
+       "gap": 0.78,
+       "words": [
+        {
+         "w": "like",
+         "t": 7.45,
+         "weight": "thin",
+         "size": 104
+        },
+        {
+         "w": "tennis,",
+         "t": 7.6,
+         "weight": "thin",
+         "size": 104
+        }
+       ]
+      },
+      {
+       "dx": 20,
+       "gap": 0.95,
+       "words": [
+        {
+         "w": "with",
+         "t": 7.95,
+         "weight": "light_i",
+         "size": 88
+        },
+        {
+         "w": "the",
+         "t": 8.06,
+         "weight": "light_i",
+         "size": 88
+        },
+        {
+         "w": "walls",
+         "t": 8.17,
+         "weight": "light_i",
+         "size": 88
+        }
+       ]
+      },
+      {
+       "dx": 20,
+       "gap": 0.95,
+       "words": [
+        {
+         "w": "in",
+         "t": 8.3,
+         "weight": "light_i",
+         "size": 88
+        },
+        {
+         "w": "play",
+         "t": 8.4,
+         "weight": "bold_i",
+         "size": 88
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "anchor": [
+      0.5,
+      0.42
+     ],
+     "align": "center",
+     "end": 10.8,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "Built",
+         "t": 9.35,
+         "weight": "light_i",
+         "size": 124
+        }
+       ]
+      },
+      {
+       "gap": 0.86,
+       "words": [
+        {
+         "w": "differently",
+         "t": 9.62,
+         "weight": "bold",
+         "size": 195,
+         "fill": "chrome",
+         "track": -0.03
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "style": "caps",
+     "y": 0.74,
+     "size": 96,
+     "end": 12.42,
+     "words": [
+      [
+       "privacy",
+       11.62
+      ],
+      [
+       "& comfort",
+       12.0
+      ]
+     ]
+    },
+    {
+     "anchor": [
+      0.07,
+      0.55
+     ],
+     "end": 14.35,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "Play",
+         "t": 12.6,
+         "weight": "light",
+         "size": 104,
+         "shadow": 0.5
+        },
+        {
+         "w": "it",
+         "t": 12.72,
+         "weight": "light",
+         "size": 104,
+         "shadow": 0.5
+        }
+       ]
+      },
+      {
+       "dx": 40,
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "casually",
+         "t": 12.95,
+         "weight": "regular_i",
+         "size": 150,
+         "shadow": 0.5
+        }
+       ]
+      },
+      {
+       "dx": 0,
+       "gap": 0.82,
+       "words": [
+        {
+         "w": "or",
+         "t": 13.4,
+         "weight": "light",
+         "size": 104,
+         "shadow": 0.5
+        },
+        {
+         "w": "get",
+         "t": 13.52,
+         "weight": "light",
+         "size": 104,
+         "shadow": 0.5
+        }
+       ]
+      },
+      {
+       "dx": 10,
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "competitive",
+         "t": 13.75,
+         "weight": "bold",
+         "size": 150,
+         "shadow": 0.5
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "anchor": [
+      0.5,
+      0.24
+     ],
+     "align": "center",
+     "end": 16.02,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "Ready",
+         "t": 15.15,
+         "weight": "thin",
+         "size": 110
+        },
+        {
+         "w": "to",
+         "t": 15.26,
+         "weight": "thin",
+         "size": 110
+        }
+       ]
+      },
+      {
+       "gap": 0.86,
+       "words": [
+        {
+         "w": "experience",
+         "t": 15.42,
+         "weight": "bold",
+         "size": 175
+        }
+       ]
+      },
+      {
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "sport",
+         "t": 15.62,
+         "weight": "light_i",
+         "size": 96
+        },
+        {
+         "w": "differently?",
+         "t": 15.74,
+         "weight": "light_i",
+         "size": 96
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "clip",
+   "section": "main",
+   "src": "../footage/BB_23-10.mp4",
+   "in": 16.6,
+   "out": 20.45,
+   "zoom": [
+    1.0,
+    1.0
+   ],
+   "text": [
+    {
+     "anchor": [
+      0.08,
+      0.36
+     ],
+     "end": 19.9,
+     "lines": [
+      {
+       "words": [
+        {
+         "w": "The",
+         "t": 16.8,
+         "weight": "thin",
+         "size": 120
+        },
+        {
+         "w": "game",
+         "t": 16.95,
+         "weight": "thin",
+         "size": 120
+        }
+       ]
+      },
+      {
+       "dx": 60,
+       "gap": 0.9,
+       "words": [
+        {
+         "w": "is",
+         "t": 17.3,
+         "weight": "light_i",
+         "size": 104
+        },
+        {
+         "w": "about",
+         "t": 17.45,
+         "weight": "light_i",
+         "size": 104
+        },
+        {
+         "w": "to",
+         "t": 17.6,
+         "weight": "light_i",
+         "size": 104
+        }
+       ]
+      },
+      {
+       "dx": 10,
+       "gap": 0.78,
+       "words": [
+        {
+         "w": "change.",
+         "t": 17.9,
+         "weight": "bold",
+         "size": 250,
+         "fill": "cyan",
+         "layer": "behind",
+         "track": -0.03
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "matte": true
+  },
+  {
+   "type": "clip",
+   "section": "main",
+   "src": "../footage/BB_23-10.mp4",
+   "in": 20.45,
+   "out": 23.52,
+   "zoom": [
+    1.0,
+    1.0
+   ],
+   "text": [
+    {
+     "style": "caps",
+     "y": 0.6,
+     "size": 64,
+     "end": 23.3,
+     "fill": "white",
+     "color": "#1C3F94",
+     "shadow": 0,
+     "words": [
+      [
+       "coming soon",
+       21.3
+      ],
+      [
+       "follow us",
+       22.4
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+}
