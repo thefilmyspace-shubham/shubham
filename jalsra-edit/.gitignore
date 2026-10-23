@@ -6,3 +6,4 @@ stills/
 out*.mp4
 p[0-9]*.mp4
 models/*.onnx
+__pycache__/
