@@ -4,3 +4,9 @@ whoosh_1-3   fast airy whoosh, 1 s          bigwhoosh_1-2  cinematic whoosh with
 hit_2        padel/tennis ball pop, 1 s     hit_synth      synthesized padel pop
 swing_1-2    racket swing swish, 1 s        squeak_1-2     sneaker squeak, 1 s
 logo_hit     bass boom with shimmer tail, 3 s
+
+Added for the Paimal reel:
+highlighter_1  highlighter stroke on newspaper, 1 s     (ElevenLabs sound effects, eleven_text_to_sound_v2)
+paper_slide_1  newspaper sheet sliding onto a desk, 2 s (ElevenLabs sound effects, eleven_text_to_sound_v2)
+marker_1       marker drawing a circle on paper, 1 s    (Magnific SFX generator)
+Use under the ElevenLabs / Magnific terms of the generating account.
