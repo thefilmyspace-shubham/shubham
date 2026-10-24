@@ -1,0 +1,272 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face{font-family:Anton;src:url(fonts/Anton.woff2) format('woff2')}
+@font-face{font-family:Bebas;src:url(fonts/BebasNeue.woff2) format('woff2')}
+@font-face{font-family:Mont;src:url(fonts/Montserrat.woff2) format('woff2');font-weight:100 900}
+html,body{margin:0;padding:0;background:#0B0B0C;width:1080px;height:1920px;overflow:hidden}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:#0B0B0C}
+#bg{position:absolute;inset:0;background:#0B0B0C}
+#content{position:absolute;inset:0;transform-origin:50% 50%}
+.scene{position:absolute;inset:0;display:none}
+.c{position:absolute;left:0;right:0;text-align:center}
+.anton{font-family:Anton;line-height:.9;letter-spacing:-.01em}
+.bebas{font-family:Bebas;line-height:.9}
+.mont{font-family:Mont;font-weight:700}
+.yellow{color:#FFE500}
+.white{color:#F5F2EA}
+.muted{color:#6E6E73}
+.ink{color:#0B0B0C}
+#flash{position:absolute;inset:0;background:#FFE500;opacity:0;pointer-events:none}
+#vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 45%,rgba(0,0,0,.55) 100%);pointer-events:none}
+#grain{position:absolute;inset:-200px;opacity:.09;pointer-events:none;mix-blend-mode:overlay;
+ background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>")}
+.hud{position:absolute;font-family:Bebas;font-size:34px;letter-spacing:.18em;color:#6E6E73}
+#hudL{left:64px;top:72px}
+#hudR{right:64px;top:72px}
+#hudB{left:64px;bottom:72px;right:64px;text-align:center}
+.tile{position:absolute;background:#0B0B0C;border-radius:22px}
+.dot{position:absolute;width:112px;height:112px;border-radius:30px;background:#FFE500}
+.box{display:inline-block;background:#FFE500;color:#0B0B0C;padding:.08em .22em .04em;border-radius:14px}
+.strike{position:relative}
+.strike::after{content:"";position:absolute;left:-2%;right:-2%;top:50%;height:.09em;background:#FFE500;transform:scaleX(var(--s,0));transform-origin:left center}
+</style>
+</head>
+<body>
+<div id="stage">
+ <div id="bg"></div>
+ <div id="content">
+  <div class="scene" id="s1">
+    <div class="c mont white" id="s1a" style="top:860px;font-size:44px;letter-spacing:.24em;font-weight:600"></div>
+    <div class="c mont muted" id="s1b" style="top:930px;font-size:44px;letter-spacing:.24em;font-weight:600"></div>
+    <div id="cursor" style="position:absolute;left:532px;top:1010px;width:16px;height:52px;background:#FFE500"></div>
+  </div>
+  <div class="scene" id="s2">
+    <div class="c anton white" id="zero" style="top:560px;font-size:980px">0</div>
+    <div class="c bebas muted" id="zeroLbl" style="top:1440px;font-size:70px;letter-spacing:.3em">DAY ONE</div>
+  </div>
+  <div class="scene" id="s3">
+    <div class="c bebas white strike" id="l1" style="top:560px;font-size:180px">NO CLIENTS</div>
+    <div class="c bebas white strike" id="l2" style="top:740px;font-size:180px">NO OFFICE</div>
+    <div class="c anton yellow" id="l3" style="top:1150px;font-size:168px;white-space:nowrap">JUST AN IDEA.</div>
+  </div>
+  <div class="scene" id="s4">
+    <div class="c bebas muted" id="s4lbl" style="top:600px;font-size:64px;letter-spacing:.3em">BRANDS THAT TRUSTED US</div>
+    <div class="c anton white" id="cnt" style="top:680px;font-size:760px">1</div>
+    <div id="rowtiles"></div>
+  </div>
+  <div class="scene" id="s5">
+    <div id="grid"></div>
+    <div class="c anton ink" id="b20" style="top:600px;font-size:600px">20+</div>
+    <div class="c bebas ink" id="b20l" style="top:1260px;font-size:170px;letter-spacing:.12em">BRANDS</div>
+    <div class="c mont ink" id="b20s" style="top:1450px;font-size:40px;letter-spacing:.22em;font-weight:700">TRUST US WITH THEIR GROWTH</div>
+  </div>
+  <div class="scene" id="s6">
+    <div id="st80" style="position:absolute;left:0;right:0;top:0;transform-origin:50% 50%">
+      <div class="c anton yellow" id="n80" style="top:520px;font-size:640px">80+</div>
+      <div class="c bebas white" id="n80l" style="top:1130px;font-size:150px;letter-spacing:.12em">POSTS</div>
+    </div>
+    <div id="st105" style="position:absolute;left:0;right:0;top:0">
+      <div class="c anton yellow" id="n105" style="top:820px;font-size:600px">105+</div>
+      <div class="c bebas white" id="n105l" style="top:1400px;font-size:150px;letter-spacing:.12em">VIDEOS</div>
+    </div>
+    <div class="c bebas" id="every" style="top:1640px;font-size:92px;letter-spacing:.14em"><span class="box">EVERY SINGLE MONTH</span></div>
+  </div>
+  <div class="scene" id="s8">
+    <div class="c bebas white" id="k1" style="top:620px;font-size:230px">SHOOT</div>
+    <div class="c bebas white" id="k2" style="top:850px;font-size:230px">EDIT</div>
+    <div class="c bebas white" id="k3" style="top:1080px;font-size:230px">PUBLISH</div>
+    <div class="c bebas" id="k4" style="top:1360px;font-size:120px;letter-spacing:.1em"><span class="box">ALL DONE IN-HOUSE</span></div>
+  </div>
+  <div class="scene" id="s9">
+    <div class="c anton white" id="big" style="top:720px;font-size:236px;letter-spacing:.01em">0</div>
+    <div class="c anton yellow" id="m19" style="top:560px;font-size:450px">1.9M+</div>
+    <div class="c bebas white" id="m19l" style="top:1080px;font-size:170px;letter-spacing:.12em">VIEWS</div>
+    <div class="c bebas muted" id="d30" style="top:1300px;font-size:72px;letter-spacing:.26em">IN THE LAST 30 DAYS</div>
+    <div id="bar" style="position:absolute;left:140px;right:140px;top:1420px;height:14px;background:#1E1E22;border-radius:8px;overflow:hidden"><div id="barf" style="width:0;height:100%;background:#FFE500"></div></div>
+  </div>
+  <div class="scene" id="s10">
+    <div class="c bebas muted" id="allof" style="top:560px;font-size:90px;letter-spacing:.3em">ALL OF IT, BUILT BY</div>
+    <div id="dots"></div>
+    <div class="c anton white" id="seven" style="top:980px;font-size:300px;white-space:nowrap"><span class="yellow">7</span> PEOPLE</div>
+    <div class="c bebas white" id="oneteam" style="top:1320px;font-size:120px;letter-spacing:.2em">ONE TEAM.</div>
+  </div>
+  <div class="scene" id="s11">
+    <div class="c bebas muted" id="y15" style="top:600px;font-size:90px;letter-spacing:.3em">1.5 YEARS</div>
+    <div class="anton white" id="z0" style="position:absolute;left:90px;top:790px;font-size:460px">0</div>
+    <div class="anton yellow" id="z20" style="position:absolute;right:80px;top:790px;font-size:460px">20</div>
+    <div id="arrow" style="position:absolute;left:350px;top:980px;height:26px;width:0;background:#F5F2EA"></div>
+    <div id="arrowhead" style="position:absolute;left:0;top:938px;width:0;height:0;border-top:55px solid transparent;border-bottom:55px solid transparent;border-left:90px solid #F5F2EA;opacity:0"></div>
+  </div>
+  <div class="scene" id="s12">
+    <div class="c bebas white" id="tfs" style="top:420px;font-size:88px;letter-spacing:.3em;white-space:nowrap">THE FILMY SPACE</div>
+    <div class="c anton white" id="f1" style="top:620px;font-size:250px">THE</div>
+    <div class="c anton yellow" id="f2" style="top:850px;font-size:250px">FASTEST</div>
+    <div class="c anton white" id="f3" style="top:1080px;font-size:250px">GROWING</div>
+    <div class="c anton white" id="f4" style="top:1310px;font-size:250px">AGENCY</div>
+    <div class="c bebas yellow" id="of" style="top:1600px;font-size:0px;letter-spacing:.2em">OF RATLAM</div>
+    <div id="rays"></div>
+  </div>
+  <div class="scene" id="s13">
+    <div class="c bebas white" id="nx" style="top:760px;font-size:160px;letter-spacing:.1em">THE NEXT NAME…</div>
+    <div class="c anton yellow" id="yours" style="top:930px;font-size:260px">COULD BE<br>YOURS.</div>
+    <div class="c mont muted" id="cta" style="top:1520px;font-size:46px;letter-spacing:.24em;font-weight:700">DM “GROW” TO START</div>
+  </div>
+  <div class="scene" id="s14">
+    <div class="c bebas white" id="logo" style="top:900px;font-size:84px;letter-spacing:.36em;white-space:nowrap">THE FILMY SPACE</div>
+    <div class="c bebas muted" id="logo2" style="top:1020px;font-size:38px;letter-spacing:.5em">RATLAM · MADHYA PRADESH</div>
+  </div>
+  <div class="hud" id="hudL">TFS / GROWTH REPORT</div>
+  <div class="hud" id="hudR">RATLAM, MP</div>
+  <div class="hud" id="hudB">00:00</div>
+ </div>
+ <div id="flash"></div>
+ <div id="vignette"></div>
+ <div id="grain"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const lerp=(a,b,p)=>a+(b-a)*p;
+const prog=(t,s,d)=>clamp((t-s)/d);
+const E={
+  outExpo:p=>p>=1?1:1-Math.pow(2,-10*p),
+  outQuart:p=>1-Math.pow(1-p,4),
+  outBack:p=>{const c=1.70158,k=c+1;return 1+k*Math.pow(p-1,3)+c*Math.pow(p-1,2)},
+  inOutCubic:p=>p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2,
+  inQuart:p=>p*p*p*p
+};
+function seeded(n){const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x)}
+function shake(t,t0,amp,dur){const p=(t-t0)/dur;if(p<0||p>1)return [0,0];const k=amp*(1-p)*(1-p);const f=Math.floor(t*60);return [(seeded(f)-.5)*2*k,(seeded(f+99)-.5)*2*k]}
+function show(id,on){$(id).style.display=on?'block':'none'}
+function st(id,s){Object.assign($(id).style,s)}
+function pop(id,t,t0,dur=.45,from=1.6){const p=prog(t,t0,dur);if(p<=0){st(id,{opacity:0});return 0}st(id,{opacity:1,transform:`scale(${lerp(from,1,E.outExpo(p))})`});return p}
+function rise(id,t,t0,dur=.5,dy=90){const p=prog(t,t0,dur);if(p<=0){st(id,{opacity:0});return 0}const e=E.outQuart(p);st(id,{opacity:e,transform:`translateY(${lerp(dy,0,e)}px)`});return p}
+function fmt(n){return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+const DROP=12.58, BAR=1.6;
+// build grids once
+(function(){
+  const g=$('grid');for(let i=0;i<20;i++){const d=document.createElement('div');d.className='tile';d.id='tile'+i;g.appendChild(d)}
+  const r=$('rowtiles');for(let i=0;i<3;i++){const d=document.createElement('div');d.className='tile';d.id='rt'+i;d.style.background='#FFE500';r.appendChild(d)}
+  const dd=$('dots');for(let i=0;i<7;i++){const d=document.createElement('div');d.className='dot';d.id='dot'+i;dd.appendChild(d)}
+  const ry=$('rays');for(let i=0;i<24;i++){const d=document.createElement('div');d.id='ray'+i;d.style.cssText='position:absolute;left:540px;top:1700px;width:6px;height:0;background:#FFE500;transform-origin:50% 0;opacity:.5';ry.appendChild(d)}
+})();
+function render(t){
+  // reset
+  ['s1','s2','s3','s4','s5','s6','s8','s9','s10','s11','s12','s13','s14'].forEach(s=>show(s,false));
+  let bg='#0B0B0C', hud='#6E6E73', flash=0, sh=[0,0], pulse=1;
+  if(t>=DROP){const ph=((t-DROP)%BAR)/BAR;pulse=1+0.014*Math.exp(-ph*9);const phr=((t-DROP)%(BAR*3))/(BAR*3);flash=Math.max(flash,0.10*Math.exp(-phr*30))}
+  const tc=Math.max(0,t);$('hudB').textContent=`00:${String(Math.floor(tc)).padStart(2,'0')}.${String(Math.floor((tc%1)*10))}`;
+
+  // S1 0–2.9
+  if(t<2.95){show('s1',true);
+    const a='A YEAR AND A HALF AGO',b='WE HAD EXACTLY';
+    $('s1a').textContent=a.slice(0,Math.floor(prog(t,0.0,1.0)*a.length));
+    $('s1b').textContent=b.slice(0,Math.floor(prog(t,1.55,0.85)*b.length));
+    $('cursor').style.opacity=(Math.floor(t*3)%2===0)?1:0;
+    const fade=1-prog(t,2.75,0.2);st('s1a',{opacity:fade});st('s1b',{opacity:fade});
+  }
+  // S2 2.9–3.9  "0"
+  if(t>=2.88&&t<3.95){show('s2',true);
+    pop('zero',t,2.88,.5,3.2);sh=shake(t,2.9,22,.35);
+    rise('zeroLbl',t,3.15,.4,40);
+    const f=1-prog(t,3.78,.15);$('s2').style.opacity=f;
+  }
+  // S3 3.9–7.6
+  if(t>=3.9&&t<7.62){show('s3',true);
+    rise('l1',t,3.9,.4,120);rise('l2',t,5.0,.4,120);
+    $('l1').style.setProperty('--s',E.outQuart(prog(t,4.55,.3)));
+    $('l2').style.setProperty('--s',E.outQuart(prog(t,5.7,.3)));
+    pop('l3',t,6.2,.5,1.9);if(t>=6.2)sh=shake(t,6.2,12,.3);
+    $('s3').style.opacity=1-prog(t,7.45,.15);
+  }
+  // S4 7.6–12.58  counter 1,2,3 → roll
+  if(t>=7.6&&t<DROP){show('s4',true);
+    rise('s4lbl',t,7.6,.4,40);
+    let n=1,hit=7.6;if(t>=9.26){n=2;hit=9.26}if(t>=10.32){n=3;hit=10.32}
+    if(t>=11.47){const p=E.inQuart(prog(t,11.47,1.1));n=Math.floor(lerp(3,19,p));hit=null;
+      st('cnt',{filter:`blur(${lerp(0,6,p)}px)`,transform:`scale(${lerp(1,1.25,p)})`,opacity:1})}
+    else{st('cnt',{filter:'none'});pop('cnt',t,hit,.35,1.5);sh=shake(t,hit,10,.25)}
+    $('cnt').textContent=n;
+    for(let i=0;i<3;i++){const on=t>=[7.6,9.26,10.32][i];const p=on?E.outBack(prog(t,[7.6,9.26,10.32][i],.4)):0;
+      st('rt'+i,{left:(540-3*150/2-70+i*150+75-70+70-70)+ 'px',top:'1500px',width:'140px',height:'140px',opacity:on?1:0,transform:`scale(${p})`});
+      $('rt'+i).style.left=(540-210+i*150-70+75)+'px';}
+    if(t>=11.47){$('rowtiles').style.opacity=1-prog(t,11.47,.5)}else $('rowtiles').style.opacity=1;
+  }
+  // S5 DROP 12.58–14.95  yellow
+  if(t>=DROP&&t<14.95){show('s5',true);bg='#FFE500';hud='#0B0B0C';
+    flash=Math.max(flash,1-prog(t,DROP,.12));sh=shake(t,DROP,34,.5);
+    pop('b20',t,DROP,.55,2.4);rise('b20l',t,DROP+.18,.4,60);rise('b20s',t,DROP+.6,.4,30);
+    for(let i=0;i<20;i++){const col=i%5,row=Math.floor(i/5);const t0=DROP+.05+i*.055;const p=E.outBack(prog(t,t0,.35));
+      st('tile'+i,{left:(60+col*196)+'px',top:(170+row*196)+'px',width:'156px',height:'156px',opacity:p>0?0.14:0,transform:`scale(${p})`})}
+    $('s5').style.opacity=1-prog(t,14.82,.12);
+  }
+  // S6/S7 15.0–19.75  80+ posts, 105+ videos, every single month
+  if(t>=14.95&&t<19.78){show('s6',true);
+    pop('n80',t,15.0,.45,2.0);rise('n80l',t,15.15,.4,60);if(t<16.38)sh=shake(t,15.0,16,.35);
+    const mv=E.inOutCubic(prog(t,16.38,.35));
+    st('st80',{transform:`translateY(${lerp(0,-330,mv)}px) scale(${lerp(1,.62,mv)})`});
+    if(t>=16.38){pop('n105',t,16.38,.45,2.0);rise('n105l',t,16.55,.4,60);sh=shake(t,16.38,16,.35)}else{st('n105',{opacity:0});st('n105l',{opacity:0})}
+    pop('every',t,18.5,.4,1.6);if(t>=18.5)sh=shake(t,18.5,10,.25);
+    $('s6').style.opacity=1-prog(t,19.65,.12);
+  }
+  // S8 19.8–22.7 kinetic
+  if(t>=19.78&&t<22.75){show('s8',true);
+    rise('k1',t,19.84,.3,140);rise('k2',t,20.3,.3,140);rise('k3',t,20.7,.3,140);
+    pop('k4',t,21.39,.4,1.7);if(t>=21.39)sh=shake(t,21.39,12,.3);
+    $('s8').style.opacity=1-prog(t,22.62,.12);
+  }
+  // S9 22.75–27.05 views
+  if(t>=22.75&&t<27.05){show('s9',true);
+    const p=E.outQuart(prog(t,22.77,2.1));const v=lerp(0,1919700,p);
+    $('big').textContent=fmt(v);st('big',{opacity:t<24.95?1:1-prog(t,24.95,.15),filter:`blur(${(1-p)*3}px)`});
+    if(t>=25.05){pop('m19',t,25.05,.5,2.2);rise('m19l',t,25.2,.4,60);sh=shake(t,25.05,20,.4)}else{st('m19',{opacity:0});st('m19l',{opacity:0})}
+    rise('d30',t,25.5,.4,40);st('bar',{opacity:t>=25.5?1:0});$('barf').style.width=(E.outQuart(prog(t,25.6,1.0))*100)+'%';
+    $('s9').style.opacity=1-prog(t,26.92,.12);
+  }
+  // S10 27.05–29.75 team
+  if(t>=27.05&&t<29.75){show('s10',true);
+    rise('allof',t,27.1,.4,40);
+    for(let i=0;i<7;i++){const t0=27.9+i*.13;const p=E.outBack(prog(t,t0,.35));st('dot'+i,{left:(540-7*140/2+i*140+14)+'px',top:'760px',opacity:p>0?1:0,transform:`scale(${p})`})}
+    pop('seven',t,28.75,.45,1.9);if(t>=28.75)sh=shake(t,28.75,14,.3);
+    rise('oneteam',t,29.1,.35,60);
+    $('s10').style.opacity=1-prog(t,29.62,.12);
+  }
+  // S11 29.75–32.75  0 → 20
+  if(t>=29.75&&t<32.75){show('s11',true);
+    rise('y15',t,29.8,.4,40);pop('z0',t,29.95,.4,1.6);
+    const a=E.outQuart(prog(t,31.1,.45));$('arrow').style.width=(a*150)+'px';st('arrowhead',{left:(350+a*150-10)+'px',opacity:a>0.05?1:0});
+    pop('z20',t,31.45,.45,2.0);if(t>=31.45)sh=shake(t,31.45,16,.3);
+    $('s11').style.opacity=1-prog(t,32.62,.12);
+  }
+  // S12 32.75–37.0 brand + tagline
+  if(t>=32.75&&t<37.0){show('s12',true);
+    rise('tfs',t,32.84,.45,50);
+    const hide=t<34.55;['f1','f2','f3','f4'].forEach((id,i)=>{if(hide)st(id,{opacity:0});else rise(id,t,34.59+i*.17,.32,160)});
+    if(t>=34.59&&t<35.4)sh=shake(t,34.59,8,.6);
+    if(t>=36.0){const p=E.outExpo(prog(t,36.0,.5));st('of',{fontSize:lerp(0,120,p)+'px',opacity:1,transform:`translateY(${lerp(40,0,p)}px)`});
+      for(let i=0;i<24;i++){const ang=-180+i*(180/23);const len=E.outQuart(prog(t,36.05+i*.012,.5))*420*(0.5+0.5*seeded(i));st('ray'+i,{height:len+'px',transform:`rotate(${ang+90}deg)`,opacity:.35*(1-prog(t,36.5,.5))})}
+      if(t<36.3)sh=shake(t,36.0,14,.3)}
+    else{st('of',{opacity:0});for(let i=0;i<24;i++)st('ray'+i,{height:'0px'})}
+    $('s12').style.opacity=1-prog(t,36.88,.12);
+  }
+  // S13 37.0–39.78
+  if(t>=37.0&&t<39.78){show('s13',true);
+    rise('nx',t,37.05,.4,80);pop('yours',t,38.39,.45,1.8);if(t>=38.39)sh=shake(t,38.39,14,.3);
+    rise('cta',t,38.9,.4,30);
+  }
+  // S14 39.78–end logo sting
+  if(t>=39.78){show('s14',true);bg='#0B0B0C';
+    pop('logo',t,39.78,.3,1.25);rise('logo2',t,39.9,.3,20);flash=Math.max(flash,0.6*(1-prog(t,39.78,.1)));
+  }
+  $('bg').style.background=bg;['hudL','hudR','hudB'].forEach(h=>$(h).style.color=hud);
+  $('content').style.transform=`translate(${sh[0]}px,${sh[1]}px) scale(${pulse})`;
+  $('flash').style.opacity=flash;
+  const f=Math.floor(t*30);$('grain').style.transform=`translate(${(seeded(f)*120)|0}px,${(seeded(f+7)*120)|0}px)`;
+}
+window.render=render;render(0);
+</script>
+</body>
+</html>
