@@ -3,12 +3,12 @@
 //        node render.js full     -> all frames into frames/
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
 const fs = require('fs'); const path = require('path');
-const FPS = 30, DUR = 40.5;
+const FPS = Number(process.env.FPS || 30), DUR = 40.5, HTML = process.env.REEL || 'reel.html';
 (async () => {
   const mode = process.argv[2] || 'preview';
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
-  await page.goto('file://' + path.join(__dirname, 'reel.html'));
+  await page.goto('file://' + path.join(__dirname, HTML));
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);
   if (mode === 'preview') {
