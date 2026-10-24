@@ -516,6 +516,7 @@ def main():
     ap.add_argument('--start', type=float, default=0.0); ap.add_argument('--end', type=float, default=None)
     ap.add_argument('--stills', default=None); ap.add_argument('--stills-dir', default='stills')
     ap.add_argument('--audio', default=None, help='finished mix (timeline time) to mux')
+    ap.add_argument('--crf', type=int, default=17); ap.add_argument('--preset', default='fast')
     a = ap.parse_args()
     e = json.load(open(a.edl))
     ed = Edit(e)
@@ -535,7 +536,7 @@ def main():
     rd = Reader(path(e['source']), ed.tl.at(a.start)[1])
     cmd = ['ffmpeg', '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-']
     if a.audio: cmd += ['-ss', f'{a.start:.3f}', '-t', f'{end - a.start:.3f}', '-i', a.audio]
-    cmd += ['-c:v', 'libx264', '-preset', 'fast', '-crf', '17', '-pix_fmt', 'yuv420p', '-colorspace', 'bt709',
+    cmd += ['-c:v', 'libx264', '-preset', a.preset, '-crf', str(a.crf), '-pix_fmt', 'yuv420p', '-colorspace', 'bt709',
             '-color_primaries', 'bt709', '-color_trc', 'bt709', '-movflags', '+faststart']
     if a.audio: cmd += ['-c:a', 'aac', '-b:a', '256k', '-shortest']
     cmd += [a.out]

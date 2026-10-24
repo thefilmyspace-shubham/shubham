@@ -144,7 +144,7 @@ edl = {
     'grade': {'contrast': 1.07, 'saturation': 0.94, 'lift': -0.012, 'warmth': 0.006},
     'segments': segments,
     'brolls': brolls,
-    'subs': {'font': 'fonts/Mukta-Bold.ttf', 'size': 62, 'y': 1525, 'max_chars': 20, 'max_words': 4,
+    'subs': {'on': False, 'font': 'fonts/Mukta-Bold.ttf', 'size': 62, 'y': 1525, 'max_chars': 20, 'max_words': 4,
              'keywords': KEYWORDS},
     'music': {'file': 'music/paimal_intense_170s.mp3'},
     'sfx_emphasis': [41.21, 66.02, 135.64],

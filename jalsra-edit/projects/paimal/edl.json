@@ -1295,6 +1295,7 @@
   }
  ],
  "subs": {
+  "on": false,
   "font": "fonts/Mukta-Bold.ttf",
   "size": 62,
   "y": 1525,
