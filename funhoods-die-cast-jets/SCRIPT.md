@@ -20,3 +20,10 @@ Distributors and wholesalers, book your bulk stock now!
 
 v2: the jets are not metal, so no "die-cast metal" claim; new wording, nothing reused from the Dino Car script. About 66 words, about 27 s, which leaves room for a jet "whoosh" SFX after "let go".
 To confirm: is the 144 per carton jets or packs? If it is packs of 6, line 7 becomes "144 packs per carton".
+
+## VO samples (`audio/`)
+ElevenLabs had only 134 credits left this month (one take needs 471), so the samples were made with Magnific's ElevenLabs v4
+(96 credits each). The "Ishaan" voice of the Dino Car reel isn't in Magnific's catalogue; these are the closest young male Indian-English voices.
+The VO no longer says "whoosh": sound effects are generated separately.
+- `VO_sample_1_Gavin.mp3` (playful, 32.0 s) · `VO_sample_2_Callum.mp3` (warm, 29.6 s)
+- SFX (Magnific / ElevenLabs, 10 credits each): `sfx_jet_whoosh_1/2.mp3`, `sfx_pullback_1/2.mp3`
