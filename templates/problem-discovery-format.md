@@ -169,6 +169,49 @@ Owner ko yeh khud se nahi yaad aayenge. List se ek-ek poochho: "Kya yeh hota hai
 
 ---
 
+## Step 7B: "Mana karna" points (auto-enforcement)
+
+Har business mein kuch jagah owner ya staff ko kisi ko **"na" bolna padta hai** ya **police karna padta hai**. Yeh sabse achhe automation points hain, kyunki system khud rule laagu kare toh na jhagda, na leak, na sharam.
+
+Gym ka example: membership khatam hote hi door ka fingerprint kaam karna band kar deta hai. Owner ko member se kuch bolna nahi padta.
+
+**Owner se yeh poochho:**
+- Kahan log bina pay kiye service le lete hain?
+- Kisko "aapka time khatam ho gaya" ya "pehle payment karo" bolna padta hai? Kitni baar?
+- Kaunsa rule hai jo staff follow nahi karta? (discount, free item, late entry)
+- Kahan aapko khud khade hoke check karna padta hai?
+- Kis baat pe customer ya staff se jhagda hota hai?
+
+**Log karo:**
+
+| Rule jo toot-ta hai | Kaun todta hai | Kitni baar | Nuksaan | Abhi kaun rokta hai | Auto kaise rok sakte hain |
+|---|---|---|---|---|---|
+| | | | | | |
+
+**Rokne ke 3 tareeke (sasta pehle):**
+
+| Level | Tareeka | Cost | Example |
+|---|---|---|---|
+| 1. Sirf software | App mein red/green, booking block, payment link pehle | ₹0 | Fees pending toh coaching app pe test lock |
+| 2. Software + staff | Entry pe staff QR scan kare, red aaye toh andar nahi | ₹0, staff ka phone | Gym reception pe member QR |
+| 3. Software + device | Device khud rokta hai: door lock, turnstile, locker | ₹8,000–35,000 ek baar | Gym door fingerprint |
+
+Pehle Level 1 ya 2 try karo. Level 3 tab jab leak ka nuksaan device ki cost se zyada ho.
+
+**Niche examples (shuruaati andaza):**
+
+| Niche | Rule | Auto-enforcement |
+|---|---|---|
+| Gym | Membership expire = entry band | Fingerprint/face door lock software se jude, ya reception QR red |
+| Coaching | Fees pending = access band | Student app/test lock, attendance pe owner ko alert |
+| Salon | Package khatam = free service band | Booking pe auto "balance zero, pay first" |
+| Restaurant | Discount ya bill cancel bina permission | Owner ko WhatsApp OTP, bina OTP discount nahi |
+| Kirana | Udhaar limit cross | Billing pe credit limit block |
+| Clinic | Follow-up free sirf 7 din | System 7 din ke baad fee auto lagaye |
+| Hostel / PG | Rent pending | Door access card band, WhatsApp reminder pehle |
+
+---
+
 ## Step 8: Validate karo
 
 Top 3 problems wapas owner ko batao:

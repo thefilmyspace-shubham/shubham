@@ -100,6 +100,8 @@ GST reports, licence reminders, records. Data yahan lock hota hai.
 
 **Tier 4: Automation (hamara USP)**
 WhatsApp reminders aur bots, AI summary, reconciliation, forecasting. Yahan Claude API aur WhatsApp API lagti hai.
+
+**Auto-enforcement** bhi isi tier mein aata hai: jahan system khud rule laagu kare (membership khatam = door band, fees pending = app lock, udhaar limit = billing block). Discovery format ka Step 7B dekho. Sasta level pehle: software, phir staff QR, phir device.
 - 
 
 **Tier 5: Abhi nahi**
@@ -120,6 +122,7 @@ Har "haan" ek cost aur ek delay hai. Restaurant mein 3 haan the (printer, offlin
 | Dependency | Haan/Nahi | Agar haan toh kya chahiye | Cost | Time |
 |---|---|---|---|---|
 | Hardware (printer, scanner, biometric, terminal) | | | | |
+| Auto-enforcement device (door lock, turnstile, locker) | | Device ki API/SDK confirm karo, dealer se written compatibility lo | ₹8,000–35,000 | |
 | Offline chalna zaroori (net gaya toh dukaan rukegi?) | | | | |
 | Third-party permission (partner API, NDA, approval) | | | | |
 | Government API (e-invoice sirf ₹5 Cr+ turnover pe, e-way bill) | | | | |
@@ -166,6 +169,7 @@ Code ki cost lagbhag zero maano (AI tools). Baaki lines bharo.
 | Claude API | ₹300–12,000/mahina | Haiku sasta, Opus accurate |
 | Government/partner API | | Section 4 se |
 | Test hardware | | Section 4 se |
+| Enforcement device per customer (agar hai) | ₹8,000–35,000 ek baar | Customer khud kharide, ya rent pe do |
 | Play Store / Apple | ₹2,000 ek baar / ₹8,500 saal | |
 | Domain, SSL, email | ₹2,000–5,000/saal | |
 | Support (pehle 6 mahine) | Founder time | |
