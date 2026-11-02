@@ -110,8 +110,9 @@ place(jingle, T.GLOW - 0.02, 0.30); place(chime([1568, 2093, 2637], 0.06), T.GLO
 # 4WD: wheel whirr + callout pops
 place(fade(norm(fric[S(0.2):S(1.6)], 0.9), 0.05, 0.4), T.S_4WD + 0.1, 0.2)
 for t in (T.CALL_BODY, T.CALL_TYRES): place(blip(), t, 0.10); place(pop_snd(), t + 0.15, 0.14)
-# models / colours
-for i, t in enumerate(T.MODEL_POPS): place(chime([[1047, 1319], [1175, 1480]][i], 0.06, 0.45), t, 0.12); place(pop_snd(), t, 0.16)
+# style: sparkle on BOLD LOOKS, zoom as the car swings round on BUILT TO RACE
+place(chime([1047, 1319, 1568], 0.06, 0.45), T.LOOKS, 0.12); place(pop_snd(), T.LOOKS, 0.16)
+place(zoom, T.BUILT - 0.05, 0.30); place(impact(0.7, 85, 45), T.BUILT + 0.1, 0.16)
 # box turns, lands on the counter
 place(whoosh(0.7, 0.5, 0.35), T.S_BOX + 0.1, 0.16); place(whoosh(0.36, 0.8, 0.3), T.BOX_LAND - 0.34, 0.16)
 place(thock(0.16), T.BOX_LAND, 0.42); place(impact(0.6, 90, 50), T.BOX_LAND, 0.14); place(chime([1047, 1319, 1568, 2093], 0.06), T.BOX_LAND + 0.1, 0.1)

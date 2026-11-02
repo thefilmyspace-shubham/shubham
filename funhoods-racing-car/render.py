@@ -646,21 +646,21 @@ def scene_4wd(t, t0, t1):
     pop(c, head('DRIVE', 130), DW / 2, 480, t, T.w(4, 2) - 0.06, None, slide=30)
     return c
 
-def scene_models(t, t0, t1):
-    """Cool style, multiple models, multiple colours!"""
-    c = bg(t)
-    pop(c, head('COOL STYLE', 112), DW / 2, 290, t, T.w(5, 0) - 0.06, None, slide=30)
-    pop(c, impact_txt('MULTIPLE MODELS', 112, YEL), DW / 2, 410, t, T.w(5, 2) - 0.06, None, d=0.32, from_scale=1.6, rot=-3)
-    pop(c, head('& COLOURS', 96), DW / 2, 520, t, T.w(5, 4) - 0.06, None, slide=30)
-    p = prog(t, t0, 0.45)
-    place(c, with_shadow('car_q34.png', 380, 12, 18, 70), DW / 2, 860 + 180 * (1 - e_back(p, 1.3)) + 8 * math.sin(t * 2.2), 1.0, -3, clamp(p * 3))
-    pop(c, chip('+ MORE MODELS ON THE BOX', 34, YEL, DRED), DW / 2, 1640, t, T.MODEL_POPS[-1] + 0.3, None, slide=20)
-    for i, (a, x, y, wd) in enumerate([('art_green.png', 290, 1320, 500), ('art_redyellow.png', 790, 1320, 500)]):
-        tp = T.MODEL_POPS[i]; q = prog(t, tp, 0.42)
-        if q <= 0: continue
-        im = asset(a); hh = int(wd * im.height / im.width)
-        place(c, with_shadow(a, hh, 10, 14, 60), x, y + 7 * math.sin(t * 2.4 + i) + 260 * (1 - e_back(q, 1.3)), 0.6 + 0.4 * e_back(q, 1.5), [-4, 4][i], clamp(q * 3))
-    sparkles(c, t, 31, DW / 2, 1100, 480, 480, n=10)
+def scene_style(t, t0, t1):
+    """Cool style, bold looks... built to race! -- the one orange car: 3/4 view, then it swings round to face the camera"""
+    c = bg(t); p = prog(t, t0, 0.45)
+    place(c, soft_burst(1100), DW / 2, 1020, 0.88 + 0.04 * math.sin(t * 2.5), (t * 10) % 360, 0.26 * clamp(p * 3))
+    q = prog(t, T.BUILT, 0.5)                                       # on "built to race" the car swings round to face the camera
+    if q < 1:
+        place(c, with_shadow('car_q34.png', 520, 12, 18, 70), DW / 2 - 700 * e_in(q), 1010 + 200 * (1 - e_back(p, 1.3)) + 8 * math.sin(t * 2.2),
+              1.0 + 0.02 * (t - t0), -3, clamp(p * 3) * (1 - q))
+    if q > 0:
+        place(c, with_shadow('car_front.png', 820, 12, 18, 70), DW / 2 + 700 * (1 - e_out(q)), 1040 + 6 * math.sin(t * 2.4), 1.0, 2 * math.sin(t * 1.5), clamp(q * 2))
+        speed_lines(c, t, 820, 1240, 10, 7, 1 - q)
+    sparkles(c, t, 31, DW / 2, 1020, 460, 420, n=12, size=40)
+    pop(c, head('COOL STYLE', 120), DW / 2, 300, t, T.w(5, 0) - 0.06, None, slide=30)
+    pop(c, impact_txt('BOLD LOOKS', 150, YEL), DW / 2, 440, t, T.LOOKS, None, d=0.32, from_scale=1.6, rot=-3)
+    pop(c, chip('BUILT TO RACE!', 50, RED, WHITE, F_HEAD, 40, 18), DW / 2, 1640, t, T.BUILT, None, slide=24)
     return c
 
 def scene_box(t, t0, t1):
@@ -753,8 +753,8 @@ def render(t):
     elif t < T.S_PUSH: c = scene_spin(t, T.S_SPIN, T.S_PUSH)
     elif t < T.S_LIGHTS: c = scene_push(t, T.S_PUSH, T.S_LIGHTS)
     elif t < T.S_4WD: c = scene_lights(t, T.S_LIGHTS, T.S_4WD)
-    elif t < T.S_MODELS: c = scene_4wd(t, T.S_4WD, T.S_MODELS)
-    elif t < T.S_BOX: c = scene_models(t, T.S_MODELS, T.S_BOX)
+    elif t < T.S_STYLE: c = scene_4wd(t, T.S_4WD, T.S_STYLE)
+    elif t < T.S_BOX: c = scene_style(t, T.S_STYLE, T.S_BOX)
     elif t < T.S_CARTON: c = scene_box(t, T.S_BOX, T.S_CARTON)
     elif t < T.S_BULK: c = scene_carton(t, T.S_CARTON, T.S_BULK)
     elif t < T.S_END: c = scene_bulk(t, T.S_BULK, T.S_END)

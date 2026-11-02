@@ -26,9 +26,9 @@ NOTES = w(3, 6) - 0.05         # "loud music"
 # 4 Four-wheel drive, a sturdy body and chunky tyres.
 S_4WD = gap(4)
 CALL_BODY, CALL_TYRES = w(4, 4) - 0.05, w(4, 7) - 0.05
-# 5 Cool style, multiple models, multiple colours!
-S_MODELS = gap(5)
-MODEL_POPS = [w(5, 2) + 0.15 * i for i in range(2)]
+# 5 Cool style, bold looks... built to race!  (one colour only -- no other models / colours are shown)
+S_STYLE = gap(5)
+LOOKS, BUILT = w(5, 2) - 0.06, w(5, 4) - 0.06
 # 6 A bold window box that grabs every eye in the store.
 S_BOX = gap(6)
 BOX_LAND = w(6, 5) - 0.10      # "grabs every eye": lands on the counter
@@ -42,7 +42,7 @@ STOCK = w(8, 3) - 0.08         # "stock up"
 # 9 Funhoods, childhood full of fun.
 S_END = gap(9)
 
-CUTS = [(S_SPIN, 'zoom'), (S_PUSH, 'chev'), (S_LIGHTS, 'zoom'), (S_4WD, 'chev'), (S_MODELS, 'zoom'),
+CUTS = [(S_SPIN, 'zoom'), (S_PUSH, 'chev'), (S_LIGHTS, 'zoom'), (S_4WD, 'chev'), (S_STYLE, 'zoom'),
         (S_BOX, 'chev'), (S_CARTON, 'chev'), (S_BULK, 'zoom'), (S_END, 'flash')]
 # music: "Jumping Around" (Ahjay Stelino, Mixkit) -- 110 BPM, bar 0 downbeat at 0.491 s -> reel 0.0
 MUSIC_IN = 0.491

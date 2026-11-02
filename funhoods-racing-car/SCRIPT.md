@@ -8,7 +8,7 @@ The catalogue picture shows it in orange and in blue. No certification is listed
 
 Product facts, from the box and the demo videos in Drive (1 Nov):
 - RACING INERTIA CAR, friction / hand push / inertia ("FULL SPEED AHEAD")
-- FOUR-WHEEL DRIVE · STURDY · COOL STYLE · MULTIPLE MODELS · MULTIPLE COLORS · 3+ AGES
+- FOUR-WHEEL DRIVE · STURDY · COOL STYLE · 3+ AGES (the box also prints "multiple models / colors", but this SKU comes in one colour only)
 - LOUD MUSIC · BRIGHT LIGHT: the functional version, NO.3301 (ticked on the box), runs on 3 × 1.5 V Ag13 button batteries.
   "Pull out the barrier and music and lights will come on". The demo video shows the headlights glowing when the car is pressed.
 - Left out on purpose:
@@ -23,7 +23,7 @@ Say hello to the Funhoods Racing Car!
 Give it a push... let go... and watch it race!
 Press the roof... bright lights and loud music!
 Four-wheel drive, a sturdy body and chunky tyres.
-Cool style, multiple models, multiple colours!
+Cool style, bold looks... built to race!
 A bold window box that grabs every eye in the store.
 Thirty-six pieces per carton, shipped anywhere in India.
 Distributors and wholesalers, stock up for the season!
@@ -39,7 +39,7 @@ Distributors and wholesalers, stock up for the season!
 | 3 | 5.5–9.0 | Give it a push... let go... and watch it race! | HOW IT WORKS: side view, a glove pushes the car (wheels spin, friction rings), lets go, the car races off · chips FRICTION · HAND PUSH · INERTIA | *Friction ratchet → zoom SFX*, dust puff, speed lines |
 | 4 | 9.0–12.0 | Press the roof... bright lights and loud music! | Front view close-up: finger presses the roof → headlights glow and pulse, music notes burst · badges LOUD MUSIC · BRIGHT LIGHT (box icons) | Light flare, *toy music jingle SFX* |
 | 5 | 12.0–15.0 | Four-wheel drive, a sturdy body and chunky tyres. | Side view with callouts: FOUR-WHEEL DRIVE (all 4 wheels highlighted) · STURDY BODY · CHUNKY TYRES | Callout lines draw on, wheel spin, *thock* |
-| 6 | 15.0–18.0 | Cool style, multiple models, multiple colours! | The box's car artworks (orange, green, red/yellow, white) pop in a row · COOL STYLE · MULTIPLE MODELS · MULTIPLE COLORS | Pops in rhythm, *chime* |
+| 6 | 15.0–18.0 | Cool style, bold looks... built to race! | The orange car (the only colour) in 3/4 view swings round to face the camera · COOL STYLE · BOLD LOOKS · BUILT TO RACE! | Sparkles, *chime*, zoom |
 | 7 | 18.0–21.5 | A bold window box that grabs every eye in the store. | 360° packaging: the box turns front → side → back, lands on a shop counter · EYE-CATCHING WINDOW BOX | Box spin, landing bounce, sparkles |
 | 8 | 21.5–25.0 | Thirty-six pieces per carton, shipped anywhere in India. | 36 PCS PER CARTON: cartons drop and stack · a Funhoods truck drives in · PAN INDIA DELIVERY | Carton thuds, truck horn |
 | 9 | 25.0–28.8 | Distributors and wholesalers, stock up for the season! | FOR DISTRIBUTORS & WHOLESALERS · boxes line up on the shelf · BULK ORDERS ONLY · STOCK UP NOW! | Burst, impact hit |
@@ -57,3 +57,8 @@ ElevenLabs had only 134 credits left (one take needs 485), so these were made on
   - `sfx_zoom_1/2`
   - `sfx_friction_push_1/2`
   - `sfx_lights_music_1/2`
+
+## v3 (client, 2 Nov): one colour only
+The car comes in one colour (orange). The other models and colours from the box art are removed from the reel.
+Line 6 is now "Cool style, bold looks... built to race!" (same Gavin voice, regenerated on Magnific for 10 credits,
+gain-matched and spliced in by `tools/vo_retime.py`).

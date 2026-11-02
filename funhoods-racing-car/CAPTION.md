@@ -2,7 +2,7 @@
 
 ```
 Funhoods Racing Car 🏎️ Push it, let go, watch it race! Press the roof for bright lights & loud music.
-Four-wheel drive · Sturdy body · Multiple models & colours · Ages 3+
+Four-wheel drive · Sturdy body · Cool racing style · Ages 3+
 📦 Eye-catching window box · 36 pcs per carton · 🚚 Pan India delivery
 Bulk orders only, for distributors & wholesalers. DM now!
 

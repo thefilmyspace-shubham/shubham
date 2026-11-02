@@ -11,7 +11,7 @@ How the toy works is animated: push and let go, press the roof for lights and mu
 
 Product facts:
 - **Catalogue** (FUNHOODS_02.pdf, p. 25): PVC Racing Car · PVC-3301 · outer carton 36 pcs · inertia car.
-- **Box:** friction / hand push / inertia / sturdy, four-wheel drive, loud music and bright light, multiple models and colors, 3+ ages.
+- **Box:** friction / hand push / inertia / sturdy, four-wheel drive, loud music and bright light, 3+ ages. The car comes in **one colour only** (client), so the box's "multiple models / colors" is not claimed.
 - **Claims left out:**
   - "no batteries": the lights and music run on 3 × Ag13 cells.
   - BIS / Made in India: not on this product; the box says Made in China.
@@ -23,7 +23,7 @@ Product facts:
 | 5.8–9.4 | Give it a push... let go... and watch it race! | A glove pushes the car (rims spin, friction whirr), lets go, and the car races off · FRICTION · HAND PUSH · INERTIA |
 | 9.4–12.7 | Press the roof... bright lights and loud music! | Front view: a finger presses the roof, the headlights glow with rays, music notes burst out · BRIGHT LIGHT · LOUD MUSIC |
 | 12.7–16.3 | Four-wheel drive, a sturdy body and chunky tyres. | Side view rolling, wheel rings, callouts STURDY BODY · CHUNKY TYRES |
-| 16.3–19.6 | Cool style, multiple models, multiple colours! | The car plus two other models from the box art · + MORE MODELS ON THE BOX |
+| 16.2–19.6 | Cool style, bold looks... built to race! | The orange car (one colour only) in 3/4 view swings round to face the camera · COOL STYLE · BOLD LOOKS · BUILT TO RACE! |
 | 19.6–22.7 | A bold window box that grabs every eye in the store. | The box turns (front, side, back, side), then lands on a shop counter · EYE-CATCHING WINDOW BOX |
 | 22.7–25.6 | Thirty-six pieces per carton, shipped anywhere in India. | 36 PCS PER CARTON (cartons stack) · Funhoods truck · PAN INDIA DELIVERY |
 | 25.6–29.1 | Distributors and wholesalers, stock up for the season! | Boxes line up · BULK ORDERS ONLY · STOCK UP NOW! |
@@ -31,8 +31,9 @@ Product facts:
 
 ## Sources
 - **Product:** BiRefNet cut-outs of the client's 17 phone photos (Drive, 1 Nov), colour graded by `tools/prep_assets.py`
-  (levels, +6 % contrast, +12 % saturation, clarity). The box panels are perspective-flattened. The other models come from the box's side-panel art.
+  (levels, +6 % contrast, +12 % saturation, clarity). The box panels are perspective-flattened.
 - **VO:** Magnific (ElevenLabs v4), voice "Gavin" (client pick, sample 2), re-timed by `tools/vo_retime.py` (+8 % tempo, pitch kept).
+  Line 6 was regenerated in the same voice (`audio/vo_line5_cool_style.mp3`) and spliced in.
 - **SFX:** generated separately from the VO on Magnific (ElevenLabs SFX), plus synthesized beeps, whooshes, pops and chimes:
   - engine rev / VROOM
   - zoom
