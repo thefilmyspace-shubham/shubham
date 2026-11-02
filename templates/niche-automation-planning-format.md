@@ -4,6 +4,20 @@ Jab bhi kisi naye business type (restaurant, gym, salon, clinic, coaching, kiran
 
 Copy karne ke liye: `cp templates/niche-automation-planning-format.md plans/<niche>-plan.md`
 
+**Default assumption, har niche ke liye:** customer ka ek hi outlet ya branch hai, aur owner khud chalata hai ya ek manager ke saath. Multi-branch features tab tak mat sochna jab tak koi paying customer khud na maange.
+
+---
+
+## Single-outlet design rules (har niche pe laagu)
+
+1. **Ek main device + staff ke phone.** Counter pe ek Android tablet ya phone, staff apne phone se same WiFi ya cloud se judte hain. Windows app tab tak nahi jab tak zaroori na ho.
+2. **Data device pe, backup cloud pe.** Net jaaye toh kaam na ruke. Sync sirf ek outlet ka hai, isliye simple hai.
+3. **Do hi roles.** Owner (sab kuch) aur Staff (sirf apna kaam). Approval chains nahi.
+4. **Owner ka phone hi dashboard hai.** Raat ko WhatsApp pe summary jaaye. Alag dashboard login ki aadat mat daalo.
+5. **5 minute setup.** Owner bina field visit ke khud shuru kar sake: video + WhatsApp support.
+6. **Monthly chhoti price, koi add-on ladder nahi.** Single-outlet owner ₹300–1,000/mahina deta hai. Sab kuch ek plan mein.
+7. **TFS bundle pehle.** Jahan hum marketing sambhalte hain, wahan software retainer ke andar do. Software ka data marketing ko behtar banata hai aur client sticky hota hai.
+
 ---
 
 ## 0. Niche snapshot (10 min)
@@ -12,14 +26,17 @@ Copy karne ke liye: `cp templates/niche-automation-planning-format.md plans/<nic
 |---|---|
 | Business type | |
 | India mein kitne outlets (source ke saath) | |
+| Inmein se kitne single-outlet hain (andaza) | |
 | Hum kitne owners ko personally jaante hain | |
-| Owner software kitni baar use karega: roz / hafte / mahine | |
-| Kya government compliance hai (GST, FSSAI, licence, e-invoice) | |
+| Owner khud chalata hai ya manager | |
+| Typical staff kitna (1–3 / 4–10 / 10+) | |
+| Software kitni baar use hoga: roz / hafte / mahine | |
+| Government compliance (GST, FSSAI, licence, records) | |
 | Abhi kaam kaise chalta hai: register / Excel / WhatsApp / koi app | |
 | Owner ka average monthly revenue | |
-| Woh software pe saal ka kitna de sakta hai (revenue ka 0.5–1%) | |
+| Software pe mahine ka kitna de sakta hai (revenue ka 0.5–1%) | |
 
-**Red flag check:** agar use "mahine mein ek baar" hai aur koi compliance nahi, toh product sticky nahi hoga. Gym jaisa case. Tab daily-use hook dhoondo (attendance, schedule, bill) warna niche chhod do.
+**Red flag check:** agar use "mahine mein ek baar" hai aur koi compliance nahi, toh product sticky nahi hoga. Tab daily-use hook dhoondo (neeche cheat sheet dekho) warna niche chhod do.
 
 ---
 
@@ -30,16 +47,16 @@ Har niche ka ek "Petpooja" hota hai, ya nahi hota. Dono case mein yeh table bhar
 | Sawaal | Jawab |
 |---|---|
 | Market leader kaun hai, kitne outlets | |
-| Unka pricing format (per outlet/saal, per user/mahina, % of sales, freemium) | |
-| Unki actual price INR mein | |
+| Unka **single-outlet plan** kya hai aur price INR mein | |
+| Pricing format (per outlet/saal, per mahina, % of sales, freemium) | |
 | Unke top 10 features | |
-| Unke add-ons jo alag se bikte hain | |
-| Unki 5 sabse badi complaints (Play Store, G2, Techjockey, Reddit) | |
-| Kya koi free ya open-source alternative hai, kaunse features missing | |
-| Unka moat kya hai: integration, field sales, compliance, hardware, brand | |
-| Leader ka cost structure: field-heavy ya online | |
+| Add-ons jo alag se bikte hain (yahi hamara opening hai) | |
+| 5 sabse badi complaints (Play Store, G2, Techjockey, Reddit) | |
+| Free ya open-source alternative, kaunse features missing | |
+| Unka moat: integration, field sales, compliance, hardware, brand | |
+| Leader field-heavy hai ya online | |
 
-**Nikalna kya hai:** (a) kaunse features table stakes hain jo bina diye product bikta hi nahi, (b) kaunsi complaint hum solve kar sakte hain, (c) leader ka moat hum copy kar sakte hain ya nahi.
+**Nikalna kya hai:** (a) kaunse features table stakes hain jo bina diye product bikta hi nahi, (b) kaunsi complaint hum solve kar sakte hain, (c) leader ke single-outlet plan mein kya missing hai ya alag se bikta hai.
 
 ---
 
@@ -56,10 +73,10 @@ Minimum 15 rows. Jo kaam roz hota hai aur dard 4+ hai, wahi pehla feature hai.
 Common buckets jo har niche mein hote hain:
 - Paisa aana: bill, UPI, udhaar, pending payment, reminder
 - Paisa jaana: supplier, salary, kharcha
-- Log: attendance, shift, commission, hiring
-- Customer: database, repeat, reminder, feedback, reviews
+- Log: attendance, shift, commission
+- Customer: database, repeat visit, reminder, feedback, Google reviews
 - Stock: kya khatam ho raha hai, order kab karna
-- Compliance: GST, licence renewal, logs
+- Compliance: GST, licence renewal, records
 - Reporting: owner ko raat ko kya jaanna hai
 - Third party: aggregators, marketplaces, banks
 
@@ -74,7 +91,7 @@ Jo feature owner ya staff roz 5+ baar use kare. Bina iske product chhoot jaata h
 - 
 
 **Tier 2: Paisa (pay karne ki wajah)**
-Billing, udhaar, pending payment reminder, daily sales summary. Yeh owner ko dikhne wala value hai.
+Billing, udhaar, pending payment reminder, daily sales summary. Owner ko seedha dikhne wala value.
 - 
 
 **Tier 3: Compliance (chhodne se darr)**
@@ -82,31 +99,35 @@ GST reports, licence reminders, records. Data yahan lock hota hai.
 - 
 
 **Tier 4: Automation (hamara USP)**
-WhatsApp bots, AI summary, reconciliation, auto-reminders, forecasting. Yahan Claude API aur WhatsApp API lagti hai.
+WhatsApp reminders aur bots, AI summary, reconciliation, forecasting. Yahan Claude API aur WhatsApp API lagti hai.
 - 
 
-**Tier 5: Baad mein / kabhi nahi**
-Jo leader ke paas hai par koi use nahi karta, ya jo banane mein mehenga hai aur value kam.
+**Tier 5: Abhi nahi**
+Single-outlet ke liye yeh hamesha yahan rahenge jab tak paying customer na maange:
+- Multi-branch dashboard
+- Branches ke beech stock transfer, central kitchen ya central warehouse
+- Franchise, royalty
+- Lambi approval chains, 3+ roles
+- Leader ke woh features jo koi use nahi karta
 - 
 
 ---
 
 ## 4. Hard dependency check (yahin pe cost tay hoti hai)
 
-Har "haan" ek cost aur ek delay hai. Restaurant mein 4 haan the, gym mein 0.
+Har "haan" ek cost aur ek delay hai. Restaurant mein 3 haan the (printer, offline, Zomato/Swiggy). Gym mein 0.
 
 | Dependency | Haan/Nahi | Agar haan toh kya chahiye | Cost | Time |
 |---|---|---|---|---|
 | Hardware (printer, scanner, biometric, terminal) | | | | |
 | Offline chalna zaroori (net gaya toh dukaan rukegi?) | | | | |
-| Third-party permission (Zomato/Swiggy jaisa partner API, NDA) | | | | |
-| Government API (GSP for e-invoice, e-way bill) | | | | |
-| Payment gateway (card MDR) ya sirf UPI QR kaafi | | | | |
-| Multi-outlet / multi-user | | | | |
+| Third-party permission (partner API, NDA, approval) | | | | |
+| Government API (e-invoice sirf ₹5 Cr+ turnover pe, e-way bill) | | | | |
+| Card payment gateway, ya UPI QR kaafi | | | | |
+| Ek saath 2+ device (counter + staff phone) | | | | |
 | Regional language UI | | | | |
-| Bahut zyada volume (1 lakh+ records/outlet/saal) | | | | |
 
-**Rule:** agar 3+ haan hain toh pilot se pehle woh permissions/hardware shuru karo, kyunki woh critical path hai, code nahi.
+**Rule:** agar 3+ haan hain toh pilot se pehle woh permissions aur hardware shuru karo, kyunki woh critical path hai, code nahi.
 
 ---
 
@@ -119,19 +140,20 @@ Pehle dekho humare paas kya bana hua hai. Naya sirf wahi likho jo yahan nahi hai
 | GST billing + invoice PDF | | | |
 | Parties / udhaar khata | | | |
 | WhatsApp reminder (utility messages) | | | |
-| Daily summary to owner (raat ka WhatsApp) | | | |
+| Raat ka WhatsApp summary to owner | | | |
 | Attendance (QR/phone) | | | |
 | Salary / commission calc | | | |
 | Customer database + tags | | | |
+| Appointment / booking / token | | | |
 | Stock + low-stock alert | | | |
-| Reports / export | | | |
+| Reports / Excel export for CA | | | |
 | GST assistant (Claude, rules in system prompt) | | | |
-| Auth, multi-tenant, roles | | | |
+| Login, owner/staff roles, ek outlet ka data | | | |
 | Payment link / UPI QR | | | |
 
 ---
 
-## 6. Cost sheet (pilot, 5–20 customers)
+## 6. Cost sheet (pilot, 5–20 single-outlet customers)
 
 Code ki cost lagbhag zero maano (AI tools). Baaki lines bharo.
 
@@ -141,13 +163,13 @@ Code ki cost lagbhag zero maano (AI tools). Baaki lines bharo.
 | Infra (Supabase/E2E, 20 outlets) | ₹2,000–5,000/mahina | |
 | WhatsApp API | ₹0.115/utility msg | Messages/mahina × rate |
 | SMS (agar chahiye) | ₹0.15/msg + ₹5,900 DLT | Avoid, WhatsApp use karo |
-| Claude API | ₹500–12,000/mahina | Haiku vs Opus, Section 4 ke hisaab se |
+| Claude API | ₹300–12,000/mahina | Haiku sasta, Opus accurate |
 | Government/partner API | | Section 4 se |
 | Test hardware | | Section 4 se |
 | Play Store / Apple | ₹2,000 ek baar / ₹8,500 saal | |
 | Domain, SSL, email | ₹2,000–5,000/saal | |
 | Support (pehle 6 mahine) | Founder time | |
-| Onboarding per customer | ₹300–800 remote | Field install ₹1,500–3,500, avoid |
+| Onboarding per customer | ₹300–800 remote | Field visit avoid |
 | **Pilot total (6 mahine)** | | |
 
 ---
@@ -158,12 +180,21 @@ Code ki cost lagbhag zero maano (AI tools). Baaki lines bharo.
 |---|---|
 | Pehle 5 customers kaun (naam) | |
 | Woh abhi kya use karte hain aur kitna dete hain | |
-| Unse referral kaise aayenge (WhatsApp group, association, dealer) | |
-| Reseller channel kaun ho sakta hai (printer dealer, CA, supplier) | |
-| Pricing model: per outlet/saal, per mahina, free + paid tier, % of sales | |
-| Hamari price vs leader ki price | |
+| Inmein se kitne TFS ke marketing clients hain | |
+| Referral kaise aayenge (WhatsApp group, association, supplier) | |
+| Reseller channel kaun ho sakta hai (dealer, CA, supplier) | |
+| Pricing: TFS bundle mein kitna extra / standalone monthly kitna | |
+| Hamari price vs leader ka single-outlet plan | |
 | Break-even kitne customers pe (Section 6 total ÷ per-customer margin) | |
-| Agar 6 mahine mein 30 referrals nahi aaye toh kya: band, ya agency add-on | |
+| Agar 6 mahine mein 30 referrals nahi aaye toh kya: band, ya sirf TFS add-on | |
+
+**Pricing guide (single outlet):**
+
+| Model | Kab use karo |
+|---|---|
+| TFS retainer mein ₹1,000–1,500/mahina extra | Jahan hum marketing karte hain |
+| Standalone ₹499–999/mahina, sab included | Bahar ke owners |
+| Free basic + ₹299–499 paid | Jab niche mein free apps already hain (Vyapar jaisa case) |
 
 ---
 
@@ -173,42 +204,59 @@ Code ki cost lagbhag zero maano (AI tools). Baaki lines bharo.
 - [ ] Owner ka paisa isse dikhta hai (Tier 2 hai)
 - [ ] Data yahan lock hota hai (customers, udhaar, GST history)
 - [ ] Chhodne pe compliance ya reporting toot jaati hai
-- [ ] Leader se ek cheez saaf behtar hai (price, support, ek automation)
-- [ ] Bina field visit ke onboard ho sakta hai (video + WhatsApp)
+- [ ] Leader ke single-outlet plan se ek cheez saaf behtar hai
+- [ ] Owner 5 minute mein khud setup kar sake
+- [ ] Raat ka WhatsApp summary owner padhega
 
-4 se kam tick = product sticky nahi hai, scope badlo.
+5 se kam tick = product sticky nahi hai, scope badlo.
 
 ---
 
 ## 9. Go / No-go score
 
-Har line 1–5. Total 35 mein se.
+Har line 1–5. Total 40 mein se.
 
 | Criteria | Score |
 |---|---|
-| Market size (outlets × jo de sakte hain) | |
+| Market size (single outlets × jo de sakte hain) | |
 | Leader kamzor ya absent | |
 | Daily use frequency | |
 | Compliance pull | |
 | Hard dependencies kam (Section 4 mein 0–1 haan) | |
 | Reuse zyada (Section 5 mein 6+ modules) | |
 | Distribution ready (Section 7 mein 5 naam) | |
+| TFS marketing bundle fit | |
 | **Total** | |
 
-- 28+: pilot shuru karo
-- 20–27: ek cheez fix karo (usually distribution ya daily hook), phir dubara score
-- 20 se kam: chhod do, agli niche
+- 32+: pilot shuru karo
+- 23–31: ek cheez fix karo (usually distribution ya daily hook), phir dubara score
+- 23 se kam: chhod do, agli niche
+
+---
+
+## Daily hook cheat sheet (shuruaati andaza, owner call se confirm karo)
+
+| Niche | Daily hook (Tier 1) | Paisa (Tier 2) | Compliance (Tier 3) |
+|---|---|---|---|
+| Restaurant / cafe | Billing + KOT print | Daily sales, cash vs UPI | GST bills |
+| Gym | Member QR attendance, trainer schedule | Renewal reminder, pending fees | GST bill |
+| Salon / spa | Appointment book, stylist assign | Commission, package balance | GST bill |
+| Clinic | Patient token, prescription | Fee collection, follow-up reminder | Patient records |
+| Coaching class | Student attendance | Fee installment reminder | Fee receipts |
+| Kirana / retail | Billing + barcode | Udhaar khata, payment reminder | GST, stock |
+| Pharmacy | Billing + expiry alert | Supplier payments | Drug licence, batch records |
 
 ---
 
 ## Example: Gym (short, reference ke liye)
 
-- Snapshot: ~46,500 commercial gyms, koi leader nahi, use mahine mein 1 baar (renewal) = red flag, compliance nahi
+- Snapshot: ~46,500 commercial gyms, mostly single outlet, koi leader nahi, use mahine mein 1 baar (renewal) = red flag, compliance kam
 - Leader: koi nahi, 20 chhote players ₹500–25,000/mahina, sab same features
 - Daily hook dhoondha: member QR attendance + trainer ka daily client schedule
 - Tier 2: membership plan, renewal reminder WhatsApp, pending payment list, GST bill
+- Tier 5: multi-branch, franchise
 - Hard dependencies: 0 haan
-- Reuse: billing, parties, WhatsApp reminder, daily summary, attendance = 5 modules
+- Reuse: billing, parties, WhatsApp reminder, raat ka summary, attendance = 5 modules
 - Cost: pilot ₹50,000 ke andar
 - Distribution: jo gyms jaante hain wahan se, warna skip
-- Score: market 2, leader 4, daily use 2 (hook ke baad 4), compliance 1, dependency 5, reuse 4, distribution ? = decide after naming 5 gyms
+- Score: market 2, leader 4, daily use 2 (hook ke baad 4), compliance 1, dependency 5, reuse 4, distribution ?, TFS fit ? = 5 gym owners ke naam ke baad final karo
