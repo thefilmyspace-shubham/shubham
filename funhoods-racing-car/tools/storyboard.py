@@ -102,10 +102,10 @@ def panel(i):
     elif i == 7:
         for (x, y) in [(130, 430), (302, 430), (216, 330)]:
             d.polygon([(x - 70, y - 40), (x + 70, y - 40), (x + 84, y - 54), (x - 56, y - 54)], fill=(226, 186, 136)); d.rectangle((x - 70, y - 40, x + 70, y + 46), fill=(206, 160, 108))
-            d.polygon([(x + 70, y - 40), (x + 84, y - 54), (x + 84, y + 32), (x + 70, y + 46)], fill=(176, 128, 80)); d.text((x, y + 8), '[N] PCS', font=f(F_H, 24), fill=RED, anchor='mm')
+            d.polygon([(x + 70, y - 40), (x + 84, y - 54), (x + 84, y + 32), (x + 70, y + 46)], fill=(176, 128, 80)); d.text((x, y + 8), '36 PCS', font=f(F_H, 24), fill=RED, anchor='mm')
         d.rounded_rectangle((90, 560, 260, 640), 10, fill=YEL); d.polygon([(262, 584), (312, 584), (336, 612), (336, 640), (262, 640)], fill=RED)
         for x in (124, 222, 312): d.ellipse((x - 18, 630, x + 18, 666), fill=INK)
-        txt(d, '[N] PCS', PW / 2, 180, 62, YEL, F_I, 3, RED); txt(d, 'PER CARTON', PW / 2, 236, 38); txt(d, 'PAN INDIA DELIVERY', PW / 2, 700, 30)
+        txt(d, '36 PCS', PW / 2, 180, 62, YEL, F_I, 3, RED); txt(d, 'PER CARTON', PW / 2, 236, 38); txt(d, 'PAN INDIA DELIVERY', PW / 2, 700, 30)
     elif i == 8:
         txt(d, 'FOR', PW / 2, 160, 18, RED, F_B); txt(d, 'DISTRIBUTORS', PW / 2, 206, 46); txt(d, '& WHOLESALERS', PW / 2, 256, 40, YEL, F_H, 2, RED)
         for k, x in enumerate((90, 216, 342)): put(c, 'box_q34', x, 420 + (k % 2) * 6, 150)
@@ -115,25 +115,25 @@ def panel(i):
         d.polygon([(0, 0), (PW, 0), (PW, 110), (PW / 2, 140), (0, 110)], fill=RED); d.polygon([(0, PH), (PW, PH), (PW, PH - 80), (0, PH - 104)], fill=RED)
         lg = Image.open(A('logo_rgba.png')).convert('RGBA'); w = 320; lg = lg.resize((w, int(lg.height * w / lg.width)), Image.LANCZOS); c.alpha_composite(lg, (int(PW / 2 - w / 2), 180))
         put(c, 'car_q34', 150, 440, 230); put(c, 'box_q34', 318, 446, 190)
-        d.text((PW / 2, 548), 'RACING INERTIA CAR • 3+ AGES', font=f(F_B, 17), fill=RED, anchor='mm'); chip(d, 'BULK ORDERS ONLY', PW / 2, 594, 20, RED, WHITE)
-        chip(d, '[N] PCS / CARTON', 140, 640, 15); chip(d, 'PAN INDIA DELIVERY', 300, 640, 15)
+        d.text((PW / 2, 548), 'PVC RACING CAR • PVC-3301 • 3+ AGES', font=f(F_B, 17), fill=RED, anchor='mm'); chip(d, 'BULK ORDERS ONLY', PW / 2, 594, 20, RED, WHITE)
+        chip(d, '36 PCS / CARTON', 140, 640, 15); chip(d, 'PAN INDIA DELIVERY', 300, 640, 15)
         return c
     logo(c); return c
 
 ROWS = [('0.0–3.0', 'On your marks... get set... VROOM!', 'Start lights count down, the car shoots in. Rev + zoom SFX'),
-        ('3.0–5.5', 'Say hello to the Funhoods Racing Inertia Car!', '360° turntable: front → side → back'),
+        ('3.0–5.5', 'Say hello to the Funhoods Racing Car!', '360° turntable: front → side → back'),
         ('5.5–9.0', 'Give it a push... let go... and watch it race!', 'Glove pushes, lets go, the car races off. Friction + zoom SFX'),
         ('9.0–12.0', 'Press the roof... bright lights and loud music!', 'Finger press, headlights glow, notes burst. Music jingle'),
         ('12.0–15.0', 'Four-wheel drive, a sturdy body and chunky tyres.', 'Callouts draw on, wheels spin'),
         ('15.0–18.0', 'Cool style, multiple models, multiple colours!', "The box's car artworks pop in a row"),
         ('18.0–21.5', 'A bold window box that grabs every eye in the store.', 'Box turns front → side → back, lands on a counter'),
-        ('21.5–25.0', '[N] pieces per carton, shipped anywhere in India.', 'Cartons stack, the Funhoods truck drives in'),
+        ('21.5–25.0', 'Thirty-six pieces per carton, shipped anywhere in India.', 'Cartons stack, the Funhoods truck drives in'),
         ('25.0–28.8', 'Distributors and wholesalers, stock up for the season!', 'Boxes line up · BULK ORDERS ONLY · STOCK UP NOW!'),
         ('28.8–32.0', 'Funhoods, Childhood Full of Fun!', 'End card · final hit, fade')]
 COLS, CAP = 5, 150
 board = Image.new('RGB', (COLS * (PW + 24) + 24, 2 * (PH + CAP + 24) + 120), (246, 246, 248)); bd = ImageDraw.Draw(board)
-bd.text((24, 30), 'Funhoods · Racing Inertia Car · 32 s reel · Storyboard v1', font=f(F_B, 38), fill=INK)
-bd.text((24, 78), 'White-background motion graphics · B2B (distributors & wholesalers) · Funhoods logo top-left · [N] = carton count (to confirm)', font=f(F_B, 20), fill=(110, 110, 120))
+bd.text((24, 30), 'Funhoods · PVC Racing Car (PVC-3301) · 32 s reel · Storyboard v2', font=f(F_B, 38), fill=INK)
+bd.text((24, 78), 'White-background motion graphics · B2B (distributors & wholesalers) · Funhoods logo top-left · 36 pcs / carton', font=f(F_B, 20), fill=(110, 110, 120))
 for i in range(10):
     x, y = 24 + (i % COLS) * (PW + 24), 120 + (i // COLS) * (PH + CAP + 24)
     p = panel(i).convert('RGB'); board.paste(p, (x, y)); bd.rectangle((x, y, x + PW - 1, y + PH - 1), outline=(200, 200, 205), width=2)

@@ -65,7 +65,7 @@ def save(im, name):
 # ---------------------------------------------------------------- 360° product view
 im, d = base()
 label(d, '360° Product View', DW / 2, 262, 92, INK, 'mm')
-label(d, 'RACING INERTIA CAR', DW / 2, 350, 40, RED, 'mm')
+label(d, 'PVC RACING CAR · PVC-3301', DW / 2, 350, 40, RED, 'mm')
 cells = [('FRONT', 'car_front'), ('SIDE', 'car_side'), ('BACK', 'car_back'), ('OTHER SIDE', 'car_side_r'),
          ('3/4 FRONT', 'car_q34'), ('3/4 REAR', 'car_back34')]
 for i, (lbl, n) in enumerate(cells):
@@ -80,7 +80,7 @@ save(im, 'Racing_Inertia_Car_360_Product_View')
 # ---------------------------------------------------------------- 360° packaging view
 im, d = base()
 label(d, '360° Packaging View', DW / 2, 262, 88, INK, 'mm')
-label(d, 'RACING INERTIA CAR · WINDOW BOX', DW / 2, 350, 40, RED, 'mm')
+label(d, 'PVC RACING CAR · PVC-3301 · WINDOW BOX', DW / 2, 350, 38, RED, 'mm')
 label(d, 'FRONT', 80, 400, 44)
 put(im, 'box_q34', DW / 2, 690, 1180, 520)
 grid = [('BACK', 'box_back'), ('TOP', 'box_top'), ('LEFT SIDE', 'box_end_l'), ('RIGHT SIDE', 'box_end_r'), ('BOTTOM', 'box_bottom')]
@@ -90,7 +90,7 @@ for i, (lbl, n) in enumerate(grid):
     put(im, n, x0 + 334, y0 + 190, 600, 250, card=True)
 x0, y0 = 70 + 718, 990 + 2 * 350                                  # info card next to BOTTOM
 d.rounded_rectangle(((x0 + 20) * S, (y0 + 30) * S, (x0 + 650) * S, (y0 + 320) * S), 28 * S, fill='white', outline=RED, width=4 * S)
-for k, t in enumerate(['Window box: product on show', 'Functional version NO.3301', 'Loud music & bright light',
+for k, t in enumerate(['Window box: product on show', 'Outer carton: 36 pcs', 'Loud music & bright light',
                        '3 x 1.5V Ag13 button batteries', 'Ages 3+']):
     label(d, ('• ' if k else '') + t, x0 + 52, y0 + 66 + k * 52, 30 if k else 34, RED if k == 0 else INK)
 save(im, 'Racing_Inertia_Car_360_Packaging_View')
