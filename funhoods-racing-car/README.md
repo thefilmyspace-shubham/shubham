@@ -24,7 +24,7 @@ Product facts:
 | 9.4–12.7 | Press the roof... bright lights and loud music! | Front view: a finger presses the roof, the headlights glow with rays, music notes burst out · BRIGHT LIGHT · LOUD MUSIC |
 | 12.7–16.3 | Four-wheel drive, a sturdy body and chunky tyres. | Side view rolling, wheel rings, callouts STURDY BODY · CHUNKY TYRES |
 | 16.2–19.6 | Cool style, bold looks... built to race! | The orange car (one colour only) in 3/4 view swings round to face the camera · COOL STYLE · BOLD LOOKS · BUILT TO RACE! |
-| 19.6–22.7 | A bold window box that grabs every eye in the store. | The box turns (front, side, back, side), then lands on a shop counter · EYE-CATCHING WINDOW BOX |
+| 19.6–22.7 | A bold window box that grabs every eye in the store. | The window box (front) pops in, then lands on a shop counter · EYE-CATCHING WINDOW BOX |
 | 22.7–25.6 | Thirty-six pieces per carton, shipped anywhere in India. | 36 PCS PER CARTON (cartons stack) · Funhoods truck · PAN INDIA DELIVERY |
 | 25.6–29.1 | Distributors and wholesalers, stock up for the season! | Boxes line up · BULK ORDERS ONLY · STOCK UP NOW! |
 | 29.1–32 | Funhoods, Childhood Full of Fun! | End card: logo, car + box, PVC RACING CAR • PVC-3301 • AGES 3+, 36 PCS / CARTON, PAN INDIA DELIVERY, box disclaimer |
@@ -49,5 +49,5 @@ python3 tools/vo_retime.py                                    # audio/vo_timed.w
 sh music/get_music.sh && python3 audio.py                     # mix.wav (-14 LUFS)
 python3 render.py --start 0 --end 8 --out c0.mp4              # ... 4 chunks in parallel, then concat
 ffmpeg -f concat -i list.txt -c copy video.mp4
-ffmpeg -i video.mp4 -i mix.wav -map 0:v -map 1:a -c:v copy -af aresample=192000,alimiter=limit=0.78:level=false:attack=2:release=60,aresample=48000 -c:a aac -b:a 256k Funhoods_PVC_Racing_Car_Reel_4K60.mp4
+ffmpeg -i video.mp4 -i mix.wav -map 0:v -map 1:a -c:v copy -af aresample=192000,alimiter=limit=0.76:level=false:attack=2:release=60,aresample=48000 -c:a aac -b:a 256k Funhoods_PVC_Racing_Car_Reel_4K60.mp4
 ```

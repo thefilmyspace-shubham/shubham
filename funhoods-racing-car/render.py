@@ -664,15 +664,18 @@ def scene_style(t, t0, t1):
     return c
 
 def scene_box(t, t0, t1):
-    """A bold window box that grabs every eye in the store. -- the box turns, then lands on a counter"""
+    """A bold window box that grabs every eye in the store. -- the box pops in, then lands on a counter"""
     c = bg(t); cx, cy = DW / 2, 1040
     pop(c, head('BOLD WINDOW BOX', 108), DW / 2, 300, t, T.w(6, 1) - 0.06, None, slide=30)
     pop(c, impact_txt('GRABS EVERY EYE!', 116, YEL), DW / 2, 430, t, T.w(6, 5) - 0.06, None, d=0.32, from_scale=1.7, rot=-3)
     cp = e_out(prog(t, T.BOX_LAND - 0.35, 0.45))
     if cp > 0: place(c, counter_top(), DW / 2 - DW * (1 - cp), 1380)
-    views = [('box_q34.png', 0.42), ('box_end_r.png', 0.52), ('box_back.png', 0.36), ('box_end_l.png', 0.52), ('box_q34.png', 0.42)]
-    if t < T.BOX_LAND - 0.35:
-        spin_view(c, t, t0 + 0.1, T.BOX_LAND - 0.35, views, cx, cy, 1000, 1330)
+    if t < T.BOX_LAND - 0.35:                                      # front only: the side panels print other models / colours
+        p = prog(t, t0 + 0.05, 0.45); sway = math.sin((t - t0) * 1.8)
+        ground_shadow(c, cx, 1330, 620, clamp(p * 3))
+        place(c, with_shadow('box_q34.png', 420, 14, 18, 80), cx + 20 * sway, cy + 220 * (1 - e_back(p, 1.3)) + 8 * math.sin(t * 2.2),
+              (0.8 + 0.2 * e_back(p, 1.4)) * (1 + 0.02 * (t - t0)), -3 * sway, clamp(p * 3))
+        sparkles(c, t, 19, cx, cy, 460, 260, n=10, size=36)
     else:
         u = t - (T.BOX_LAND - 0.35); q = prog(t, T.BOX_LAND - 0.35, 0.35)
         y = cy + (1300 - 420 / 2 - 10 - cy) * e_in(q) if t < T.BOX_LAND else 1300 - 420 / 2 - 10 - 26 * math.exp(-(t - T.BOX_LAND) * 9) * abs(math.sin((t - T.BOX_LAND) * 22))
