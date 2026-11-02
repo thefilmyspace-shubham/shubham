@@ -46,3 +46,14 @@ Distributors and wholesalers, stock up for the season!
 | 10 | 28.8–32.0 | Funhoods — Childhood Full of Fun! | End card: Funhoods logo, car + box, PVC RACING CAR • PVC-3301 • 3+ AGES, 36 PCS / CARTON, · BULK ORDERS ONLY · PAN INDIA DELIVERY · box disclaimer | Final hit, fade |
 
 Funhoods logo top-left on every scene. Music will be a new Mixkit track, different from the earlier reels. Product cut-outs get a light colour grade.
+
+## VO samples + SFX (`audio/`, Magnific / ElevenLabs v4)
+ElevenLabs had only 134 credits left (one take needs 485), so these were made on Magnific: 98 credits per VO, 10–15 per SFX, 276 credits in total.
+- `VO_sample_1_Callum.mp3` (warm; the voice picked for the Fighter Jets reel), 32.3 s
+- `VO_sample_2_Gavin.mp3` (playful), 32.9 s
+- Both run a little long for a 32 s reel. The edit tightens the chosen take slightly (pitch kept) and opens gaps for the SFX, as in the Dino Car reel.
+- SFX, generated separately from the VO, two takes each:
+  - `sfx_rev_vroom_1/2`
+  - `sfx_zoom_1/2`
+  - `sfx_friction_push_1/2`
+  - `sfx_lights_music_1/2`
