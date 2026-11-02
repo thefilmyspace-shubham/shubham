@@ -62,7 +62,7 @@ Har niche ka ek "Petpooja" hota hai, ya nahi hota. Dono case mein yeh table bhar
 
 ## 2. Day in the life (owner ke saath 30 min call)
 
-Owner se poochho: subah se raat tak kya-kya karte ho. Har kaam ki ek row.
+Pehle `problem-discovery-format.md` chalao (3 owners). Uske top problems yahan daalo. Har kaam ki ek row.
 
 | Kaam | Kitni baar (roz/hafta/mahina) | Kaun karta hai | Kitna time | Abhi kaise (manual/semi/auto) | Dard score 1–5 | Automate ho sakta hai? |
 |---|---|---|---|---|---|---|
