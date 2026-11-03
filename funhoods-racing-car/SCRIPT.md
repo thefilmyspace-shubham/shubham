@@ -19,12 +19,12 @@ Product facts, from the box and the demo videos in Drive (1 Nov):
 
 ```
 [excited] On your marks... get set... VROOM!
+A bold window box that grabs every eye in the store.
 Say hello to the Funhoods Racing Car!
 Give it a push... let go... and watch it race!
 Press the roof... bright lights and loud music!
 Four-wheel drive, a sturdy body and chunky tyres.
 Cool style, bold looks... built to race!
-A bold window box that grabs every eye in the store.
 Thirty-six pieces per carton, shipped anywhere in India.
 Distributors and wholesalers, stock up for the season!
 [cheerful] Funhoods — Childhood Full of Fun!
@@ -62,3 +62,12 @@ ElevenLabs had only 134 credits left (one take needs 485), so these were made on
 The car comes in one colour (orange). The other models and colours from the box art are removed from the reel.
 Line 6 is now "Cool style, bold looks... built to race!" (same Gavin voice, regenerated on Magnific for 10 credits,
 gain-matched and spliced in by `tools/vo_retime.py`).
+
+## v4 (client, 3 Nov): packaging first + the car's real sound
+- The window box opens the reel: it drops in under the start lights ("On your marks... VROOM!"), then lands on a shop
+  counter on "A bold window box that grabs every eye in the store." (the VO line moved up, `ORDER` in `tools/vo_retime.py`).
+  The car is introduced after it ("Say hello to the Funhoods Racing Car!").
+- The AI car sound effects are replaced by the toy's real sounds from the client's two working clips (`tools/og_sound.py`, denoised):
+  - the friction / flywheel whirr: VROOM, push, race-off, wheels
+  - the button click
+  - the car's built-in music when the lights come on; the music bed dips there

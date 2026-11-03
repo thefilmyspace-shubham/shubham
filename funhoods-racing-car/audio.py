@@ -1,7 +1,8 @@
 # VO + music bed (ducked under the voice) + SFX -> mix.wav (48 kHz stereo, about -14 LUFS)
 #   VO:    audio/vo_timed.wav (chosen take "Gavin", Magnific / ElevenLabs v4, re-timed by tools/vo_retime.py)
-#   SFX:   audio/sfx_rev_vroom_1, sfx_zoom_1, sfx_friction_push_1, sfx_lights_music_1 (generated separately,
-#          Magnific / ElevenLabs SFX) + synthesized beeps, whooshes, pops and chimes
+#   car:   the toy's REAL sounds from the client's working clips (tools/og_sound.py): audio/og_friction_push.wav
+#          (friction / flywheel whirr), og_button_click.wav, og_music.wav (its built-in music with the lights)
+#   SFX:   synthesized beeps, whooshes, pops and chimes for the graphics
 #   music: music/m8.mp3 ("Jumping Around", Mixkit free license; sh music/get_music.sh)
 import numpy as np, wave, subprocess, sys, json, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -37,6 +38,10 @@ for i in range(N):                                      # envelope follower: fas
 duck = 1.0 - 0.70 * np.clip(sm * 1.6, 0, 1)
 m = load('music/m8.mp3')[S(T.MUSIC_IN):S(T.MUSIC_IN) + N]
 mus = m * duck[:, None] * 0.42
+OGM0, OGM1 = T.GLOW - 0.02, T.S_4WD + 0.45                        # the toy's own music plays here: dip the bed
+dip = np.ones(N, np.float32); a_, b_ = S(OGM0), S(OGM1); r_ = S(0.25)
+dip[a_:b_] = 0.22; dip[a_ - r_:a_] = np.linspace(1, 0.22, r_); dip[b_:b_ + r_] = np.linspace(0.22, 1, r_)
+mus *= dip[:, None]
 mus[:S(0.03)] *= np.linspace(0, 1, S(0.03))[:, None]
 fo0 = S(T.DUR - 1.4); mus[fo0:] *= (np.cos(np.linspace(0, np.pi / 2, N - fo0)) ** 2)[:, None]
 out += mus
@@ -90,32 +95,37 @@ def beep(f=880, d=0.11):
 for t, k in T.CUTS:
     if k == 'chev': place(whoosh(0.50, 0.7, 0.4), t - 0.35, 0.26)
     elif k == 'zoom': place(whoosh(0.34, 0.7, 0.25), t - 0.24, 0.14)
-rev = fade(norm(load('audio/sfx_rev_vroom_1.mp3'), 0.9), 0.005, 0.15)
-zoom = fade(norm(load('audio/sfx_zoom_1.mp3'), 0.9), 0.005, 0.12)
-fric = load('audio/sfx_friction_push_1.mp3')
-jingle = fade(norm(load('audio/sfx_lights_music_1.mp3'), 0.9), 0.02, 0.4)
-# start lights: two low beeps, a high one on VROOM; engine revs into the launch
+fric = load('audio/og_friction_push.wav')                       # the car's real sounds (tools/og_sound.py)
+click = load('audio/og_button_click.wav')
+ogm = load('audio/og_music.wav')
+def og(x, s0, s1, fi=0.01, fo=0.12): return fade(norm(x[S(s0):S(s1)], 0.9), fi, fo)
+# opener: the box drops in, start-light beeps, the real friction whirr bursts on VROOM
+place(whoosh(0.32, 0.8, 0.3), 0.0, 0.18); place(thock(0.16), 0.47, 0.40); place(impact(0.8, 80, 40), 0.47, 0.20)
 for i, t in enumerate(T.LIGHTS): place(beep(660 if i < 2 else 1320, 0.16 if i < 2 else 0.24), t, 0.16)
-place(rev, T.VROOM - 0.55, 0.55); place(zoom, T.VROOM - 0.05, 0.42); place(impact(0.9, 80, 40), T.VROOM + 0.45, 0.2)
-# turntable
-place(whoosh(0.6, 0.5, 0.35), T.S_SPIN + 0.1, 0.14); place(chime([1047, 1319, 1568, 2093]), T.w(1, 6) - 0.05, 0.12)
-# push & let go: friction whirr while the glove pushes, the car zooms off on "race"
-place(pop_snd(), T.PUSH0 - 0.04, 0.22)
-place(fade(norm(fric[:S(T.RELEASE - T.PUSH0 + 0.25)], 0.9), 0.01, 0.15), T.PUSH0, 0.5)
-place(zoom, T.RACE - 0.04, 0.55); place(whoosh(0.5, 0.35, 0.5), T.RACE + 0.08, 0.16)
-for i in range(3): place(pop_snd(), T.PUSH0 + 0.15 + 0.1 * i, 0.12)
-# press the roof: click, then the toy's lights & music jingle (ducked under the VO with the music bed)
-place(press(), T.PRESS + 0.1, 0.3); place(thock(0.08), T.PRESS + 0.1, 0.14)
-place(jingle, T.GLOW - 0.02, 0.30); place(chime([1568, 2093, 2637], 0.06), T.GLOW, 0.1)
-# 4WD: wheel whirr + callout pops
-place(fade(norm(fric[S(0.2):S(1.6)], 0.9), 0.05, 0.4), T.S_4WD + 0.1, 0.2)
-for t in (T.CALL_BODY, T.CALL_TYRES): place(blip(), t, 0.10); place(pop_snd(), t + 0.15, 0.14)
-# style: sparkle on BOLD LOOKS, zoom as the car swings round on BUILT TO RACE
-place(chime([1047, 1319, 1568], 0.06, 0.45), T.LOOKS, 0.12); place(pop_snd(), T.LOOKS, 0.16)
-place(zoom, T.BUILT - 0.05, 0.30); place(impact(0.7, 85, 45), T.BUILT + 0.1, 0.16)
-# box turns, lands on the counter
-place(whoosh(0.7, 0.5, 0.35), T.S_BOX + 0.1, 0.16); place(whoosh(0.36, 0.8, 0.3), T.BOX_LAND - 0.34, 0.16)
+place(og(fric, 0.0, 1.3, 0.005, 0.3), T.VROOM - 0.02, 0.62); place(whoosh(0.5, 0.3, 0.5), T.VROOM, 0.18); place(impact(0.9, 80, 40), T.VROOM, 0.24)
+# window box lands on the counter
+place(whoosh(0.36, 0.8, 0.3), T.BOX_LAND - 0.34, 0.16)
 place(thock(0.16), T.BOX_LAND, 0.42); place(impact(0.6, 90, 50), T.BOX_LAND, 0.14); place(chime([1047, 1319, 1568, 2093], 0.06), T.BOX_LAND + 0.1, 0.1)
+# turntable: the car zooms in (real whirr), then turns
+place(og(fric, 0.6, 1.4, 0.005, 0.25), T.S_SPIN - 0.05, 0.40); place(whoosh(0.4, 0.4, 0.4), T.S_SPIN, 0.14)
+place(chime([1047, 1319, 1568, 2093]), T.w(2, 6) - 0.05, 0.12)
+# push & let go: the real friction sound while the glove pushes, the flywheel whirr as it races off
+place(pop_snd(), T.PUSH0 - 0.04, 0.22)
+place(og(fric, 0.0, T.RELEASE - T.PUSH0 + 0.2, 0.01, 0.12), T.PUSH0, 0.58)
+place(og(fric, 1.0, 2.53, 0.005, 0.5), T.RACE - 0.03, 0.62); place(whoosh(0.5, 0.35, 0.5), T.RACE + 0.08, 0.14)
+for i in range(3): place(pop_snd(), T.PUSH0 + 0.15 + 0.1 * i, 0.12)
+# press the roof: the real button click, then the toy's own music with the lights (quieter under the VO, up in the pause)
+place(click, T.PRESS + 0.06, 0.55)
+mseg = fade(norm(ogm[:S(OGM1 - OGM0)], 0.9), 0.04, 0.35)
+gain = np.full(len(mseg), 0.42, np.float32); ve = S(T.VO[4]['end'] - OGM0); rr = S(0.15)
+gain[ve:ve + rr] = np.linspace(0.42, 0.85, len(gain[ve:ve + rr])); gain[ve + rr:] = 0.85
+place(mseg * gain[:, None], OGM0, 1.0)
+# 4WD: real wheel whirr + callout pops
+place(og(fric, 0.2, 1.6, 0.05, 0.4), T.S_4WD + 0.1, 0.30)
+for t in (T.CALL_BODY, T.CALL_TYRES): place(blip(), t, 0.10); place(pop_snd(), t + 0.15, 0.14)
+# style: sparkle on BOLD LOOKS, real whirr as the car swings round on BUILT TO RACE
+place(chime([1047, 1319, 1568], 0.06, 0.45), T.LOOKS, 0.12); place(pop_snd(), T.LOOKS, 0.16)
+place(og(fric, 1.2, 2.2, 0.005, 0.3), T.BUILT - 0.05, 0.40); place(whoosh(0.4, 0.4, 0.4), T.BUILT, 0.14)
 # cartons land, truck delivers
 for x, y, tl in T.STACK: place(thock(0.16), tl, 0.45); place(impact(0.5, 90, 50), tl, 0.12)
 place(whoosh(0.6, 0.6, 0.35), T.TRUCK, 0.20)
@@ -123,9 +133,8 @@ place(beep(880), T.TRUCK + 0.66, 0.10); place(beep(880), T.TRUCK + 0.82, 0.10)
 # bulk: boxes drop, STOCK UP NOW!
 for i in range(3): place(thock(0.12), T.S_BULK + 0.25 + i * 0.14 + 0.38, 0.28)
 place(impact(1.0, 70, 36), T.STOCK, 0.38); place(chime([784, 988, 1175, 1568, 1976], 0.06), T.STOCK + 0.05, 0.12)
-place(rev[:S(1.2)], T.S_END - 0.6, 0.18)
 place(impact(1.8, 58, 30), T.S_END, 0.42); place(chime([1319, 1568, 2093, 2637], 0.07), T.w(9, 0) - 0.1, 0.12)
-for t in (T.w(4, 0), T.w(5, 0), T.w(6, 1), T.w(7, 0), T.w(7, 5), T.w(8, 0), T.w(8, 2)): place(blip(), t, 0.08)
+for t in (T.w(5, 0), T.w(6, 0), T.w(1, 1), T.w(7, 0), T.w(7, 5), T.w(8, 0), T.w(8, 2)): place(blip(), t, 0.08)
 
 # ---- loudness: integrated to about -14 LUFS, then a soft-knee limiter (ffmpeg alimiter at mux catches true peaks)
 def lufs(x):

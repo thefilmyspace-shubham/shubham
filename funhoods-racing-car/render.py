@@ -523,23 +523,26 @@ def start_lights(c, t, cx, cy):
         sd.ellipse((x - 30, cy - 38, x - 6, cy - 18), fill=(255, 255, 255, 90 if on else 30))
 
 # ---------------------------------------------------------------- scenes
-def scene_start(t):
-    """On your marks... get set... VROOM! -- start lights count down, the car shoots in"""
-    c = bg(t); gy, WD = 1420, 900
-    start_lights(c, t, DW / 2, 300)
-    pop(c, head('ON YOUR MARKS', 88), DW / 2, 500, t, T.LIGHTS[0], T.LIGHTS[1] - 0.05, slide=24)
-    pop(c, head('GET SET', 110), DW / 2, 500, t, T.LIGHTS[1], T.VROOM - 0.05, slide=24)
+BOX_Y, BOX_HD = 1060, 420         # the window box in the opener (design units: centre y, height)
+
+def scene_open(t, t1):
+    """On your marks... get set... VROOM! -- the packaging opens the reel: the window box drops in under the start lights,
+    then punches on VROOM"""
+    c = bg(t); cx = DW / 2
+    place(c, soft_burst(1100), cx, BOX_Y, 0.86 + 0.04 * math.sin(t * 2.5), (t * 10) % 360, 0.26 * prog(t, 0.2, 0.4))
+    start_lights(c, t, cx, 330)
+    pop(c, head('ON YOUR MARKS', 88), cx, 520, t, T.LIGHTS[0], T.LIGHTS[1] - 0.05, slide=24)
+    pop(c, head('GET SET', 110), cx, 520, t, T.LIGHTS[1], T.VROOM - 0.05, slide=24)
+    q = prog(t, 0.05, 0.42)                                       # box drops in and bounces
+    y = BOX_Y - 1300 * (1 - e_in(q)) if t < 0.47 else BOX_Y - 30 * math.exp(-(t - 0.47) * 9) * abs(math.sin((t - 0.47) * 22))
+    punch = e_out(prog(t, T.VROOM, 0.12)) * (1 - e_inout(prog(t, T.VROOM + 0.12, 0.4)))
+    sx, sy = shake_xy(t, T.VROOM, 14, 6) if t >= T.VROOM else (0, 0)
+    ground_shadow(c, cx, BOX_Y + BOX_HD / 2 + 40, 640, clamp(q * 3))
+    place(c, with_shadow('box_q34.png', BOX_HD, 14, 18, 80), cx + sx, y + sy, 1.0 + 0.10 * punch, 0, clamp(q * 3))
     if t >= T.VROOM:
-        place(c, burst(720), DW / 2, 560, 0.3 + 0.6 * e_back(prog(t, T.VROOM, 0.3), 1.6), (t * 40) % 360, 0.9 * (1 - prog(t, T.S_SPIN - 0.25, 0.25)))
-    pop(c, impact_txt('VROOM!', 210, YEL), DW / 2, 560, t, T.VROOM, None, d=0.3, rot=-5, from_scale=1.9)
-    ground(c, gy)
-    q = prog(t, T.VROOM - 0.08, 0.55)
-    if q > 0:
-        x = lerp(-700, 540, e_out(q)); sk = math.exp(-max(0, t - T.VROOM - 0.45) * 7)
-        if q < 1: speed_lines(c, t, gy - 460, gy - 20, 14, 5, 1 - q)
-        ground_shadow(c, x, gy + 6, WD * 0.85)
-        draw_car(c, x, gy, WD, (x + 700) * 1.6, -3 * sk * (q >= 1), 1.0, 1.0, 300 * (1 - q) if q < 1 else 0)
-        dust(c, t, T.VROOM + 0.45, x - WD * 0.32, gy - 10, 9, 3, 220, 0.8, 44)
+        speed_lines(c, t, BOX_Y - 300, BOX_Y + 300, 14, 5, 1 - prog(t, t1 - 0.3, 0.3))
+        place(c, burst(720), cx, 545, 0.25 + 0.5 * e_back(prog(t, T.VROOM, 0.3), 1.6), (t * 40) % 360, 0.9 * (1 - prog(t, t1 - 0.25, 0.25)))
+    pop(c, impact_txt("VROOM!", 200, YEL), cx, 545, t, T.VROOM, t1, d=0.3, rot=-5, from_scale=1.9)
     return c
 
 def scene_spin(t, t0, t1):
@@ -549,13 +552,19 @@ def scene_spin(t, t0, t1):
     sd = SD(c); sd.ellipse((140, 1330, 940, 1480), fill=(232, 226, 224, 255)); sd.ellipse((160, 1320, 920, 1460), fill=(246, 242, 240, 255))
     views = [('car_q34.png', 0.62), ('car_side_r.png', 0.58), ('car_back34.png', 0.70), ('car_back.png', 0.70),
              ('car_side.png', 0.62), ('car_front.png', 0.95), ('car_q34.png', 0.62)]
-    spin_view(c, t, t0 + 0.15, t1 - 0.1, views, DW / 2, 1100, 840, 1400)
+    pin = prog(t, t0, 0.4)
+    if pin < 1:                                                  # first appearance of the car: it zooms in from the right
+        ground_shadow(c, DW / 2, 1400, 520 * (0.4 + 0.6 * pin), pin)
+        place(c, with_shadow('car_q34.png', int(0.62 * 840), 12, 18, 70), DW / 2 + 900 * (1 - e_out(pin)), 1100, 0.6 + 0.4 * e_back(pin, 1.4), 0, clamp(pin * 3))
+        speed_lines(c, t, 900, 1300, 10, 2, 1 - pin)
+    else:
+        spin_view(c, t, t0 + 0.4, t1 - 0.1, views, DW / 2, 1100, 840, 1400)
     for k_ in range(2):
         a0 = (-(t - t0) * 260 + k_ * 180) % 360
         sd.arc((150, 1250, 930, 1560), a0, a0 + 70, width=10, fill=RED + (200,))
     pop(c, body('SAY HELLO TO THE', 42, RED), DW / 2, 290, t, t0 + 0.05, None, slide=20)
-    pop(c, impact_txt('RACING CAR', 180, YEL), DW / 2, 420, t, T.w(1, 6) - 0.10, None, d=0.34, from_scale=1.7, rot=-3)
-    pop(c, chip('PVC RACING CAR  •  PVC-3301', 38, RED, WHITE), DW / 2, 1660, t, T.w(1, 6) + 0.1, None, slide=24)
+    pop(c, impact_txt('RACING CAR', 180, YEL), DW / 2, 420, t, T.w(2, 6) - 0.10, None, d=0.34, from_scale=1.7, rot=-3)
+    pop(c, chip('PVC RACING CAR  •  PVC-3301', 38, RED, WHITE), DW / 2, 1660, t, T.w(2, 6) + 0.1, None, slide=24)
     return c
 
 def scene_push(t, t0, t1):
@@ -642,8 +651,8 @@ def scene_4wd(t, t0, t1):
     callout(T.CALL_BODY, x + 120, top + 560 * s, 780, 640, 'STURDY BODY')
     rx0, ry0 = x + (RIMS[0][0] - src.width / 2) * s, top + RIMS[0][1] * s
     callout(T.CALL_TYRES, rx0 - 80, ry0 + 140, 300, 1560, 'CHUNKY TYRES')
-    pop(c, impact_txt('FOUR-WHEEL', 168, YEL), DW / 2, 330, t, T.w(4, 0) - 0.06, None, d=0.32, from_scale=1.7, rot=-3)
-    pop(c, head('DRIVE', 130), DW / 2, 480, t, T.w(4, 2) - 0.06, None, slide=30)
+    pop(c, impact_txt('FOUR-WHEEL', 168, YEL), DW / 2, 330, t, T.w(5, 0) - 0.06, None, d=0.32, from_scale=1.7, rot=-3)
+    pop(c, head('DRIVE', 130), DW / 2, 480, t, T.w(5, 2) - 0.06, None, slide=30)
     return c
 
 def scene_style(t, t0, t1):
@@ -658,28 +667,29 @@ def scene_style(t, t0, t1):
         place(c, with_shadow('car_front.png', 820, 12, 18, 70), DW / 2 + 700 * (1 - e_out(q)), 1040 + 6 * math.sin(t * 2.4), 1.0, 2 * math.sin(t * 1.5), clamp(q * 2))
         speed_lines(c, t, 820, 1240, 10, 7, 1 - q)
     sparkles(c, t, 31, DW / 2, 1020, 460, 420, n=12, size=40)
-    pop(c, head('COOL STYLE', 120), DW / 2, 300, t, T.w(5, 0) - 0.06, None, slide=30)
+    pop(c, head('COOL STYLE', 120), DW / 2, 300, t, T.w(6, 0) - 0.06, None, slide=30)
     pop(c, impact_txt('BOLD LOOKS', 150, YEL), DW / 2, 440, t, T.LOOKS, None, d=0.32, from_scale=1.6, rot=-3)
     pop(c, chip('BUILT TO RACE!', 50, RED, WHITE, F_HEAD, 40, 18), DW / 2, 1640, t, T.BUILT, None, slide=24)
     return c
 
 def scene_box(t, t0, t1):
-    """A bold window box that grabs every eye in the store. -- the box pops in, then lands on a counter"""
-    c = bg(t); cx, cy = DW / 2, 1040
-    pop(c, head('BOLD WINDOW BOX', 108), DW / 2, 300, t, T.w(6, 1) - 0.06, None, slide=30)
-    pop(c, impact_txt('GRABS EVERY EYE!', 116, YEL), DW / 2, 430, t, T.w(6, 5) - 0.06, None, d=0.32, from_scale=1.7, rot=-3)
+    """A bold window box that grabs every eye in the store. -- continues from the opener: the same box (front only; the
+    side panels print other models / colours) sways, then lands on a shop counter that slides in"""
+    c = bg(t); cx = DW / 2; land_y = 1300 - BOX_HD / 2 - 10
+    pop(c, head('BOLD WINDOW BOX', 108), DW / 2, 300, t, T.w(1, 1) - 0.06, None, slide=30)
+    pop(c, impact_txt('GRABS EVERY EYE!', 116, YEL), DW / 2, 430, t, T.w(1, 5) - 0.06, None, d=0.32, from_scale=1.7, rot=-3)
+    place(c, soft_burst(1100), cx, BOX_Y, 0.86 + 0.04 * math.sin(t * 2.5), (t * 10) % 360, 0.26 * (1 - prog(t, T.BOX_LAND - 0.35, 0.3)))
     cp = e_out(prog(t, T.BOX_LAND - 0.35, 0.45))
     if cp > 0: place(c, counter_top(), DW / 2 - DW * (1 - cp), 1380)
-    if t < T.BOX_LAND - 0.35:                                      # front only: the side panels print other models / colours
-        p = prog(t, t0 + 0.05, 0.45); sway = math.sin((t - t0) * 1.8)
-        ground_shadow(c, cx, 1330, 620, clamp(p * 3))
-        place(c, with_shadow('box_q34.png', 420, 14, 18, 80), cx + 20 * sway, cy + 220 * (1 - e_back(p, 1.3)) + 8 * math.sin(t * 2.2),
-              (0.8 + 0.2 * e_back(p, 1.4)) * (1 + 0.02 * (t - t0)), -3 * sway, clamp(p * 3))
-        sparkles(c, t, 19, cx, cy, 460, 260, n=10, size=36)
+    if t < T.BOX_LAND - 0.35:
+        sway = math.sin((t - t0) * 1.8) * prog(t, t0, 0.4)
+        ground_shadow(c, cx, BOX_Y + BOX_HD / 2 + 40, 640)
+        place(c, with_shadow('box_q34.png', BOX_HD, 14, 18, 80), cx + 20 * sway, BOX_Y + 8 * math.sin((t - t0) * 2.2), 1 + 0.02 * (t - t0), -3 * sway)
+        sparkles(c, t, 19, cx, BOX_Y, 460, 260, n=10, size=36)
     else:
-        u = t - (T.BOX_LAND - 0.35); q = prog(t, T.BOX_LAND - 0.35, 0.35)
-        y = cy + (1300 - 420 / 2 - 10 - cy) * e_in(q) if t < T.BOX_LAND else 1300 - 420 / 2 - 10 - 26 * math.exp(-(t - T.BOX_LAND) * 9) * abs(math.sin((t - T.BOX_LAND) * 22))
-        place(c, with_shadow('box_q34.png', 420, 14, 18, 80), cx, y)
+        q = prog(t, T.BOX_LAND - 0.35, 0.35)
+        y = BOX_Y + (land_y - BOX_Y) * e_in(q) if t < T.BOX_LAND else land_y - 26 * math.exp(-(t - T.BOX_LAND) * 9) * abs(math.sin((t - T.BOX_LAND) * 22))
+        place(c, with_shadow('box_q34.png', BOX_HD, 14, 18, 80), cx, y)
         if t > T.BOX_LAND: sparkles(c, t, 17, cx, y, 460, 260, n=12, size=40)
     pop(c, chip('EYE-CATCHING WINDOW BOX', 44, RED, WHITE), DW / 2, 1690, t, T.BOX_LAND + 0.1, None, slide=24)
     return c
@@ -752,13 +762,13 @@ def scene_end(t):
     return c
 
 def render(t):
-    if t < T.S_SPIN: c = scene_start(t)
+    if t < T.S_BOX: c = scene_open(t, T.S_BOX)
+    elif t < T.S_SPIN: c = scene_box(t, T.S_BOX, T.S_SPIN)
     elif t < T.S_PUSH: c = scene_spin(t, T.S_SPIN, T.S_PUSH)
     elif t < T.S_LIGHTS: c = scene_push(t, T.S_PUSH, T.S_LIGHTS)
     elif t < T.S_4WD: c = scene_lights(t, T.S_LIGHTS, T.S_4WD)
     elif t < T.S_STYLE: c = scene_4wd(t, T.S_4WD, T.S_STYLE)
-    elif t < T.S_BOX: c = scene_style(t, T.S_STYLE, T.S_BOX)
-    elif t < T.S_CARTON: c = scene_box(t, T.S_BOX, T.S_CARTON)
+    elif t < T.S_CARTON: c = scene_style(t, T.S_STYLE, T.S_CARTON)
     elif t < T.S_BULK: c = scene_carton(t, T.S_CARTON, T.S_BULK)
     elif t < T.S_END: c = scene_bulk(t, T.S_BULK, T.S_END)
     else: c = scene_end(t)
