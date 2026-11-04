@@ -18,13 +18,13 @@ Product facts:
 
 | Time | VO | Scene |
 |---|---|---|
-| 0–3.2 | On your marks... get set... VROOM! | The window box drops in under the start lights (red → red → green) and punches on VROOM |
-| 3.2–6.3 | A bold window box that grabs every eye in the store. | The same box (front only) sways, then lands on a shop counter · BOLD WINDOW BOX · GRABS EVERY EYE! · EYE-CATCHING WINDOW BOX |
-| 6.3–9.0 | Say hello to the Funhoods Racing Car! | The car zooms in, then the 360° turntable (photo views) · RACING CAR · PVC RACING CAR • PVC-3301 |
-| 9.0–12.6 | Give it a push... let go... and watch it race! | A glove pushes the car (rims spin, friction whirr), lets go, and the car races off · FRICTION · HAND PUSH · INERTIA |
-| 12.6–15.8 | Press the roof... bright lights and loud music! | Front view: a finger presses the roof, the headlights glow with rays, music notes burst out · BRIGHT LIGHT · LOUD MUSIC |
-| 15.8–19.4 | Four-wheel drive, a sturdy body and chunky tyres. | Side view rolling, wheel rings, callouts STURDY BODY · CHUNKY TYRES |
-| 19.4–22.7 | Cool style, bold looks... built to race! | The orange car (one colour only) in 3/4 view swings round to face the camera · COOL STYLE · BOLD LOOKS · BUILT TO RACE! |
+| 0–3.2 | On your marks... get set... VROOM! | Start lights red → red → green, the car shoots in with speed lines and dust |
+| 3.2–5.8 | Say hello to the Funhoods Racing Car! | 360° turntable (photo views) · RACING CAR · PVC RACING CAR • PVC-3301 |
+| 5.8–9.4 | Give it a push... let go... and watch it race! | A glove pushes the car (rims spin, friction whirr), lets go, and the car races off · FRICTION · HAND PUSH · INERTIA |
+| 9.4–12.7 | Press the roof... bright lights and loud music! | Front view: a finger presses the roof, the headlights glow with rays, music notes burst out · BRIGHT LIGHT · LOUD MUSIC |
+| 12.7–16.3 | Four-wheel drive, a sturdy body and chunky tyres. | Side view rolling, wheel rings, callouts STURDY BODY · CHUNKY TYRES |
+| 16.2–19.6 | Cool style, bold looks... built to race! | The orange car (one colour only) in 3/4 view swings round to face the camera · COOL STYLE · BOLD LOOKS · BUILT TO RACE! |
+| 19.6–22.7 | A bold window box that grabs every eye in the store. | The window box (front) pops in, then lands on a shop counter · EYE-CATCHING WINDOW BOX |
 | 22.7–25.6 | Thirty-six pieces per carton, shipped anywhere in India. | 36 PCS PER CARTON (cartons stack) · Funhoods truck · PAN INDIA DELIVERY |
 | 25.6–29.1 | Distributors and wholesalers, stock up for the season! | Boxes line up · BULK ORDERS ONLY · STOCK UP NOW! |
 | 29.1–32 | Funhoods, Childhood Full of Fun! | End card: logo, car + box, PVC RACING CAR • PVC-3301 • AGES 3+, 36 PCS / CARTON, PAN INDIA DELIVERY, box disclaimer |
@@ -37,7 +37,7 @@ Product facts:
 - **Car sounds:** the toy's REAL sounds, cut from the client's two working clips and denoised by `tools/og_sound.py`:
   - friction / flywheel whirr
   - button click
-  - its built-in music with the lights
+  - its built-in music with the lights; the music bed dips there
 
   The AI SFX made earlier (`audio/sfx_*`) are no longer used. Synthesized beeps, whooshes, pops and chimes are kept for the graphics.
 - **Music:** **"Jumping Around" — Ahjay Stelino (Mixkit Stock Music Free License)**, 110 BPM, ducked under the VO.

@@ -67,7 +67,7 @@ def panel(i):
         d.rounded_rectangle((96, 120, 336, 210), 26, fill=INK)
         for k, col in enumerate([(230, 40, 40), (230, 40, 40), (40, 200, 70)]): d.ellipse((116 + k * 72, 132, 172 + k * 72, 188), fill=col)
         txt(d, 'ON YOUR MARKS · GET SET', PW / 2, 250, 24); txt(d, 'VROOM!', PW / 2, 318, 76, YEL, F_I, 3, RED)
-        speed(d, 440, 600); put(c, 'box_q34', PW / 2, 520, 330)
+        speed(d, 430, 560); put(c, 'car_side', 250, 500, 330)
     elif i == 1:
         put(c, 'car_q34', PW / 2, 470, 380)
         d.arc((40, 330, 392, 620), 200, 340, fill=RED, width=6); d.polygon([(380, 410), (396, 446), (360, 440)], fill=RED)
@@ -120,24 +120,23 @@ def panel(i):
         return c
     logo(c); return c
 
-ROWS = [('0.0–3.2', 'On your marks... get set... VROOM!', 'Packaging first: the window box drops in under the start lights, punches on VROOM. Real friction whirr'),
-        ('3.2–6.3', 'A bold window box that grabs every eye in the store.', 'Same box lands on a shop counter'),
-        ('6.3–9.0', 'Say hello to the Funhoods Racing Car!', 'Car zooms in, 360° turntable'),
-        ('9.0–12.6', 'Give it a push... let go... and watch it race!', "Glove pushes, lets go, the car races off. The car's real friction sound"),
-        ('12.6–15.8', 'Press the roof... bright lights and loud music!', "Real button click, headlights glow, the toy's own music"),
-        ('15.8–19.4', 'Four-wheel drive, a sturdy body and chunky tyres.', 'Callouts draw on, wheels spin'),
-        ('19.4–22.7', 'Cool style, bold looks... built to race!', 'Orange car (one colour) swings round to face the camera'),
-        ('22.7–25.6', 'Thirty-six pieces per carton, shipped anywhere in India.', 'Cartons stack, the Funhoods truck drives in'),
-        ('25.6–29.1', 'Distributors and wholesalers, stock up for the season!', 'Boxes line up · BULK ORDERS ONLY · STOCK UP NOW!'),
-        ('29.1–32.0', 'Funhoods, Childhood Full of Fun!', 'End card · final hit, fade')]
-PANELS = [0, 6, 1, 2, 3, 4, 5, 7, 8, 9]      # panel art drawn for each slot (v4: the box comes second, right after the opener)
+ROWS = [('0.0–3.0', 'On your marks... get set... VROOM!', 'Start lights count down, the car shoots in. Real friction whirr'),
+        ('3.0–5.5', 'Say hello to the Funhoods Racing Car!', '360° turntable: front → side → back'),
+        ('5.5–9.0', 'Give it a push... let go... and watch it race!', "Glove pushes, lets go, the car races off. The car's real friction sound"),
+        ('9.0–12.0', 'Press the roof... bright lights and loud music!', "Real button click, headlights glow, the toy's own music"),
+        ('12.0–15.0', 'Four-wheel drive, a sturdy body and chunky tyres.', 'Callouts draw on, wheels spin'),
+        ('15.0–18.0', 'Cool style, bold looks... built to race!', 'Orange car (one colour) swings round to face the camera'),
+        ('18.0–21.5', 'A bold window box that grabs every eye in the store.', 'Window box (front) pops in, lands on a counter'),
+        ('21.5–25.0', 'Thirty-six pieces per carton, shipped anywhere in India.', 'Cartons stack, the Funhoods truck drives in'),
+        ('25.0–28.8', 'Distributors and wholesalers, stock up for the season!', 'Boxes line up · BULK ORDERS ONLY · STOCK UP NOW!'),
+        ('28.8–32.0', 'Funhoods, Childhood Full of Fun!', 'End card · final hit, fade')]
 COLS, CAP = 5, 150
 board = Image.new('RGB', (COLS * (PW + 24) + 24, 2 * (PH + CAP + 24) + 120), (246, 246, 248)); bd = ImageDraw.Draw(board)
-bd.text((24, 30), 'Funhoods · PVC Racing Car (PVC-3301) · 32 s reel · Storyboard v4', font=f(F_B, 38), fill=INK)
+bd.text((24, 30), 'Funhoods · PVC Racing Car (PVC-3301) · 32 s reel · Storyboard v5', font=f(F_B, 38), fill=INK)
 bd.text((24, 78), 'White-background motion graphics · B2B (distributors & wholesalers) · Funhoods logo top-left · 36 pcs / carton', font=f(F_B, 20), fill=(110, 110, 120))
 for i in range(10):
     x, y = 24 + (i % COLS) * (PW + 24), 120 + (i // COLS) * (PH + CAP + 24)
-    p = panel(PANELS[i]).convert('RGB'); board.paste(p, (x, y)); bd.rectangle((x, y, x + PW - 1, y + PH - 1), outline=(200, 200, 205), width=2)
+    p = panel(i).convert('RGB'); board.paste(p, (x, y)); bd.rectangle((x, y, x + PW - 1, y + PH - 1), outline=(200, 200, 205), width=2)
     bd.rounded_rectangle((x + PW - 150, y + PH - 44, x + PW - 10, y + PH - 10), 14, fill=INK); bd.text((x + PW - 80, y + PH - 27), ROWS[i][0] + ' s', font=f(F_B, 17), fill=WHITE, anchor='mm')
     words, line, yy = f'{i + 1}. VO: "{ROWS[i][1]}"'.split(), '', y + PH + 12
     for w_ in words:

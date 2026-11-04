@@ -3,15 +3,13 @@
 # pauses, plus room for the lights & music jingle after "...loud music" and for the zoom after "...watch it race".
 # Line 6 is replaced (client: the car comes in one colour only) by audio/vo_line5_cool_style.mp3, same voice,
 # "Cool style, bold looks... built to race!", gain-matched to the line it replaces.
-# v4 (client): the packaging opens the reel -- the window-box line is moved up to right after "VROOM!" (ORDER).
 # -> audio/vo_timed.wav (48 kHz mono) + audio/vo_timing.json (phrases with word times on the reel clock)
 import os, json, subprocess, numpy as np, soundfile as sf
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 A = lambda *p: os.path.join(ROOT, 'audio', *p)
 SR, TEMPO, DUR, START = 48000, 1.08, 32.0, 0.10
 FIRST = ['On', 'Say', 'Give', 'Press', '4', 'Cool', 'A', '36', 'Distributors', 'Fun']     # first word of each phrase
-ORDER = [0, 6, 1, 2, 3, 4, 5, 7, 8, 9]                                                       # source phrase at each slot
-GAP = [0.0, 0.24, 0.26, 0.22, 0.42, 0.50, 0.26, 0.22, 0.22, 0.28]                          # pause before each slot
+GAP = [0.0, 0.22, 0.22, 0.42, 0.50, 0.26, 0.30, 0.22, 0.22, 0.28]                          # pause before each phrase
 
 src = subprocess.run(['ffmpeg', '-v', 'error', '-i', A('vo_final.mp3'), '-ac', '1', '-ar', str(SR), '-f', 'f32le', '-'], capture_output=True, check=True).stdout
 x0 = np.frombuffer(src, np.float32)
@@ -50,8 +48,8 @@ REPL = 5                                                          # phrase index
 x5 = stretched('vo_line5_cool_style.mp3'); w5 = [(s, e, w.strip()) for s, e, w in json.load(open(A('vo_line5_words.json')))]
 def speech_rms(v): v = v[np.abs(v) > 0.01]; return np.sqrt((v ** 2).mean())
 out = np.zeros(int(DUR * SR), np.float32); t = START; info = []; fade = int(0.008 * SR)
-for slot, k in enumerate(ORDER):
-    s0, s1 = spans[k]; t += GAP[slot]
+for k, (s0, s1) in enumerate(spans):
+    t += GAP[k]
     a, b = int(s0 / TEMPO * SR), int(s1 / TEMPO * SR)
     seg = x[a:b].copy()
     if k == REPL:
