@@ -461,24 +461,28 @@ def rig_part(name, hd, mirror=False):
     return ImageOps.mirror(im) if mirror else im
 
 @functools.lru_cache(maxsize=12)
-def rig_img(hd, pose, press, sxq):
-    """whole toy: body + head in pose, head pushed down by press (source px), head squashed to sxq/100 in x"""
+def rig_img(hd, layers, press):
+    """whole toy: body + head layers [(pose, x-squash %, alpha %, x-shift in source px)], head pushed down by press (source px)"""
     s = hd * K / RIG_H; body = rig_part('rig_body.png', hd); pt = int(PADT * s)
     out = Image.new('RGBA', (body.width, body.height + pt), (0, 0, 0, 0)); out.alpha_composite(body, (0, pt))
-    cap = Image.new('RGBA', out.size, (0, 0, 0, 0)); cd = ImageDraw.Draw(cap)   # rounded top of the neck: only seen while
-    yc = pt + NECK[1] * s                                                       # the head is squashed mid-turn
+    cap = Image.new('RGBA', out.size, (0, 0, 0, 0)); cd = ImageDraw.Draw(cap)   # rounded top of the neck
+    yc = pt + NECK[1] * s
     cd.ellipse((506 * s, yc - 34 * s, 933 * s, yc + 34 * s), fill=(214, 146, 6, 255))
     cd.ellipse((540 * s, yc - 26 * s, 900 * s, yc + 20 * s), fill=(238, 176, 22, 255))
     cd.rectangle((0, yc + 2 * s, out.width, out.height), fill=(0, 0, 0, 0)); out.alpha_composite(cap)
-    name, mir, (ax, ay) = HEADS[pose]; hm = rig_part(name, hd, mir); sx = sxq / 100
-    if sxq < 99: hm = hm.resize((max(1, int(hm.width * sx)), hm.height), Image.BICUBIC)
-    x = int(round(NECK[0] * s - ax * s * sx)); y = int(round(pt + (NECK[1] + press) * s - ay * s))
-    out.alpha_composite(hm, (max(0, x), max(0, y)), (max(0, -x), max(0, -y)))
+    for pose, sxq, aq, dxq in layers:
+        if aq <= 0: continue
+        name, mir, (ax, ay) = HEADS[pose]; hm = rig_part(name, hd, mir); sx = sxq / 100
+        if sxq < 99: hm = hm.resize((max(1, int(hm.width * sx)), hm.height), Image.BICUBIC)
+        if aq < 100: hm = hm.copy(); hm.putalpha(hm.getchannel('A').point(lambda v: v * aq // 100))
+        x = int(round((NECK[0] + dxq) * s - ax * s * sx)); y = int(round(pt + (NECK[1] + press) * s - ay * s))
+        out.alpha_composite(hm, (max(0, x), max(0, y)), (max(0, -x), max(0, -y)))
     return out
 
-def draw_rig(c, x, gy, hd, pose='F', press=0.0, sx=1.0, alpha=1.0, ghost=0.0, scale=1.0, sq=1.0):
+def draw_rig(c, x, gy, hd, layers=(('F', 1.0, 1.0, 0.0),), press=0.0, alpha=1.0, ghost=0.0, scale=1.0, sq=1.0):
     """toy standing on ground gy, centred on x; ghost = trail length to the right (it drives left)"""
-    im = rig_img(hd, pose, int(round(press / 4)) * 4, int(round(sx * 50)) * 2)
+    lq = tuple((p_, int(round(sx_ * 50)) * 2, int(round(a_ * 25)) * 4, int(round(dx_ / 4)) * 4) for p_, sx_, a_, dx_ in layers)
+    im = rig_img(hd, lq, int(round(press / 4)) * 4)
     hh = im.height / K * scale; cy = gy - hh / 2 * sq
     if ghost > 1:
         for i in range(4, 0, -1): place(c, im, x + ghost * i / 4, cy, scale, 0, alpha * 0.16 * (5 - i) / 4, sy=scale * sq)
@@ -488,22 +492,25 @@ def rig_pt(x, gy, hd, px, py):
     """source point of the body canvas -> design coordinates (toy at x, standing on gy, scale 1)"""
     s = hd / RIG_H; return x + (px - RIG['body_size'][0] / 2) * s, gy - (RIG_H - py) * s
 
-def head_state(t):
-    """(pose, press depth in source px, head x-squash) for the press sequence: each press pushes the head down and gives it
-    a quarter turn (the pose swaps at the bottom of the stroke, hidden by a quick squash); the 4th press is held down
-    until the finger lets go"""
-    press, pose, sx = 0.0, T.POSES[0], 1.0
-    for k, tp in enumerate(T.PRESSES):
+def press_depth(t):
+    """head push-down (source px): two quick presses, then the final press held until the finger lets go"""
+    press = 0.0
+    for tp, up_t in [(T.PRESSES[0], T.PRESSES[0] + 0.17), (T.PRESSES[1], T.PRESSES[1] + 0.17), (T.GO_PRESS, T.RELEASE)]:
         if t < tp - 0.05: break
-        up_t = T.RELEASE if k == len(T.PRESSES) - 1 else tp + 0.17
         if t < up_t: press = 130 * e_out(prog(t, tp - 0.05, 0.10))
         elif t < up_t + 0.16: press = 130 * (1 - e_back(prog(t, up_t, 0.16), 2.2))   # springs back with a small overshoot
         else: press = 0.0
-    for k, tp in enumerate(T.PRESSES):
-        sw = tp + 0.01
-        if t >= sw: pose = T.POSES[k + 1]
-        sx = min(sx, 0.10 + 0.90 * e_out(clamp(abs(t - sw) / 0.07)))
-    return pose, press, sx
+    return press
+
+def head_layers(t):
+    """the head turning a full 360 on its own between TURN0 and TURN1 (no finger, no press): each quarter is a
+    cross-fade between neighbouring poses with a small squash and slide in the turning direction"""
+    if t <= T.TURN0 or t >= T.TURN1: return (('F', 1.0, 1.0, 0.0),)
+    th = 4 * e_inout(prog(t, T.TURN0, T.TURN1 - T.TURN0)); k = min(3, int(th)); f = th - k
+    out_, in_ = T.POSES[k], T.POSES[k + 1]; sm = f * f * (3 - 2 * f)
+    lo = (out_, 1 - 0.28 * f, 1.0, -60 * f); li = (in_, 0.72 + 0.28 * f, 1.0, 60 * (1 - f))
+    if f < 0.5: return (lo, (li[0], li[1], sm, li[3]))           # the outgoing pose underneath, the next fading in on top
+    return (li, (lo[0], lo[1], 1 - sm, lo[3]))                    # past half way: swap, so the head never goes see-through
 
 def glove_at(c, tipx, tipy, size=280, rot=78, alpha=1.0):
     """left-pointing glove turned so its finger tips point down; (tipx, tipy) = where the finger tips touch"""
@@ -558,13 +565,13 @@ def toy(c, name, x, gy, h, t, alpha=1.0, rot=0.0, sq=1.0, dy=0.0, shadow=True):
 
 # ---------------------------------------------------------------- scenes
 def scene_hero(t):
-    """(horn: beep beep) Meet the Funhoods Press and Go Scooter! -- the duck scooter drops in and honks"""
+    """(horn: beep beep) Meet the Funhoods Press and Go Scooter! -- the orange mouse scooter (client infographic, sharp) drops in and honks"""
     c = bg(t); cx, gy, Hc = DW / 2, 1500, 800
     place(c, soft_burst(1050), cx, 1080, 0.9 + 0.03 * math.sin(t * 2.5), (t * 10) % 360, 0.30 * clamp(t / 0.3))
     dy, sq = bounce_in(t, T.LAND0, 1500)
     beep = max([math.exp(-max(0, t - b) * 9) * (t >= b) for b in T.BEEPS] + [0])
     sc = 1 + 0.035 * beep + 0.008 * max(0, t - T.LAND0)
-    toy(c, 'duck_orange_front.png', cx, gy, Hc * sc, t, 1.0, 2.0 * math.sin(t * 2.1) * (t > T.LAND0), sq, dy)
+    toy(c, 'mouse_orange_hero.png', cx, gy, Hc * sc, t, 1.0, 2.0 * math.sin(t * 2.1) * (t > T.LAND0), sq, dy)
     dust(c, t, T.LAND0, cx - 200, gy, 6, 2, 160, dirx=-1); dust(c, t, T.LAND0, cx + 200, gy, 6, 3, 160, dirx=1)
     honk(c, t, cx, gy - Hc * 0.72, 260)
     pop(c, impact_txt('BEEP BEEP!', 130, YEL), cx, 1690, t, T.BEEPS[0], None, d=0.3, rot=-5, from_scale=1.8)
@@ -574,44 +581,46 @@ def scene_hero(t):
     return c
 
 def scene_press(t, t0, t1):
-    """Just press the head... watch it turn... and off it goes! -- a finger presses the head 4 times (down + a quarter
-    turn each time: front, left, back, right, front), holds the last press, lets go and the scooter shoots off left"""
+    """Just press the head... watch it turn... and off it goes! -- kept apart, one action at a time:
+    1) a finger presses the head down twice (down only); 2) the finger lifts away and the head turns a full 360 on its
+    own (front, left, back, right, front); 3) the finger presses once more, holds, lets go -- the scooter shoots off left"""
     c = bg(t); gy, HD = 1500, 820; x0 = 560
     ground(c, gy)
     p = prog(t, t0, 0.35)
-    pose, press, sx = head_state(t)
+    press = press_depth(t); layers = head_layers(t)
     z = prog(t, T.RELEASE + 0.03, 0.5); x = x0 - 1450 * z ** 2.1
     sc = 0.86 + 0.14 * e_back(p, 1.4)
-    hx, _ = rig_pt(x0, gy, HD, NECK[0], 0); ring_y = rig_pt(x0, gy, HD, 0, 935 + max(0, press))[1]   # round the neck
-    ring_a = clamp((t - T.PRESSES[1] + 0.05) / 0.2) * (1 - clamp((t - T.RELEASE) / 0.15))
+    hx, _ = rig_pt(x0, gy, HD, NECK[0], 0); ring_y = rig_pt(x0, gy, HD, 0, 935)[1]   # round the neck
+    ring_a = clamp((t - T.TURN0 + 0.12) / 0.15) * (1 - clamp((t - T.TURN1 - 0.05) / 0.15))
     turn_ring(c, t, hx, ring_y, 250, 52, ring_a, False)
     if z < 1:
         ground_shadow(c, x, gy + 6, 560, clamp(p * 3))
-        draw_rig(c, x, gy, HD, pose, press, sx, clamp(p * 3), ghost=300 * clamp(z * 3) if z > 0 else 0, scale=sc,
+        draw_rig(c, x, gy, HD, layers, press, clamp(p * 3), ghost=300 * clamp(z * 3) if z > 0 else 0, scale=sc,
                  sq=1 - 0.018 * press / 130)
     turn_ring(c, t, hx, ring_y, 250, 52, ring_a, True)
     if z > 0:
         speed_lines(c, t, gy - 520, gy - 30, 14, 5, 1 - prog(t, t1 - 0.25, 0.25), direction=1)
         dust(c, t, T.RELEASE + 0.03, x0 + 230, gy - 10, 9, 4, 210, 0.7, 42, dirx=1)
-    # the finger: in from the top right, presses on the crown each time, holds the 4th press, then lets go
-    gin = e_out(prog(t, T.PRESSES[0] - 0.40, 0.32)); gout = e_inout(prog(t, T.RELEASE - 0.02, 0.32))
-    if gin > 0 and gout < 1:
-        hover = 0.0
-        for k, tp in enumerate(T.PRESSES[:-1]):                    # lifts a little between presses
-            hover = max(hover, 28 * e_inout(prog(t, tp + 0.17, 0.12)) * (1 - e_inout(prog(t, T.PRESSES[k + 1] - 0.16, 0.10))))
+    # the finger: in for the two presses, away while the head turns, back for the final press, then lets go
+    g1 = e_out(prog(t, T.PRESSES[0] - 0.40, 0.32)) * (1 - e_inout(prog(t, T.PRESSES[1] + 0.20, 0.30)))
+    g2 = e_out(prog(t, T.TURN1 - 0.06, 0.26)) * (1 - e_inout(prog(t, T.RELEASE - 0.02, 0.32)))
+    g = max(g1, g2)
+    if g > 0.001:
+        hover = 28 * e_inout(prog(t, T.PRESSES[0] + 0.17, 0.12)) * (1 - e_inout(prog(t, T.PRESSES[1] - 0.16, 0.10)))
         tx, ty = rig_pt(x0, gy, HD, CROWN[0], CROWN[1] + max(0, press))
-        glove_at(c, tx + 380 * (1 - gin) + 300 * gout, ty - 4 - hover - 520 * (1 - gin) - 420 * gout, 280, 78 - 18 * gout, 1 - gout)
-        for tp in T.PRESSES:                                       # a ring on the crown at each press
+        glove_at(c, tx + 360 * (1 - g), ty - 4 - hover - 500 * (1 - g), 280, 78 - 18 * (1 - g), clamp(g * 1.5))
+        for tp in T.PRESSES + [T.GO_PRESS]:                        # a ring on the crown at each press
             q = prog(t, tp + 0.03, 0.35)
             if 0 < q < 1:
                 sd = SD(c); rr = 50 + 70 * q
                 sd.ellipse((tx - rr, ty - rr * 0.5, tx + rr, ty + rr * 0.5), width=8, outline=RED + (int(220 * (1 - q)),))
-    pop(c, head('PRESS THE HEAD', 112), DW / 2, 310, t, T.w(1, 0) - 0.04, T.w(1, 4) - 0.04, slide=30)
-    pop(c, head('WATCH IT TURN!', 118, YEL), DW / 2, 310, t, T.w(1, 4) - 0.04, T.RELEASE + 0.02, slide=30)
+    pop(c, head('PRESS THE HEAD', 112), DW / 2, 310, t, T.w(1, 0) - 0.04, T.TURN0 - 0.02, slide=30)
+    pop(c, head('WATCH IT TURN!', 118, YEL), DW / 2, 310, t, T.TURN0 - 0.02, T.RELEASE + 0.02, slide=30)
     if t >= T.RELEASE:
         place(c, burst(700), DW / 2, 420, 0.3 + 0.62 * e_back(prog(t, T.RELEASE, 0.3), 1.6), (t * 40) % 360, 0.9 * (1 - prog(t, t1 - 0.2, 0.2)))
     pop(c, impact_txt('OFF IT GOES!', 140, YEL), DW / 2, 420, t, T.RELEASE + 0.02, None, d=0.3, rot=-5, from_scale=1.9)
-    pop(c, chip('HEAD TURNS 360°', 46, RED, WHITE, F_HEAD, 36, 16), DW / 2, 1640, t, T.PRESSES[2] + 0.05, T.RELEASE + 0.1, slide=24)
+    pop(c, chip('PRESS DOWN', 46, YEL, DRED, F_HEAD, 36, 16), DW / 2, 1640, t, T.PRESSES[0] + 0.05, T.TURN0 - 0.02, slide=24)
+    pop(c, chip('HEAD TURNS 360°', 46, RED, WHITE, F_HEAD, 36, 16), DW / 2, 1640, t, T.TURN0 + 0.02, T.RELEASE + 0.1, slide=24)
     pop(c, chip('PRESS & GO ACTION', 46, YEL, DRED, F_HEAD, 36, 16), DW / 2, 1640, t, T.RELEASE + 0.1, None, slide=24)
     return c
 
@@ -659,7 +668,7 @@ def scene_safe(t, t0, t1):
     """BIS certified, Made in India and non-toxic."""
     c = bg(t); p = prog(t, t0, 0.5); gy = 1110
     place(c, soft_burst(1000), DW / 2, 770, 0.9 + 0.03 * math.sin(t * 2.5), (t * 10) % 360, 0.28 * clamp(p * 3))
-    for i, (name, x, h) in enumerate([('mouse_red_front.png', 365, 600), ('duck_orange_front.png', 720, 640)]):
+    for i, (name, x, h) in enumerate([('mouse_red_front.png', 365, 600), ('duck_blue_front2.png', 720, 640)]):
         pi = prog(t, t0 + 0.05 + 0.1 * i, 0.5)
         toy(c, name, x, gy, h, t, clamp(pi * 3), (3 if i else -3) * math.sin((t - t0) * 1.6 + i), 1.0, 200 * (1 - e_back(pi, 1.3)))
     sparkles(c, t, 11, DW / 2, 760, 430, 330, n=10)

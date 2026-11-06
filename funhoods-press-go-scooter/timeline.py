@@ -14,9 +14,11 @@ HORN = 0.34                    # horn SFX starts (audio/sfx_horn_beep_1.mp3, fir
 BEEPS = [HORN + 0.04, HORN + 0.30]
 # 1 Just press the head... watch it turn... and off it goes!
 S_PRESS = gap(1)
-PRESSES = [w(1, 1), w(1, 3), w(1, 4), w(1, 6)]   # "press", "head", "watch", "turn": each press pushes the head down and turns
-POSES = ['F', 'L', 'B', 'R', 'F']                  # it a quarter turn: front -> left -> back -> right -> front (360 deg)
-RELEASE = w(1, 8) - 0.05       # "off it goes": the finger (holding the 4th press down) lets go, the scooter shoots off
+PRESSES = [w(1, 1), w(1, 3)]   # "press", "head": the finger pushes the head down twice (down only, no turn)
+TURN0, TURN1 = w(1, 4) - 0.16, w(1, 7) - 0.03   # "watch it turn": finger away, the head turns a full 360 on its own
+POSES = ['F', 'L', 'B', 'R', 'F']                  # front -> left -> back -> right -> front
+GO_PRESS = TURN1 + 0.24        # the finger comes back, presses and holds ...
+RELEASE = w(1, 8) - 0.05       # ... "off it goes": lets go, the scooter shoots off
 # 2 Two cute riders, a little mouse and a happy duck!
 S_RIDERS = gap(2)
 MOUSE, DUCK = w(2, 5) - 0.06, w(2, 9) - 0.06

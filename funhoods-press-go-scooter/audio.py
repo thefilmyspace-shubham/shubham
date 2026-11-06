@@ -1,7 +1,7 @@
 # VO + music bed (ducked under the voice) + SFX -> mix.wav (48 kHz stereo, about -14 LUFS)
 #   VO:    audio/vo_timed.wav (chosen take "Gavin", Magnific / ElevenLabs v4, re-timed by tools/vo_retime.py).
 #          The VO never speaks a sound effect: the horn and the toy's sounds are separate tracks below.
-#   toy:   the scooter's REAL sounds from the client's raw clip (tools/og_sound.py): audio/og_press_1..4.wav (the head
+#   toy:   the scooter's REAL sounds from the client's raw clip (tools/og_sound.py): audio/og_press_1..3.wav (the head
 #          pressed down -- flywheel gear whirr) and og_go.wav (wheels running free as it shoots off)
 #   horn:  audio/sfx_horn_beep_1.mp3 (generated SFX, Magnific), first two beeps only
 #   SFX:   synthesized whooshes, pops, thocks and chimes for the graphics
@@ -105,12 +105,16 @@ horn = load('audio/sfx_horn_beep_1.mp3')[:S(0.44)]
 place(fade(norm(horn, 0.9), 0.003, 0.03), T.HORN, 0.50)
 place(impact(1.0, 70, 36), T.w(0, 3) - 0.06, 0.30); place(pop_snd(), T.w(0, 3) - 0.06, 0.18)
 place(chime([1047, 1319, 1568, 2093]), T.w(0, 6) - 0.04, 0.12)
-# 1 the finger comes in, presses the head 4 times (the real press whirr each time), holds, lets go -> real "go" whirr
+# 1 two presses (real press whirr), the head turns 360 on its own, a final press + hold, lets go -> real "go" whirr
 place(whoosh(0.4, 0.6, 0.3), T.PRESSES[0] - 0.42, 0.12)
-for k, tp in enumerate(T.PRESSES):
+for k, tp in enumerate(T.PRESSES + [T.GO_PRESS]):                    # the presses: the real press whirr each time
     x = load('audio/og_press_%d.wav' % (k + 1), 1); x = fade(norm(x, 0.9), 0.003, 0.03)
     place(x, tp - onset(x), 0.62, pan=0.1)
-    place(whoosh(0.16, 0.5, 0.5), tp - 0.04, 0.05)                    # a breath of air as the head turns
+# the head turning 360 on its own (no press): a soft swirl across the turn + a light tick at each quarter
+place(whoosh(T.TURN1 - T.TURN0 + 0.1, 0.5, 0.3), T.TURN0 - 0.05, 0.10)
+uu = np.linspace(0, 1, 2001); ee = np.where(uu < .5, 4 * uu ** 3, 1 - (-2 * uu + 2) ** 3 / 2)
+for q in (0.125, 0.375, 0.625, 0.875):
+    place(blip(0.05, 520, 700), T.TURN0 + (T.TURN1 - T.TURN0) * uu[np.argmin(np.abs(ee - q))], 0.06)
 go = load('audio/og_go.wav', 1); go = fade(norm(go, 0.9), 0.004, 0.12)
 place(go, T.RELEASE + 0.02 - onset(go, 0.35), 0.72)
 place(whoosh(0.5, 0.35, 0.5), T.RELEASE + 0.08, 0.16); place(impact(0.8, 80, 40), T.RELEASE + 0.02, 0.18)

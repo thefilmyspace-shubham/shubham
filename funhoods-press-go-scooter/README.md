@@ -14,12 +14,11 @@ This reel is cut like the Dino Car reel: white-backdrop motion graphics cut to t
 - the scooter + body;
 - the head in 4 poses, all sharing the neck point: front, profile, mirrored profile, back.
 
-A finger presses the head 4 times. On each press:
-- the head sinks over the neck;
-- it makes a quarter turn: front → left → back → right → front (360°, as printed on the label);
-- the real gear whirr from the raw clip plays.
-
-The finger holds the last press, then lets go, and the scooter shoots off with the real wheel whirr.
+Pressing and turning are shown separately, one after the other (client's note):
+1. A finger presses the head down twice. The head only sinks over the neck, with the real gear whirr from the raw clip.
+2. The finger lifts away, and the head turns a full 360° on its own: front → left → back → right → front.
+   Each quarter is a quick cross-fade between neighbouring poses, with a small squash and slide.
+3. The finger comes back, presses once more and holds, then lets go. The scooter shoots off with the real wheel whirr.
 
 The client's photos have no view of the back of the head. That pose is made from the front head's silhouette: plain yellow, shaded like the plastic.
 
@@ -31,11 +30,11 @@ The client's photos have no view of the back of the head. That pose is made from
 
 | Time | VO | Scene |
 |---|---|---|
-| 0–3.2 | *(horn: beep beep)* Meet the Funhoods Press and Go Scooter! | The duck scooter drops in and honks (horn SFX, honk rings, BEEP BEEP!) · MEET THE · PRESS & GO · SCOOTER |
-| 3.2–7.3 | Just press the head... watch it turn... and off it goes! | A finger presses the head 4×. Each time the neck sinks and the head turns a quarter (360° ring round the neck), with the real press whirr. It lets go and the scooter shoots off left · PRESS THE HEAD · WATCH IT TURN! · HEAD TURNS 360° · OFF IT GOES! |
+| 0–3.2 | *(horn: beep beep)* Meet the Funhoods Press and Go Scooter! | The orange mouse scooter (sharp shot from the client's infographic) drops in and honks (horn SFX, honk rings, BEEP BEEP!) · MEET THE · PRESS & GO · SCOOTER |
+| 3.2–7.3 | Just press the head... watch it turn... and off it goes! | One action at a time: (1) a finger presses the head down twice, down only, real press whirr · PRESS DOWN; (2) the finger lifts away and the head turns a full 360° on its own, ring round the neck · WATCH IT TURN! · HEAD TURNS 360°; (3) the finger presses once more, holds, lets go, and the scooter shoots off left · OFF IT GOES! |
 | 7.3–11.0 | Two cute riders, a little mouse and a happy duck! | Mouse (blue) and duck (blue) slide in, each hops on its word · 2 CUTE RIDERS · MOUSE · DUCK |
 | 11.0–13.8 | Bright blue, red and orange scooters. | The 4 colours from the client's infographic pop in one by one (sky blue between red and orange): BLUE · RED · SKY BLUE · ORANGE · BRIGHT 4 COLOURS |
-| 13.8–17.3 | BIS certified, Made in India and non-toxic. | Red mouse + orange duck, badge rows: BIS CERTIFIED (IS 9873 Part-1), MADE IN INDIA, NON-TOXIC, 3+ YEARS |
+| 13.8–17.3 | BIS certified, Made in India and non-toxic. | Red mouse + blue duck, badge rows: BIS CERTIFIED (IS 9873 Part-1), MADE IN INDIA, NON-TOXIC, 3+ YEARS |
 | 17.3–20.4 | In a see-through pouch that shows off every rider. | The new transparent pouch (client infographic) drops onto a peg and swings; a ring shows the rider through the clear bag · SEE-THROUGH POUCH · SHOWS EVERY RIDER! |
 | 20.4–23.6 | Two hundred forty pieces per carton, pan India delivery. | 240 PCS PER CARTON (cartons stack) · Funhoods truck · PAN INDIA DELIVERY |
 | 23.6–27.2 | Distributors and wholesalers, fill your shelves with Press and Go! | A peg board slides up and fills with 6 of the new pouches · BULK ORDERS ONLY · FILL YOUR SHELVES! |
