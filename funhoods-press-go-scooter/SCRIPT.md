@@ -1,4 +1,4 @@
-# Funhoods — Press & Go Scooter (PL-001) · VO script v2 (draft for approval)
+# Funhoods — Press & Go Scooter (PL-001) · VO script v3 (draft for approval)
 
 Reel: about 30 s · 9:16 · white-background motion graphics (same system as the earlier Funhoods reels) · B2B
 (distributors & wholesalers only) · no phone number.
@@ -9,11 +9,14 @@ Product facts:
 - **October catalogue:** PL-001 is listed as BIS Approved · Virgin Polymer.
 - **Left out:** "no batteries" (not printed on the card or the label).
 
-## VO v2 (English, cute and cheerful, about 73 words, about 29 s; real toy sounds go in the pauses)
+## VO v3 (English, cute and cheerful, about 70 words, about 28 s)
+
+**Rule: the VO never speaks a sound effect.** "Beep beep", "zoom", "vroom", "rawr", "whoosh" and the like are
+sound effects in the mix, never words in the voice-over.
 
 ```
-[cheerful] Beep beep! Meet the Funhoods Press and Go Scooter!
-Just press the head... let go... and ZOOM!
+[cheerful] Meet the Funhoods Press and Go Scooter!
+Just press the head... watch it turn... and off it goes!
 Two cute riders, a little mouse and a happy duck!
 Bright blue, red and orange scooters.
 BIS certified, Made in India and non-toxic.
@@ -23,11 +26,23 @@ Distributors and wholesalers, fill your shelves with Press and Go!
 [excited] Funhoods... Childhood Full of Fun!
 ```
 
+SFX (in the mix, not in the VO):
+- toy scooter horn "beep beep": opening
+- the scooter's real gear whirr on each press (`audio/og_press_*.wav`)
+- the real wheel whirr and a whoosh when it goes (`audio/og_go*.wav`)
+
 ### v2 facts (client photos + raw clips, Drive 5 Nov)
 - **Models:** two riders, a **mouse** and a **duck**. Photos show the mouse on blue and red scooters, and the duck on blue and orange scooters.
 - **Pack back label:** "Press the Head" · Usage age 3 Years+ · Item code PL-001 · Made in India · 100% safe for children, non-toxic ·
   IS 9873 (Part-1), BIS CM/L 8200185112. The MRP and the customer-care number are on the label but are NOT used.
-- **How it works** (raw clips, reference only): press the head down a few times (the neck slides into the body and the gear whirrs), let go, and the scooter shoots forward.
+- **How it works** (raw clips, reference only): press the head down a few times. The neck slides into the body, the gear whirrs, and **the head turns on each press** (the label prints "360°" over the head). Let go, and the scooter shoots forward.
   Real sounds: `audio/og_*.wav` (`tools/og_sound.py`).
 
-Planned how-it-works animation (Dino Car style): a finger presses the head down three times (the neck sinks in, real gear whirr each time), lets go, and the scooter shoots forward with speed lines (real wheel whirr).
+Planned how-it-works animation (Dino Car style):
+- A finger presses the head down three times. Each time the neck sinks in, the head turns (left, front, right), and the real gear whirr plays.
+- The finger lets go and the scooter shoots forward with speed lines and the real wheel whirr.
+
+## VO samples v3 (`audio/`, Magnific / ElevenLabs v4)
+- `VO_sample_1_Gavin.mp3` (playful, 31.6 s) and `VO_sample_2_Callum.mp3` (warm, 29.1 s): v3 script, no spoken SFX.
+- `sfx_horn_beep_1/2.mp3`: the "beep beep" horn as a sound effect.
+- The v2 samples (they spoke "beep beep" and "zoom") are kept in `audio/old_v2/`.
