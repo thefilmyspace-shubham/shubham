@@ -197,7 +197,7 @@ def drop_shadow(im, blur=18, dy=26, alpha=110, pad=60):
     out.alpha_composite(im, (pad, pad))
     return out
 
-@functools.lru_cache(maxsize=None)
+@functools.lru_cache(maxsize=40)
 def with_shadow(name, h, blur=18, dy=26, alpha=110):
     return drop_shadow(scaled(name, h=h), blur, dy, alpha)
 
@@ -553,7 +553,8 @@ def hop(t, th, amp=70):
 def toy(c, name, x, gy, h, t, alpha=1.0, rot=0.0, sq=1.0, dy=0.0, shadow=True):
     """product cut-out of height h standing on gy"""
     if shadow: ground_shadow(c, x, gy + 6, 0.62 * asset(name).width * h / asset(name).height + 60, alpha * clamp(1 + dy / 300))
-    place(c, with_shadow(name, h, 12, 16, 70), x, gy - h / 2 * sq - 20 + dy, 1.0, rot, alpha, sy=sq)
+    hq = max(40, int(round(h / 40)) * 40); k = h / hq                 # cache a few sizes, scale the rest (memory)
+    place(c, with_shadow(name, hq, 12, 16, 70), x, gy - h / 2 * sq - 20 + dy, k, rot, alpha, sy=k * sq)
 
 # ---------------------------------------------------------------- scenes
 def scene_hero(t):
@@ -676,8 +677,8 @@ def hook(c, x, y):
 
 def hung(c, name, px, py, h, ang, alpha=1.0, dy=0.0):
     """pouch hanging from a peg at (px, py), swung by ang degrees"""
-    d = h / 2; a = math.radians(ang)
-    place(c, with_shadow(name, h, 14, 18, 80), px + d * math.sin(a), py + dy + d * math.cos(a), 1.0, ang, alpha)
+    d = h / 2; a = math.radians(ang); hq = max(40, int(round(h / 40)) * 40)
+    place(c, with_shadow(name, hq, 14, 18, 80), px + d * math.sin(a), py + dy + d * math.cos(a), h / hq, ang, alpha)
 
 def swing(t, tl, amp=9.0):
     if t < tl: return 0.0
