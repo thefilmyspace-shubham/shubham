@@ -1,4 +1,4 @@
-# Funhoods — Press & Go Scooter (PL-001) · VO script v3 (draft for approval)
+# Funhoods — Press & Go Scooter (PL-001) · VO script v3 (approved: sample 1, Gavin)
 
 Reel: about 30 s · 9:16 · white-background motion graphics (same system as the earlier Funhoods reels) · B2B
 (distributors & wholesalers only) · no phone number.
@@ -38,9 +38,10 @@ SFX (in the mix, not in the VO):
 - **How it works** (raw clips, reference only): press the head down a few times. The neck slides into the body, the gear whirrs, and **the head turns on each press** (the label prints "360°" over the head). Let go, and the scooter shoots forward.
   Real sounds: `audio/og_*.wav` (`tools/og_sound.py`).
 
-Planned how-it-works animation (Dino Car style):
-- A finger presses the head down three times. Each time the neck sinks in, the head turns (left, front, right), and the real gear whirr plays.
-- The finger lets go and the scooter shoots forward with speed lines and the real wheel whirr.
+How-it-works animation in the edit (Dino Car style, `render.py` scene_press):
+- A finger presses the head down **4 times**. Each time the neck sinks in, the real gear whirr plays, and the head makes a
+  quarter turn: front → left → back → right → front (the full 360° on the label).
+- The finger holds the last press, then lets go. The scooter shoots forward with speed lines and the real wheel whirr.
 
 ## VO samples v3 (`audio/`, Magnific / ElevenLabs v4)
 - `VO_sample_1_Gavin.mp3` (playful, 31.6 s) and `VO_sample_2_Callum.mp3` (warm, 29.1 s): v3 script, no spoken SFX.

@@ -31,3 +31,27 @@ for k, n in NAMES.items():
         rgb = cv2.cvtColor(cv2.inpaint(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), mk, 9, cv2.INPAINT_TELEA), cv2.COLOR_BGR2RGB)
         out = Image.fromarray(rgb).convert('RGBA'); out.putalpha(im.getchannel('A')); im = out
     im.save(A(n + '.png')); print(n, im.size)
+
+# ---- the press-and-turn rig (mouse on the blue scooter): body + two head poses
+# mouse_blue_front: the scooter in side view, head facing the camera; mouse_blue_side: head in profile (facing right).
+# The head is cut off at its chin (straight cut, the neck stays with the body); when the head is pressed it slides down
+# over the neck, which reads as the neck sinking into the body, as on the real toy.
+import json
+CUT_F, ANCHOR_F = 885, (685, 885)              # front: chin line, neck centre on it (source px)
+CUT_S, ANCHOR_S = 890, (430, 890)              # profile
+f = Image.open(A('mouse_blue_front.png')).convert('RGBA'); s_ = Image.open(A('mouse_blue_side.png')).convert('RGBA')
+body = f.copy(); a = np.asarray(body.getchannel('A')).copy(); a[:CUT_F] = 0; body.putalpha(Image.fromarray(a)); body.save(A('rig_body.png'))
+f.crop((0, 0, f.width, CUT_F + 2)).save(A('rig_head_front.png'))
+hs = s_.crop((0, 0, s_.width, CUT_S + 2))                     # profile photo is a little more orange: match its yellow to the front
+def yellow_mean(im):
+    v = np.asarray(im).astype(np.float32); hsv = np.asarray(im.convert('RGB').convert('HSV')).astype(np.float32)
+    m = (v[..., 3] > 200) & (hsv[..., 0] > 20) & (hsv[..., 0] < 45) & (hsv[..., 1] > 120)
+    return v[..., :3][m].mean(0)
+g_ = yellow_mean(f.crop((0, 0, f.width, CUT_F))) / yellow_mean(hs)
+v = np.asarray(hs).astype(np.float32)
+v[..., :2] = np.clip(v[..., :2] * np.clip(g_[:2], 0.85, 1.2), 0, 255)                  # R, G: gain
+fy, sy = yellow_mean(f.crop((0, 0, f.width, CUT_F))), yellow_mean(hs)
+v[..., 2] = np.clip(v[..., 2] + (fy[2] - sy[2]), 0, 255)                                # B: offset (a gain would blow up)
+Image.fromarray(v.astype(np.uint8)).save(A('rig_head_side.png')); print('side head gain', g_.round(3))
+json.dump({'body_size': list(f.size), 'cut': CUT_F, 'anchor_front': ANCHOR_F, 'anchor_side': ANCHOR_S}, open(A('rig.json'), 'w'), indent=1)
+print('rig ok')
