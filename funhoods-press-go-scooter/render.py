@@ -635,22 +635,24 @@ def scene_riders(t, t0, t1):
         pop(c, chip(lbl, 50, col, WHITE, F_HEAD, 36, 14), x, gy + 105, t, tw + 0.04, None, slide=24)
     return c
 
+SKYB = (60, 186, 236)
 def scene_colours(t, t0, t1):
-    """Bright blue, red and orange scooters. -- one scooter pops in on each colour word"""
-    c = bg(t); gy = 1420; sd = SD(c)
-    pop(c, head('BRIGHT', 112), DW / 2, 300, t, T.w(3, 0) - 0.06, None, slide=30)
-    pop(c, impact_txt('COLOURS', 180, YEL), DW / 2, 450, t, T.w(3, 1) - 0.06, None, d=0.34, from_scale=1.6, rot=-3)
-    spots = [(200, 'duck_blue_front.png', 700, 'BLUE', BLUE), (540, 'mouse_red_front.png', 650, 'RED', RED),
-             (880, 'duck_orange_front2.png', 700, 'ORANGE', OR2)]
-    for i, ((x, name, h, lbl, col), tp) in enumerate(zip(spots, T.COL_POPS)):
-        q = e_back(prog(t, tp - 0.05, 0.4), 1.5)
+    """Bright blue, red and orange scooters. -- the 4 colours (client infographic): blue, red, sky blue, orange pop in"""
+    c = bg(t); sd = SD(c)
+    pop(c, head('BRIGHT', 104), DW / 2, 290, t, T.w(3, 0) - 0.06, None, slide=30)
+    pop(c, impact_txt('4 COLOURS', 170, YEL), DW / 2, 440, t, T.w(3, 1) - 0.06, None, d=0.34, from_scale=1.6, rot=-3)
+    spots = [(290, 990, 'c4_blue.png', 'BLUE', BLUE), (790, 990, 'c4_red.png', 'RED', RED),
+             (290, 1570, 'c4_skyblue.png', 'SKY BLUE', SKYB), (790, 1570, 'c4_orange.png', 'ORANGE', OR2)]
+    for i, ((x, gy, name, lbl, col), tp) in enumerate(zip(spots, T.COL_POPS)):
+        q = e_back(prog(t, t0 + 0.25 + i * 0.08, 0.4), 1.5)                 # colour blob behind each slot
         if q > 0:
-            r = 200 * q; sd.ellipse((x - r, gy - 350 - r * 1.35, x + r, gy - 350 + r * 1.35), fill=col + (55,))
-        if t >= tp:
-            pp = prog(t, tp, 0.42)
-            toy(c, name, x, gy, h * (0.6 + 0.4 * e_back(pp, 1.5)), t, clamp(pp * 3), (-3 if i % 2 else 3) * math.sin(t * 1.7 + i),
-                1.0, 160 * (1 - e_back(pp, 1.3)) + hop(t, T.w(3, 5) + 0.06 * i, 50))
-            pop(c, chip(lbl, 44, col, WHITE, F_HEAD, 30, 12), x, gy + 90, t, tp + 0.08, None, slide=20)
+            r = 200 * q; sd.ellipse((x - r, gy - 215 - r, x + r, gy - 215 + r), fill=col + (55,))
+        if t >= tp - 0.04:
+            pp = prog(t, tp - 0.04, 0.42)
+            toy(c, name, x, gy, 420 * (0.6 + 0.4 * e_back(pp, 1.5)), t, clamp(pp * 3), (-3 if i % 2 else 3) * math.sin(t * 1.7 + i),
+                1.0, 150 * (1 - e_back(pp, 1.3)) + hop(t, T.w(3, 5) + 0.06 * i, 30))
+    for (x, gy, name, lbl, col), tp in zip(spots, T.COL_POPS):          # labels over the toys
+        pop(c, chip(lbl, 40, col, WHITE, F_HEAD, 30, 12), x, gy + 48, t, tp + 0.06, None, slide=20)
     return c
 
 def scene_safe(t, t0, t1):
@@ -685,7 +687,7 @@ def swing(t, tl, amp=9.0):
     u = t - tl; return amp * math.exp(-u * 2.2) * math.sin(u * 7)
 
 def scene_pouch(t, t0, t1):
-    """In a see-through pouch that shows off every rider. -- the pouch drops onto a peg and swings"""
+    """In a see-through pouch that shows off every rider. -- the new transparent pouch (client infographic) drops onto a peg and swings"""
     c = bg(t); px, py = DW / 2, 585; tl = t0 + 0.38
     pop(c, head('SEE-THROUGH POUCH', 104), DW / 2, 300, t, T.w(5, 2) - 0.06, None, slide=30)
     hook(c, px, py)
@@ -693,9 +695,9 @@ def scene_pouch(t, t0, t1):
     if q > 0:
         dy = -1300 * (1 - e_in(q)) if t < tl else 0.0
         sc = 1 + 0.012 * max(0, t - tl)
-        hung(c, 'pack_front.png', px, py + 22, PACK_H * sc, swing(t, tl), clamp(q * 3), dy)
+        hung(c, 'pack_new.png', px, py + 22, PACK_H * sc, swing(t, tl), clamp(q * 3), dy)
     if t >= T.SHOWS:                                               # the rider shows through the window
-        sd = SD(c); u = prog(t, T.SHOWS, 0.5); cx_, cy_ = px + 30, py + PACK_H * 0.66
+        sd = SD(c); u = prog(t, T.SHOWS, 0.5); cx_, cy_ = px, py + 22 + PACK_H * 0.64
         for k_ in range(2):
             qq = ((t - T.SHOWS) * 1.2 + k_ * 0.5) % 1
             r = 250 + 90 * qq
@@ -749,7 +751,7 @@ def scene_bulk(t, t0, t1):
         pp = prog(t, tp - 0.2, 0.2)
         if pp <= 0: continue
         dy = -700 * (1 - e_out(pp))
-        hung(c, 'pack_front.png', x, y + 20, 340, swing(t, tp, 7), clamp(pp * 3), dy)
+        hung(c, 'pack_new.png', x, y + 20, 340, swing(t, tp, 7), clamp(pp * 3), dy)
     pop(c, chip('BULK ORDERS ONLY', 56, YEL, DRED, F_HEAD, 44, 20), DW / 2, 1545, t, T.w(7, 2) + 0.2, None, slide=30)
     tf = T.w(7, 3) - 0.06
     pop(c, impact_txt('FILL YOUR SHELVES!', 112, YEL), DW / 2, 1700, t, tf, None, d=0.3, rot=-4, from_scale=1.8)
@@ -764,11 +766,11 @@ def scene_end(t):
     sd.polygon([(0, DH), (DW, DH), (DW, DH - 200 * p), (0, DH - 260 * p)], fill=RED + (255,))
     lg = asset('logo_rgba.png'); tl = T.w(8, 0) - 0.22
     place(c, lg, DW / 2, 520, (800 * K / lg.width) * (0.4 + 0.6 * e_back(prog(t, tl, 0.42), 1.6)), 0, clamp((t - tl) / 0.1))
-    for i, (a, x, h_, dl, rot) in enumerate([('duck_orange_front.png', 190, 330, 0.25, 5), ('mouse_red_front.png', 885, 300, 0.35, -5)]):
+    for i, (a, x, h_, dl, rot) in enumerate([('c4_blue.png', 185, 300, 0.25, 5), ('c4_red.png', 895, 300, 0.35, -5)]):
         pb = prog(t, t0 + dl, 0.5); side = -1 if x < DW / 2 else 1
         place(c, with_shadow(a, h_, 10, 12, 70), x + side * 500 * (1 - e_out(pb)), 1060 + 5 * math.sin(t * 2.2 + i), 1.0, rot, clamp(pb * 3))
     pf = prog(t, t0 + 0.15, 0.5)
-    place(c, with_shadow('mouse_blue_front.png', 440, 12, 16, 80), DW / 2, 1010 + 260 * (1 - e_back(pf, 1.3)) + 5 * math.sin(t * 2), 1.0, 0, clamp(pf * 3))
+    place(c, with_shadow('mouse_orange_hero.png', 470, 12, 16, 80), DW / 2, 1000 + 260 * (1 - e_back(pf, 1.3)) + 5 * math.sin(t * 2), 1.0, 0, clamp(pf * 3))
     pop(c, body('PRESS & GO SCOOTER  •  PL-001  •  3+ YEARS', 36, RED), DW / 2, 1300, t, t0 + 0.45, None, slide=20)
     pop(c, chip('BULK ORDERS ONLY', 52, RED, WHITE, F_HEAD, 40, 18), DW / 2, 1415, t, t0 + 0.6, None, slide=30)
     ca, cb_ = chip('240 PCS / CARTON', 34, YEL, DRED, F_BODY, 24, 14), chip('PAN INDIA DELIVERY', 34, YEL, DRED, F_BODY, 24, 14)

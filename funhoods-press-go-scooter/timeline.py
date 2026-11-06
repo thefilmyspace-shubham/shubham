@@ -22,7 +22,7 @@ S_RIDERS = gap(2)
 MOUSE, DUCK = w(2, 5) - 0.06, w(2, 9) - 0.06
 # 3 Bright blue, red and orange scooters.
 S_COLOURS = gap(3)
-COL_POPS = [w(3, 1), w(3, 2), w(3, 4)]
+COL_POPS = [w(3, 1), w(3, 2), (w(3, 2) + w(3, 4)) / 2, w(3, 4)]   # blue, red, sky blue (between), orange: the 4 colours
 # 4 BIS certified, Made in India and non-toxic.
 S_SAFE = gap(4)
 SAFE_POPS = [w(4, 0), w(4, 2), w(4, 6), w(4, 6) + 0.55]

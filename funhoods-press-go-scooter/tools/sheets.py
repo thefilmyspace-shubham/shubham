@@ -1,4 +1,5 @@
-# 360° product view + packaging view sheets for the Press & Go Scooter (PL-001), in the style of the client's earlier
+# 360° product view + packaging view sheets for the Press & Go Scooter (PL-001); the pack front is the new transparent
+# pouch from the client's infographic (tools/new_pack.py), in the style of the client's earlier
 # Funhoods infographics (light grey, logo top-left, red "3+ Years" badge, bold black labels).
 # Built from the graded cut-outs in assets/ (tools/prep_assets.py). Writes exports/*_360_*.png (3072x4096) + previews.
 import os
@@ -72,8 +73,8 @@ for i, (lbl, n) in enumerate(cells):                              # 4 sides (mou
     label(d, lbl, x0 + 170, y0, 36, INK, 'ma')
     put(im, n, x0 + 170, y0 + 280, 320, 440)
 d.rectangle((0, 1020 * S, DW * S, 1032 * S), fill=(222, 225, 230))
-label(d, '2 Models · 3 Colours', DW / 2, 1080, 58, INK, 'mm')
-row = [('MOUSE · BLUE', 'mouse_blue_front'), ('MOUSE · RED', 'mouse_red_front'), ('DUCK · BLUE', 'duck_blue_front'), ('DUCK · ORANGE', 'duck_orange_front')]
+label(d, '2 Models · 4 Colours', DW / 2, 1080, 58, INK, 'mm')
+row = [('MOUSE · SKY BLUE', 'mouse_blue_front'), ('MOUSE · RED', 'mouse_red_front'), ('DUCK · BLUE', 'duck_blue_front'), ('DUCK · ORANGE', 'duck_orange_front')]
 for i, (lbl, n) in enumerate(row):
     x0 = 50 + i * 362; y0 = 1140
     put(im, n, x0 + 170, y0 + 250, 320, 470)
@@ -85,14 +86,14 @@ save(im, 'Press_Go_Scooter_360_Product_View')
 # ---------------------------------------------------------------- packaging view
 im, d = base()
 label(d, 'Packaging View', DW / 2, 262, 92, INK, 'mm')
-label(d, 'PRESS & GO SCOOTER · PL-001 · CLEAR POUCH WITH HEADER CARD', DW / 2, 350, 30, RED, 'mm')
+label(d, 'PRESS & GO SCOOTER · PL-001 · NEW TRANSPARENT POUCH WITH HEADER CARD', DW / 2, 350, 28, RED, 'mm')
 label(d, 'FRONT', 230, 420, 44, INK, 'ma')
-put(im, 'pack_front', 400, 820, 640, 700)
+put(im, 'pack_new', 400, 820, 640, 700)
 x0 = 760
 d.rounded_rectangle(((x0 + 20) * S, 520 * S, (x0 + 720) * S, 1080 * S), 28 * S, fill='white', outline=RED, width=4 * S)
-for k, t in enumerate(['Clear pouch: the rider is on show', 'Item code PL-001', '"Press the Head" on the card',
+for k, t in enumerate(['Transparent pouch: the rider is on show', 'Item code PL-001', '"Press the Head" on the label',
                        'BIS: IS 9873 (Part-1), CM/L 8200185112', 'Made in India · Non-toxic', '3 Years+ · 240 pcs / carton']):
-    label(d, ('• ' if k else '') + t, x0 + 52, 560 + k * 80, 30 if k else 34, RED if k == 0 else INK)
-label(d, 'BACK (label)', DW / 2, 1210, 44, INK, 'ma')
+    label(d, ('• ' if k else '') + t, x0 + 52, 560 + k * 80, 30 if k else 31, RED if k == 0 else INK)
+label(d, 'BACK LABEL (from the earlier pack photos)', DW / 2, 1210, 40, INK, 'ma')
 put(im, 'pack_back', DW / 2, 1560, 1380, 560, card=True)
 save(im, 'Press_Go_Scooter_Packaging_View')
