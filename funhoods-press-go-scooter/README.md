@@ -35,7 +35,7 @@ The client's photos have no view of the back of the head. That pose is made from
 | 7.3–11.0 | Two cute riders, a little mouse and a happy duck! | Mouse (blue) and duck (blue) slide in, each hops on its word · 2 CUTE RIDERS · MOUSE · DUCK |
 | 11.0–13.8 | Bright blue, red and orange scooters. | Blue duck, red mouse and orange duck pop in on the colour words · BRIGHT COLOURS |
 | 13.8–17.3 | BIS certified, Made in India and non-toxic. | Red mouse + orange duck, badge rows: BIS CERTIFIED (IS 9873 Part-1), MADE IN INDIA, NON-TOXIC, 3+ YEARS |
-| 17.3–20.4 | In a see-through pouch that shows off every rider. | The real pouch drops onto a peg and swings, a ring shows the rider through the window · SEE-THROUGH POUCH · SHOWS EVERY RIDER! |
+| 17.3–20.4 | In a see-through pouch that shows off every rider. | The real pouch (made see-through, as it is in reality) drops onto a peg and swings; a ring shows the rider through the clear bag · SEE-THROUGH POUCH · SHOWS EVERY RIDER! |
 | 20.4–23.6 | Two hundred forty pieces per carton, pan India delivery. | 240 PCS PER CARTON (cartons stack) · Funhoods truck · PAN INDIA DELIVERY |
 | 23.6–27.2 | Distributors and wholesalers, fill your shelves with Press and Go! | A peg board slides up and fills with 6 pouches · BULK ORDERS ONLY · FILL YOUR SHELVES! |
 | 27.2–31 | Funhoods, Childhood Full of Fun! | End card: logo, 3 scooters, PRESS & GO SCOOTER • PL-001 • 3+ YEARS, 240 PCS / CARTON, PAN INDIA DELIVERY |
@@ -43,6 +43,8 @@ The client's photos have no view of the back of the head. That pose is made from
 ## Sources
 - **Product:** BiRefNet cut-outs of the client's phone photos (Drive, 5 Nov), colour graded by `tools/prep_assets.py`
   (levels, +6 % contrast, +12 % saturation, clarity). The MRP and the phone number on the pack label are painted out.
+- **Pouch:** the pack is a transparent pouch. It was photographed on a dark surface, so `tools/clear_pouch.py` removes that dark
+  backdrop from the bag area. The header card and the toy stay solid, and the bag becomes a clear film with its own glare and a thin edge.
 - **VO:** Magnific (ElevenLabs v4), voice "Gavin" (client pick, sample 1), re-timed by `tools/vo_retime.py` (+8 % tempo, pitch kept).
   It never speaks a sound effect.
 - **Toy sounds:** the scooter's REAL sounds, cut from the client's raw clip and denoised by `tools/og_sound.py`:
@@ -55,7 +57,7 @@ The client's photos have no view of the back of the head. That pose is made from
 
 ## Render
 ```sh
-python3 tools/prep_assets.py && python3 tools/rig_back.py && python3 tools/sheets.py
+python3 tools/prep_assets.py && python3 tools/clear_pouch.py && python3 tools/rig_back.py && python3 tools/sheets.py
 python3 tools/og_sound.py <dir with 130920.mp4>              # audio/og_*.wav (real toy sounds)
 python3 tools/vo_retime.py                                    # audio/vo_timed.wav + vo_timing.json
 sh music/get_music.sh && python3 audio.py                     # mix.wav (-14 LUFS)
