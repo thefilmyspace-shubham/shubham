@@ -27,7 +27,7 @@ Distributors and wholesalers, fill your shelves with Press and Go!
 ```
 
 SFX (in the mix, not in the VO):
-- toy scooter horn "beep beep": opening
+- ~~toy scooter horn "beep beep": opening~~ (removed at the client's request)
 - the scooter's real gear whirr on each press (`audio/og_press_*.wav`)
 - the real wheel whirr and a whoosh when it goes (`audio/og_go*.wav`)
 

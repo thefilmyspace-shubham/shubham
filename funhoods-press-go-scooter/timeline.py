@@ -8,10 +8,8 @@ VO = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'au
 def w(p, i): return VO[p]['words'][i][0]                      # word i of phrase p, on the reel clock
 def gap(p): return (VO[p - 1]['end'] + VO[p]['start']) / 2      # middle of the pause before phrase p
 
-# 0 Meet the Funhoods Press and Go Scooter!  (horn "beep beep" SFX first -- never spoken)
-LAND0 = 0.30                   # the duck scooter drops in and lands
-HORN = 0.34                    # horn SFX starts (audio/sfx_horn_beep_1.mp3, first 0.44 s): its two beeps land at +0.04 and +0.30
-BEEPS = [HORN + 0.04, HORN + 0.30]
+# 0 Meet the Funhoods Press and Go Scooter!  (no horn: the client asked for the "beep beep" to be removed)
+LAND0 = 0.30                   # the scooter drops in and lands
 # 1 Just press the head... and off it goes!  |  Watch it turn!   (VO pieces re-ordered, tools/vo_retime.py)
 #   two separate demos (client: press-and-go and the head turn must not mix):
 #   a) PRESS & GO: the finger presses the head, presses again and holds, lets go -> the scooter rolls forward

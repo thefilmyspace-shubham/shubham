@@ -535,17 +535,6 @@ def turn_ring(c, t, cx, cy, rx, ry, a_, front):
             tx, ty = -rx * math.sin(ae), ry * math.cos(ae); n_ = math.hypot(tx, ty); tx, ty = tx / n_, ty / n_
             sd.polygon([(px + tx * 38, py + ty * 38), (px - ty * 26, py + tx * 26), (px + ty * 26, py - tx * 26)], fill=RED + (int(235 * a_),))
 
-def honk(c, t, cx, cy, r0=250):
-    sd = SD(c)
-    for tb in T.BEEPS:
-        if not tb <= t < tb + 0.5: continue
-        for k_ in range(3):
-            q = prog(t, tb + k_ * 0.06, 0.4)
-            if q <= 0 or q >= 1: continue
-            rr = r0 + 170 * q; a = int(235 * (1 - q))
-            for a0, a1 in ((145, 215), (-35, 35)):
-                sd.arc((cx - rr, cy - rr * 0.8, cx + rr, cy + rr * 0.8), a0, a1, width=14, fill=RED + (a,))
-
 def bounce_in(t, tl, h=1300):
     """y offset for something dropping in and landing at tl, plus its squash"""
     if t < tl: return -h * (1 - e_in(prog(t, tl - 0.30, 0.30))), 1.0
@@ -565,16 +554,14 @@ def toy(c, name, x, gy, h, t, alpha=1.0, rot=0.0, sq=1.0, dy=0.0, shadow=True):
 
 # ---------------------------------------------------------------- scenes
 def scene_hero(t):
-    """(horn: beep beep) Meet the Funhoods Press and Go Scooter! -- the orange mouse scooter (client infographic, sharp) drops in and honks"""
+    """Meet the Funhoods Press and Go Scooter! -- the orange mouse scooter (client infographic, sharp) drops in and lands"""
     c = bg(t); cx, gy, Hc = DW / 2, 1500, 800
     place(c, soft_burst(1050), cx, 1080, 0.9 + 0.03 * math.sin(t * 2.5), (t * 10) % 360, 0.30 * clamp(t / 0.3))
     dy, sq = bounce_in(t, T.LAND0, 1500)
-    beep = max([math.exp(-max(0, t - b) * 9) * (t >= b) for b in T.BEEPS] + [0])
-    sc = 1 + 0.035 * beep + 0.008 * max(0, t - T.LAND0)
+    sc = 1 + 0.008 * max(0, t - T.LAND0)
     toy(c, 'mouse_orange_hero.png', cx, gy, Hc * sc, t, 1.0, 2.0 * math.sin(t * 2.1) * (t > T.LAND0), sq, dy)
     dust(c, t, T.LAND0, cx - 200, gy, 6, 2, 160, dirx=-1); dust(c, t, T.LAND0, cx + 200, gy, 6, 3, 160, dirx=1)
-    honk(c, t, cx, gy - Hc * 0.72, 260)
-    pop(c, impact_txt('BEEP BEEP!', 130, YEL), cx, 1690, t, T.BEEPS[0], None, d=0.3, rot=-5, from_scale=1.8)
+    pop(c, chip('FRICTION POWERED TOY', 48, RED, WHITE, F_HEAD, 38, 16), cx, 1690, t, T.LAND0 + 0.25, None, slide=24)
     pop(c, body('MEET THE', 46, RED), cx, 300, t, T.w(0, 0) - 0.04, None, slide=20)
     pop(c, impact_txt('PRESS & GO', 186, YEL), cx, 430, t, T.w(0, 3) - 0.06, None, d=0.34, from_scale=1.6, rot=-3)
     pop(c, head('SCOOTER', 128), cx, 592, t, T.w(0, 6) - 0.04, None, slide=30)

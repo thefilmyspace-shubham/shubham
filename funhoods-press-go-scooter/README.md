@@ -31,7 +31,7 @@ The client's photos have no view of the back of the head. That pose is made from
 
 | Time | VO | Scene |
 |---|---|---|
-| 0–3.2 | *(horn: beep beep)* Meet the Funhoods Press and Go Scooter! | The orange mouse scooter (sharp shot from the client's infographic) drops in and honks (horn SFX, honk rings, BEEP BEEP!) · MEET THE · PRESS & GO · SCOOTER |
+| 0–3.2 | Meet the Funhoods Press and Go Scooter! | The orange mouse scooter (sharp shot from the client's infographic) drops in and lands · MEET THE · PRESS & GO · SCOOTER · FRICTION POWERED TOY |
 | 3.2–6.3 | Just press the head... and off it goes! | **Press & go** on its own: a finger presses the head (down, up), presses again and holds (real press whirr) · PRESS THE HEAD · PRESS DOWN. It lets go, and the scooter rolls forward across the frame (it faces left) with arrows on the ground and the real wheel whirr · OFF IT GOES! · LET GO: IT ROLLS FORWARD |
 | 6.3–7.8 | Watch it turn! | **Head turn** in its own shot: close-up, no finger, no press. The head turns a full 360° on its own (front → left → back → right → front), ring of arrows round the neck · WATCH IT TURN! · HEAD TURNS 360° |
 | 7.8–11.5 | Two cute riders, a little mouse and a happy duck! | Mouse (blue) and duck (blue) slide in, each hops on its word · 2 CUTE RIDERS · MOUSE · DUCK |
@@ -54,7 +54,7 @@ The client's photos have no view of the back of the head. That pose is made from
 - **Toy sounds:** the scooter's REAL sounds, cut from the client's raw clip and denoised by `tools/og_sound.py`:
   - `og_press_1..4`: the gear whirr when the head is pressed
   - `og_go`: the wheels running free
-- **Horn:** `audio/sfx_horn_beep_1.mp3` (generated SFX), its first two beeps.
+- **No horn / beeps:** the client asked for the "beep beep" to be removed. The horn SFX is no longer used, and neither are the truck beeps.
   Synthesized whooshes, pops, thocks and chimes are used for the graphics.
 - **Music:** **"Kidding Around" — Ahjay Stelino (Mixkit Stock Music Free License)**, ducked under the VO, dipped under the press sounds.
   It is a different track from the earlier reels.

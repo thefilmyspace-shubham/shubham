@@ -1,9 +1,9 @@
 # VO + music bed (ducked under the voice) + SFX -> mix.wav (48 kHz stereo, about -14 LUFS)
 #   VO:    audio/vo_timed.wav (chosen take "Gavin", Magnific / ElevenLabs v4, re-timed by tools/vo_retime.py).
-#          The VO never speaks a sound effect: the horn and the toy's sounds are separate tracks below.
+#          The VO never speaks a sound effect: the toy's sounds are separate tracks below.
 #   toy:   the scooter's REAL sounds from the client's raw clip (tools/og_sound.py): audio/og_press_1..3.wav (the head
 #          pressed down -- flywheel gear whirr) and og_go.wav (wheels running free as it shoots off)
-#   horn:  audio/sfx_horn_beep_1.mp3 (generated SFX, Magnific), first two beeps only
+#   (no horn / no beeps: the client asked for the "beep beep" to be removed)
 #   SFX:   synthesized whooshes, pops, thocks and chimes for the graphics
 #   music: music/m9.mp3 ("Kidding Around", Ahjay Stelino, Mixkit free license; sh music/get_music.sh)
 import numpy as np, wave, subprocess, sys, json, os
@@ -99,10 +99,8 @@ for t, k in T.CUTS:
 def onset(x, thr=0.25):
     """first sample above thr x peak (s)"""
     a = np.abs(x if x.ndim == 1 else x.mean(1)); return int(np.argmax(a > thr * a.max())) / SR
-# 0 the duck scooter drops in, lands, honks twice (horn SFX: its first two beeps only)
+# 0 the scooter drops in and lands
 place(whoosh(0.34, 0.8, 0.35), T.LAND0 - 0.30, 0.16); place(thock(0.16), T.LAND0, 0.40); place(impact(0.6, 90, 50), T.LAND0, 0.14)
-horn = load('audio/sfx_horn_beep_1.mp3')[:S(0.44)]
-place(fade(norm(horn, 0.9), 0.003, 0.03), T.HORN, 0.50)
 place(impact(1.0, 70, 36), T.w(0, 3) - 0.06, 0.30); place(pop_snd(), T.w(0, 3) - 0.06, 0.18)
 place(chime([1047, 1319, 1568, 2093]), T.w(0, 6) - 0.04, 0.12)
 # 1a press & go: a press, a second press held (real press whirr), lets go -> real "go" whirr as it rolls forward
@@ -133,7 +131,6 @@ place(chime([1319, 1568, 2093, 2637], 0.06), T.SHOWS, 0.12)
 # 6 cartons land, truck delivers
 for x, y, tl in T.STACK: place(thock(0.16), tl, 0.45); place(impact(0.5, 90, 50), tl, 0.12)
 place(whoosh(0.6, 0.6, 0.35), T.TRUCK, 0.20)
-place(beep(880), T.TRUCK + 0.66, 0.08); place(beep(880), T.TRUCK + 0.82, 0.08)
 # 7 the peg board slides up, pouches pop on, FILL YOUR SHELVES!
 place(whoosh(0.5, 0.6, 0.3), T.S_BULK + 0.2, 0.14)
 for i, t in enumerate(T.FILL): place(pop_snd(), t, 0.16); place(press(), t, 0.05)
