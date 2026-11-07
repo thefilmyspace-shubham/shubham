@@ -105,9 +105,10 @@ horn = load('audio/sfx_horn_beep_1.mp3')[:S(0.44)]
 place(fade(norm(horn, 0.9), 0.003, 0.03), T.HORN, 0.50)
 place(impact(1.0, 70, 36), T.w(0, 3) - 0.06, 0.30); place(pop_snd(), T.w(0, 3) - 0.06, 0.18)
 place(chime([1047, 1319, 1568, 2093]), T.w(0, 6) - 0.04, 0.12)
-# 1 two presses (real press whirr), the head turns 360 on its own, a final press + hold, lets go -> real "go" whirr
+# 1a press & go: a press, a second press held (real press whirr), lets go -> real "go" whirr as it rolls forward
+# 1b (own shot) the head turns 360 on its own
 place(whoosh(0.4, 0.6, 0.3), T.PRESSES[0] - 0.42, 0.12)
-for k, tp in enumerate(T.PRESSES + [T.GO_PRESS]):                    # the presses: the real press whirr each time
+for k, tp in enumerate(T.PRESSES):                                   # the presses: the real press whirr each time
     x = load('audio/og_press_%d.wav' % (k + 1), 1); x = fade(norm(x, 0.9), 0.003, 0.03)
     place(x, tp - onset(x), 0.62, pan=0.1)
 # the head turning 360 on its own (no press): a soft swirl across the turn + a light tick at each quarter
@@ -139,7 +140,7 @@ for i, t in enumerate(T.FILL): place(pop_snd(), t, 0.16); place(press(), t, 0.05
 place(impact(1.0, 70, 36), T.w(7, 3) - 0.06, 0.34); place(chime([784, 988, 1175, 1568, 1976], 0.06), T.w(7, 3), 0.12)
 # 8 end card
 place(impact(1.8, 58, 30), T.S_END, 0.42); place(chime([1319, 1568, 2093, 2637], 0.07), T.w(8, 0) - 0.1, 0.12)
-for t in (T.w(1, 4), T.w(2, 0), T.w(3, 1), T.w(5, 2), T.w(6, 0), T.w(6, 2), T.w(7, 0), T.w(7, 2)): place(blip(), t - 0.05, 0.07)
+for t in (T.w(1, 8), T.w(2, 0), T.w(3, 1), T.w(5, 2), T.w(6, 0), T.w(6, 2), T.w(7, 0), T.w(7, 2)): place(blip(), t - 0.05, 0.07)
 
 # ---- loudness: integrated to about -14 LUFS, then a soft-knee limiter (ffmpeg alimiter at mux catches true peaks)
 def lufs(x):

@@ -1,9 +1,9 @@
-# Press & Go Scooter reel -- 31 s, VO-led cut (Magnific / ElevenLabs VO "Gavin", re-timed by tools/vo_retime.py). 4K60.
+# Press & Go Scooter reel -- 32 s, VO-led cut (Magnific / ElevenLabs VO "Gavin", re-timed by tools/vo_retime.py). 4K60.
 import json, os
 FPS = 60
 K = 2                          # design space 1080x1920, rendered at 2160x3840
 DW, DH = 1080, 1920
-DUR = 31.0
+DUR = 32.0
 VO = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'audio', 'vo_timing.json')))
 def w(p, i): return VO[p]['words'][i][0]                      # word i of phrase p, on the reel clock
 def gap(p): return (VO[p - 1]['end'] + VO[p]['start']) / 2      # middle of the pause before phrase p
@@ -12,13 +12,17 @@ def gap(p): return (VO[p - 1]['end'] + VO[p]['start']) / 2      # middle of the 
 LAND0 = 0.30                   # the duck scooter drops in and lands
 HORN = 0.34                    # horn SFX starts (audio/sfx_horn_beep_1.mp3, first 0.44 s): its two beeps land at +0.04 and +0.30
 BEEPS = [HORN + 0.04, HORN + 0.30]
-# 1 Just press the head... watch it turn... and off it goes!
+# 1 Just press the head... and off it goes!  |  Watch it turn!   (VO pieces re-ordered, tools/vo_retime.py)
+#   two separate demos (client: press-and-go and the head turn must not mix):
+#   a) PRESS & GO: the finger presses the head, presses again and holds, lets go -> the scooter rolls forward
+#   b) HEAD TURN: cut to a close-up, no finger, the head turns a full 360 on its own
+#   words of phrase 1, in played order: Just0 press1 the2 head3 and4 off5 it6 goes7 | watch8 it9 turn10
 S_PRESS = gap(1)
-PRESSES = [w(1, 1), w(1, 3)]   # "press", "head": the finger pushes the head down twice (down only, no turn)
-TURN0, TURN1 = w(1, 4) - 0.16, w(1, 7) - 0.03   # "watch it turn": finger away, the head turns a full 360 on its own
+PRESSES = [w(1, 1), w(1, 3)]   # "press" (down, up), "head" (down and held)
+RELEASE = w(1, 5) - 0.05       # "off it goes": the finger lets go, the scooter rolls forward
+S_TURN = (VO[1]['parts'][1][1] + VO[1]['parts'][2][0]) / 2     # cut to the head-turn close-up
+TURN0, TURN1 = w(1, 8) - 0.04, w(1, 10) + 0.50   # "watch it turn": the head turns a full 360 on its own
 POSES = ['F', 'L', 'B', 'R', 'F']                  # front -> left -> back -> right -> front
-GO_PRESS = TURN1 + 0.24        # the finger comes back, presses and holds ...
-RELEASE = w(1, 8) - 0.05       # ... "off it goes": lets go, the scooter shoots off
 # 2 Two cute riders, a little mouse and a happy duck!
 S_RIDERS = gap(2)
 MOUSE, DUCK = w(2, 5) - 0.06, w(2, 9) - 0.06
@@ -41,7 +45,7 @@ FILL = [w(7, 3) + 0.11 * i for i in range(6)]                   # "fill your she
 # 8 Funhoods, Childhood Full of Fun!
 S_END = gap(8)
 
-CUTS = [(S_PRESS, 'zoom'), (S_RIDERS, 'chev'), (S_COLOURS, 'zoom'), (S_SAFE, 'chev'), (S_POUCH, 'zoom'),
+CUTS = [(S_PRESS, 'zoom'), (S_TURN, 'zoom'), (S_RIDERS, 'chev'), (S_COLOURS, 'zoom'), (S_SAFE, 'chev'), (S_POUCH, 'zoom'),
         (S_CARTON, 'chev'), (S_BULK, 'zoom'), (S_END, 'flash')]
 # music: "Kidding Around" (Ahjay Stelino, Mixkit) -- 87.5 BPM, bar 0 downbeat at 0.394 s -> reel 0.0
 MUSIC_IN = 0.394

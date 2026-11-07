@@ -16,7 +16,7 @@ sound effects in the mix, never words in the voice-over.
 
 ```
 [cheerful] Meet the Funhoods Press and Go Scooter!
-Just press the head... watch it turn... and off it goes!
+Just press the head... and off it goes!   Watch it turn!
 Two cute riders, a little mouse and a happy duck!
 Bright blue, red and orange scooters.
 BIS certified, Made in India and non-toxic.
@@ -38,10 +38,11 @@ SFX (in the mix, not in the VO):
 - **How it works** (raw clips, reference only): press the head down a few times. The neck slides into the body, the gear whirrs, and **the head turns on each press** (the label prints "360°" over the head). Let go, and the scooter shoots forward.
   Real sounds: `audio/og_*.wav` (`tools/og_sound.py`).
 
-How-it-works animation in the edit (Dino Car style, `render.py` scene_press). Pressing and turning are kept apart:
-- "Just press the head": a finger presses the head down twice. The neck sinks in and the real gear whirr plays. No turn.
-- "watch it turn": the finger lifts away, and the head turns a full 360° on its own (front → left → back → right → front).
-- "and off it goes": the finger presses once more, holds, lets go. The scooter shoots forward with speed lines and the real wheel whirr.
+How-it-works animation in the edit (Dino Car style, `render.py` scene_pressgo + scene_turn). Two separate demos.
+Line 2 of the chosen take is re-ordered (cut at its pauses, no new recording):
+- "Just press the head... and off it goes!": a finger presses the head, presses again and holds (real gear whirr), then
+  lets go. The scooter rolls forward across the frame with the real wheel whirr. The head does not turn here.
+- "Watch it turn!": its own close-up shot. No finger and no press; the head turns a full 360° on its own.
 
 ## VO samples v3 (`audio/`, Magnific / ElevenLabs v4)
 - `VO_sample_1_Gavin.mp3` (playful, 31.6 s) and `VO_sample_2_Callum.mp3` (warm, 29.1 s): v3 script, no spoken SFX.

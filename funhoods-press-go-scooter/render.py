@@ -493,9 +493,9 @@ def rig_pt(x, gy, hd, px, py):
     s = hd / RIG_H; return x + (px - RIG['body_size'][0] / 2) * s, gy - (RIG_H - py) * s
 
 def press_depth(t):
-    """head push-down (source px): two quick presses, then the final press held until the finger lets go"""
+    """head push-down (source px): a quick press on "press", then pressed again on "head" and held until the finger lets go"""
     press = 0.0
-    for tp, up_t in [(T.PRESSES[0], T.PRESSES[0] + 0.17), (T.PRESSES[1], T.PRESSES[1] + 0.17), (T.GO_PRESS, T.RELEASE)]:
+    for tp, up_t in [(T.PRESSES[0], T.PRESSES[0] + 0.17), (T.PRESSES[1], T.RELEASE)]:
         if t < tp - 0.05: break
         if t < up_t: press = 130 * e_out(prog(t, tp - 0.05, 0.10))
         elif t < up_t + 0.16: press = 130 * (1 - e_back(prog(t, up_t, 0.16), 2.2))   # springs back with a small overshoot
@@ -580,48 +580,60 @@ def scene_hero(t):
     pop(c, head('SCOOTER', 128), cx, 592, t, T.w(0, 6) - 0.04, None, slide=30)
     return c
 
-def scene_press(t, t0, t1):
-    """Just press the head... watch it turn... and off it goes! -- kept apart, one action at a time:
-    1) a finger presses the head down twice (down only); 2) the finger lifts away and the head turns a full 360 on its
-    own (front, left, back, right, front); 3) the finger presses once more, holds, lets go -- the scooter shoots off left"""
-    c = bg(t); gy, HD = 1500, 820; x0 = 560
+def scene_pressgo(t, t0, t1):
+    """Just press the head... and off it goes! -- PRESS & GO on its own: the finger presses the head, presses again and
+    holds, lets go, and the scooter rolls forward (it faces left) across the frame. The head does not turn here."""
+    c = bg(t); gy, HD = 1500, 820; x0 = 720
     ground(c, gy)
     p = prog(t, t0, 0.35)
-    press = press_depth(t); layers = head_layers(t)
-    z = prog(t, T.RELEASE + 0.03, 0.5); x = x0 - 1450 * z ** 2.1
+    press = press_depth(t)
+    z = prog(t, T.RELEASE + 0.02, 1.25); x = x0 - 1600 * z ** 1.7
+    speed = 1.7 * max(z, 1e-3) ** 0.7 * 1600 / 1.25 * (z > 0)        # design px / s
     sc = 0.86 + 0.14 * e_back(p, 1.4)
-    hx, _ = rig_pt(x0, gy, HD, NECK[0], 0); ring_y = rig_pt(x0, gy, HD, 0, 935)[1]   # round the neck
-    ring_a = clamp((t - T.TURN0 + 0.12) / 0.15) * (1 - clamp((t - T.TURN1 - 0.05) / 0.15))
-    turn_ring(c, t, hx, ring_y, 250, 52, ring_a, False)
-    if z < 1:
+    go = clamp((t - T.RELEASE) / 0.15) * (1 - clamp((t - t1 + 0.25) / 0.25))
+    chevrons(c, t, 140, 940, gy + 62, -1, RED, go, 4)                  # direction of travel, on the ground
+    if z > 0:                                                          # streaks and dust behind the toy, so it stays crisp
+        speed_lines(c, t, gy - 520, gy - 30, 12, 5, 0.7 * go, direction=1)
+        dust(c, t, T.RELEASE + 0.05, x0 + 250, gy - 10, 9, 4, 210, 0.7, 42, dirx=1)
+        dust(c, t, T.RELEASE + 0.5, x0 - 300, gy - 10, 7, 6, 180, 0.6, 38, dirx=1)
+    if x > -500:
         ground_shadow(c, x, gy + 6, 560, clamp(p * 3))
-        draw_rig(c, x, gy, HD, layers, press, clamp(p * 3), ghost=300 * clamp(z * 3) if z > 0 else 0, scale=sc,
-                 sq=1 - 0.018 * press / 130)
-    turn_ring(c, t, hx, ring_y, 250, 52, ring_a, True)
-    if z > 0:
-        speed_lines(c, t, gy - 520, gy - 30, 14, 5, 1 - prog(t, t1 - 0.25, 0.25), direction=1)
-        dust(c, t, T.RELEASE + 0.03, x0 + 230, gy - 10, 9, 4, 210, 0.7, 42, dirx=1)
-    # the finger: in for the two presses, away while the head turns, back for the final press, then lets go
-    g1 = e_out(prog(t, T.PRESSES[0] - 0.40, 0.32)) * (1 - e_inout(prog(t, T.PRESSES[1] + 0.20, 0.30)))
-    g2 = e_out(prog(t, T.TURN1 - 0.06, 0.26)) * (1 - e_inout(prog(t, T.RELEASE - 0.02, 0.32)))
-    g = max(g1, g2)
+        draw_rig(c, x, gy, HD, press=press, alpha=clamp(p * 3), ghost=min(150, 0.06 * speed), scale=sc, sq=1 - 0.018 * press / 130)
+    # the finger: in from the top right, a quick press, a second press held, then it lets go and lifts away
+    g = e_out(prog(t, T.PRESSES[0] - 0.40, 0.32)) * (1 - e_inout(prog(t, T.RELEASE - 0.02, 0.32)))
     if g > 0.001:
         hover = 28 * e_inout(prog(t, T.PRESSES[0] + 0.17, 0.12)) * (1 - e_inout(prog(t, T.PRESSES[1] - 0.16, 0.10)))
         tx, ty = rig_pt(x0, gy, HD, CROWN[0], CROWN[1] + max(0, press))
-        glove_at(c, tx + 360 * (1 - g), ty - 4 - hover - 500 * (1 - g), 280, 78 - 18 * (1 - g), clamp(g * 1.5))
-        for tp in T.PRESSES + [T.GO_PRESS]:                        # a ring on the crown at each press
+        lift = 1 - e_out(prog(t, T.PRESSES[0] - 0.40, 0.32))
+        gone = e_inout(prog(t, T.RELEASE - 0.02, 0.32))
+        glove_at(c, tx + 360 * lift + 260 * gone, ty - 4 - hover - 500 * lift - 420 * gone, 280, 78 - 18 * max(lift, gone), clamp(g * 1.5))
+        for tp in T.PRESSES:                                       # a ring on the crown at each press
             q = prog(t, tp + 0.03, 0.35)
             if 0 < q < 1:
                 sd = SD(c); rr = 50 + 70 * q
                 sd.ellipse((tx - rr, ty - rr * 0.5, tx + rr, ty + rr * 0.5), width=8, outline=RED + (int(220 * (1 - q)),))
-    pop(c, head('PRESS THE HEAD', 112), DW / 2, 310, t, T.w(1, 0) - 0.04, T.TURN0 - 0.02, slide=30)
-    pop(c, head('WATCH IT TURN!', 118, YEL), DW / 2, 310, t, T.TURN0 - 0.02, T.RELEASE + 0.02, slide=30)
+    pop(c, head('PRESS THE HEAD', 112), DW / 2, 310, t, T.w(1, 0) - 0.04, T.RELEASE + 0.02, slide=30)
     if t >= T.RELEASE:
         place(c, burst(700), DW / 2, 420, 0.3 + 0.62 * e_back(prog(t, T.RELEASE, 0.3), 1.6), (t * 40) % 360, 0.9 * (1 - prog(t, t1 - 0.2, 0.2)))
     pop(c, impact_txt('OFF IT GOES!', 140, YEL), DW / 2, 420, t, T.RELEASE + 0.02, None, d=0.3, rot=-5, from_scale=1.9)
-    pop(c, chip('PRESS DOWN', 46, YEL, DRED, F_HEAD, 36, 16), DW / 2, 1640, t, T.PRESSES[0] + 0.05, T.TURN0 - 0.02, slide=24)
-    pop(c, chip('HEAD TURNS 360°', 46, RED, WHITE, F_HEAD, 36, 16), DW / 2, 1640, t, T.TURN0 + 0.02, T.RELEASE + 0.1, slide=24)
-    pop(c, chip('PRESS & GO ACTION', 46, YEL, DRED, F_HEAD, 36, 16), DW / 2, 1640, t, T.RELEASE + 0.1, None, slide=24)
+    pop(c, chip('PRESS DOWN', 46, YEL, DRED, F_HEAD, 36, 16), DW / 2, 1680, t, T.PRESSES[0] + 0.05, T.RELEASE + 0.02, slide=24)
+    pop(c, chip('LET GO: IT ROLLS FORWARD', 44, RED, WHITE, F_HEAD, 34, 16), DW / 2, 1680, t, T.RELEASE + 0.08, None, slide=24)
+    return c
+
+def scene_turn(t, t0, t1):
+    """Watch it turn! -- its own shot: close-up, no finger, no press; the head turns a full 360 on its own
+    (front, left, back, right, front) with a ring of arrows round the neck"""
+    c = bg(t); HD, gy = 1100, 1935; p = prog(t, t0, 0.35)
+    x = DW / 2 - (NECK[0] - RIG['body_size'][0] / 2) * HD / RIG_H      # neck on the centre line
+    place(c, soft_burst(1150), DW / 2, 1080, 0.9 + 0.03 * math.sin(t * 2.5), (t * 10) % 360, 0.26 * clamp(p * 3))
+    sc = 0.94 + 0.06 * e_out(p)
+    _, ry_ = rig_pt(x, gy, HD, 0, 935); ring_y = gy - (gy - ry_) * sc
+    ring_a = clamp((t - T.TURN0 + 0.15) / 0.15) * (1 - clamp((t - T.TURN1 - 0.10) / 0.2))
+    turn_ring(c, t, DW / 2, ring_y, 330, 66, ring_a, False)
+    draw_rig(c, x, gy, HD, head_layers(t), 0.0, clamp(p * 4), scale=sc)
+    turn_ring(c, t, DW / 2, ring_y, 330, 66, ring_a, True)
+    pop(c, head('WATCH IT TURN!', 124, YEL), DW / 2, 320, t, T.w(1, 8) - 0.08, None, slide=30)
+    pop(c, chip('HEAD TURNS 360°', 50, RED, WHITE, F_HEAD, 38, 16), DW / 2, 470, t, T.TURN0 + 0.05, None, slide=24)
     return c
 
 def scene_riders(t, t0, t1):
@@ -790,7 +802,8 @@ def scene_end(t):
 
 def render(t):
     if t < T.S_PRESS: c = scene_hero(t)
-    elif t < T.S_RIDERS: c = scene_press(t, T.S_PRESS, T.S_RIDERS)
+    elif t < T.S_TURN: c = scene_pressgo(t, T.S_PRESS, T.S_TURN)
+    elif t < T.S_RIDERS: c = scene_turn(t, T.S_TURN, T.S_RIDERS)
     elif t < T.S_COLOURS: c = scene_riders(t, T.S_RIDERS, T.S_COLOURS)
     elif t < T.S_SAFE: c = scene_colours(t, T.S_COLOURS, T.S_SAFE)
     elif t < T.S_POUCH: c = scene_safe(t, T.S_SAFE, T.S_POUCH)
