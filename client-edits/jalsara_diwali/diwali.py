@@ -44,23 +44,27 @@ AROLL = [
     ('L2', 'src2/IMG_1130.MOV', [(0.00, 4.44), (4.60, 9.38)], (0.52, 0.72)),                # Iss Diwali ... extra special
     ('L3', 'src2/IMG_1151.MOV', [(3.45, 8.82), (9.30, 10.53), (10.74, 11.62)], (0.45, 0.62)),  # Ek zaroori baat ... all the days
     ('L4', 'src2/IMG_1136.MOV', [(3.55, 6.32), (6.52, 9.90), (10.06, 11.52), (11.78, 12.50)], (0.40, 0.75)),  # Project B ... brighter
-    ('L5', 'src/COPY_4FE2.mov', [(0.62, 7.40)], (0.42, 0.75)),                              # Ek aur exciting surprise ... pre-launch
+    ('L5', 'src/COPY_4FE2.mov', [(0.62, 2.06), (2.26, 7.40)], (0.42, 0.75)),                              # Ek aur exciting surprise ... pre-launch
     ('L6', 'src/IMG_1177.MOV', [(0.64, 5.54)], (0.42, 0.75)),                               # first few ... introductory price
     ('L7', 'src2/IMG_1143.MOV', [(0.45, 5.80)], (0.47, 0.62)),                              # Toh der kis baat ki ... Happy Diwali
 ]
 # Cutaways over the voice, in the A-roll's source clock: (key, t0, t1, kind, file, src_in, crop, speed)
-#   kind 'v' = video (stabilised, slowed by `speed`), 'p' = photo (held still; the window's slow push moves it)
+#   kind 'v' = video (stabilised; `speed` < 1 only on 60 fps sources), 'p' = photo (held still; the window's slow push moves it)
 CUTAWAY = [
-    ('L1', 2.05, 3.75, 'v', 'src/IMG_1050.MOV', 0.00, (0.55, 0.75), 0.60),    # table close-up, pink niches
-    ('L1', 3.75, 5.47, 'v', 'src2/IMG_1057.MOV', 1.20, (0.50, 0.75), 0.70),   # pink niche wall (320p copy)
-    ('L2', 4.44, 6.55, 'v', 'src2/IMG_1070.MOV', 1.00, (0.50, 0.75), 0.70),   # wide hall, arches (320p copy)
-    ('L3', 8.80, 11.62, 'v', 'src2/IMG_1047.MOV', 2.50, (0.50, 0.75), 0.70),  # lamps -> hall (covers the look to his left)
-    ('L4', 6.32, 8.30, 'v', 'src/IMG_1043.MOV', 0.40, (0.45, 0.75), 0.70),    # brand new interiors: arch + lamp
+    ('L1', 2.05, 5.47, 'v', 'src/IMG_1043.MOV', 0.20, (0.45, 0.75), 0.70),    # arch + lamp + Jalsara logo (one calm shot)
+    ('L2', 4.44, 6.55, 'v', 'src2/IMG_1070.MOV', 1.00, (0.50, 0.75), 1.00),   # wide hall, arches (320p copy)
+    ('L3', 8.80, 11.62, 'v', 'src2/IMG_1047.MOV', 2.50, (0.50, 0.75), 1.00),  # lamps -> hall (covers the look to his left)
+    ('L4', 6.32, 8.30, 'v', 'src2/IMG_1069.MOV', 0.80, (0.50, 0.75), 1.00),   # brand new interiors: wide hall + lamps (320p copy)
     ('L4', 8.30, 10.30, 'p', 'photos/IMG_1098.jpg', 0.00, (0.24, 0.46), 1.0), # hall, guest walking
     ('L4', 10.30, 12.50, 'v', 'src/IMG_1052.MOV', 0.00, (0.55, 0.75), 0.70),  # tables wide
-    ('L5', 2.25, 4.00, 'v', 'src/IMG_1106.MOV', 1.20, (0.50, 1.00), 0.70),    # new menu: platter
-    ('L5', 4.00, 5.65, 'v', 'src/IMG_1083.MOV', 1.00, (0.50, 0.75), 0.70),    # chaat
-    ('L6', 1.95, 3.80, 'v', 'src/IMG_1064.MOV', 0.40, (0.55, 0.75), 0.70),    # palak
+    # lines 5-6 are selfies without eye contact -> B-roll only, food, no dish twice in a row
+    ('L5', 0.62, 2.26, 'v', 'src/IMG_1111.MOV', 0.30, (0.50, 0.75), 1.00),    # "exciting surprise": table + platter
+    ('L5', 2.26, 4.00, 'v', 'src/IMG_1083.MOV', 1.00, (0.50, 0.75), 1.00),    # new menu: chaat
+    ('L5', 4.00, 5.65, 'v', 'src/IMG_1064.MOV', 0.30, (0.55, 0.75), 0.70),    # palak (4K60)
+    ('L5', 5.65, 7.40, 'p', 'photos/IMG_1095.jpg', 0.00, (0.50, 0.80), 1.0),  # platter, top-down on the Jalsara placemat
+    ('L6', 0.64, 2.30, 'v', 'src/IMG_1106.MOV', 1.20, (0.50, 1.00), 1.00),    # platter close (normal speed, stabilised)
+    ('L6', 2.30, 3.95, 'p', 'photos/IMG_1072.jpg', 0.00, (0.45, 0.85), 1.0),  # chaat + "Our Services" placemat
+    ('L6', 3.95, 5.54, 'v', 'src/IMG_1086.MOV', 0.40, (0.50, 0.75), 1.00),    # palak close
 ]
 END_HOLD = 3.1
 
@@ -152,8 +156,7 @@ def prep_shot(k, shot, workdir, S=2):
         chain.append(f'vidstabtransform=input={trf}:smoothing=45:optzoom=0:zoom=6:interpol=bicubic')
     chain += [f'crop={cw}:{ch}:{x0}:{y0}', f'scale={ow}:{oh}:flags=lanczos', g]
     if speed != 1.0: chain.append(f'setpts=PTS/{speed}')
-    if kind == 'v' and fps_of(path) * speed < 50:
-        chain.append(f'minterpolate=fps={FPS}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1')   # smooth slow motion
+    # no motion interpolation (it smeared the 30 fps platter clip in v2): 30 fps clips run at normal speed
     chain += [f'fps={FPS}', f'tpad=stop_mode=clone:stop_duration={d:.3f}', f'trim=duration={d:.4f}', 'setpts=PTS-STARTPTS', 'format=yuv420p']
     subprocess.run(['ffmpeg', '-y', '-v', 'error', '-ss', f'{sin:.3f}', '-t', f'{src_d:.3f}', '-i', path, '-vf', ','.join(chain)] + enc, check=True)
     return out
