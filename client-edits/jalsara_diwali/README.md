@@ -11,12 +11,12 @@ Export: `Jalsara_Diwali_4K60.mp4`. The presenter speaks the Diwali script on cam
 
 | # | Line | A-roll | B-roll over the voice |
 |---|---|---|---|
-| 1 | Hello dosto… shubhkaamnaayein | IMG_1124 (320p) | IMG_1050 table close-up, IMG_1057 pink niches (320p) |
+| 1 | Hello dosto… shubhkaamnaayein | IMG_1124 (320p) | IMG_1043 arch + lamp (one calm shot) |
 | 2 | Iss Diwali… extra special | IMG_1130 | IMG_1070 wide hall (320p) |
 | 3 | Ek zaroori baat… Padwa ho ya Bhai Dooj… operational | IMG_1151 (punch-in at "festive season") | IMG_1047 lamps → hall (320p), from 8.8 s |
-| 4 | Project B ke final touches… brand new interiors | IMG_1136 (night exterior, voice only) | IMG_1043 arch + lamp, photo IMG_1098 hall, IMG_1052 tables |
-| 5 | Ek aur exciting surprise… new menu pre-launch | 4FE2E755 Copy (selfie) | IMG_1106 platter, IMG_1083 chaat |
-| 6 | first few logon mein… introductory price | IMG_1177 (selfie) | IMG_1064 palak |
+| 4 | Project B ke final touches… brand new interiors | IMG_1136 (night exterior, voice only) | IMG_1069 wide hall (320p), photo IMG_1098 hall, IMG_1052 tables |
+| 5 | Ek aur exciting surprise… new menu pre-launch | 4FE2E755 Copy (selfie; **voice only**) | IMG_1111 table + platter, IMG_1083 chaat, IMG_1064 palak, photo IMG_1095 platter top-down |
+| 6 | first few logon mein… introductory price | IMG_1177 (selfie; **voice only**) | photo IMG_1102 platter + logo, photo IMG_1072 chaat + placemat, IMG_1086 palak |
 | 7 | Toh der kis baat ki… Happy Diwali | IMG_1143 (punch-in on "Happy Diwali") | — |
 
 **v2 changes (Shubham's feedback on v1):**
@@ -29,6 +29,13 @@ Export: `Jalsara_Diwali_4K60.mp4`. The presenter speaks the Diwali script on cam
   - cutaways are about 1.7 s
   - two punch-ins
   - quicker headline reveal and cut bloom
+
+**v3 changes (feedback on v2):**
+- **Platter shot glitching at ~31 s:** IMG_1106 is a fast handheld pan, and vidstab tore frames on it. It is replaced by photo IMG_1102.
+  - Motion interpolation is removed too. 30 fps clips now run at normal speed, and slow motion is used only on 60 fps sources.
+  - The final export was scanned frame by frame: no isolated glitch frames.
+- **Tables at 2–5 s didn't look good:** replaced by one calm IMG_1043 arch + lamp shot.
+- **Selfie A-rolls at 30–42 s had no eye contact:** lines 5–6 are now voice over food B-roll only, and the same dish never appears twice in a row.
 
 **Look:** the approved Project B teaser v2/v3 system.
 - Footage sits in a rounded 3:4 window on a warm terracotta background with line arches.
