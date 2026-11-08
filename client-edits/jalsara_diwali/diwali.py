@@ -36,49 +36,72 @@ CREAM, GOLD, DEEP = '#F6EBDD', '#E9C48E', '#1C0E09'
 WIN = (60, 430, 960, 1280)                 # x, y, w, h (3:4)
 RAD = 44
 
-# ---------------- edit decision list ----------------
-# A-roll lines in script order: (key, file, src_in, src_out, crop=(centre_y_frac, height_frac))
+# ---------------- edit decision list (v2: tighter pace, no repeated subject, food only on the menu lines) ----------------
+# A-roll lines in script order: (key, file, kept pieces of the take [(in, out)], crop=(centre_y_frac, height_frac)).
+# Pauses inside a line are cut out only where a B-roll covers the join, so the presenter never jump-cuts on screen.
 AROLL = [
-    ('L1', 'src2/IMG_1124.MOV', 0.40, 5.50, (0.50, 0.75)),   # Hello dosto ... shubhkaamnaayein (only a 320p copy exists)
-    ('L2', 'src2/IMG_1130.MOV', 0.00, 9.42, (0.52, 0.72)),   # Iss Diwali agar aap soch rahe hain ... extra special
-    ('L3', 'src2/IMG_1151.MOV', 3.42, 11.70, (0.45, 0.62)),  # Ek zaroori baat ... Padwa ho ya Bhai Dooj
-    ('L4', 'src2/IMG_1136.MOV', 3.50, 12.55, (0.40, 0.75)),  # Project B final touches ... brand new interiors (exterior, VO)
-    ('L5', 'src/COPY_4FE2.mov', 0.60, 7.42, (0.42, 0.75)),   # Ek aur exciting surprise ... naye menu ka pre-launch
-    ('L6', 'src/IMG_1177.MOV', 0.62, 5.56, (0.42, 0.75)),    # first few logon mein ... introductory price
-    ('L7', 'src2/IMG_1143.MOV', 0.42, 5.86, (0.47, 0.62)),   # Toh der kis baat ki ... Happy Diwali
+    ('L1', 'src2/IMG_1124.MOV', [(0.42, 5.47)], (0.50, 0.75)),                              # Hello dosto ... (320p copy only)
+    ('L2', 'src2/IMG_1130.MOV', [(0.00, 4.44), (4.60, 9.38)], (0.52, 0.72)),                # Iss Diwali ... extra special
+    ('L3', 'src2/IMG_1151.MOV', [(3.45, 8.82), (9.30, 10.53), (10.74, 11.62)], (0.45, 0.62)),  # Ek zaroori baat ... all the days
+    ('L4', 'src2/IMG_1136.MOV', [(3.55, 6.32), (6.52, 9.90), (10.06, 11.52), (11.78, 12.50)], (0.40, 0.75)),  # Project B ... brighter
+    ('L5', 'src/COPY_4FE2.mov', [(0.62, 7.40)], (0.42, 0.75)),                              # Ek aur exciting surprise ... pre-launch
+    ('L6', 'src/IMG_1177.MOV', [(0.64, 5.54)], (0.42, 0.75)),                               # first few ... introductory price
+    ('L7', 'src2/IMG_1143.MOV', [(0.45, 5.80)], (0.47, 0.62)),                              # Toh der kis baat ki ... Happy Diwali
 ]
-# B-roll cutaways over the voice, in A-roll source time: (key, t0, t1, file, src_in, crop)
+# Cutaways over the voice, in the A-roll's source clock: (key, t0, t1, kind, file, src_in, crop, speed)
+#   kind 'v' = video (stabilised, slowed by `speed`), 'p' = photo (held still; the window's slow push moves it)
 CUTAWAY = [
-    ('L1', 2.30, 5.50, 'src/IMG_1043.MOV', 0.50, (0.45, 0.75)),   # arch + lamp
-    ('L2', 4.55, 6.90, 'src/IMG_1052.MOV', 0.00, (0.55, 0.75)),   # set tables
-    ('L3', 8.15, 10.45, 'src/IMG_1111.MOV', 0.40, (0.50, 0.75)),  # tables + food
-    ('L4', 6.50, 8.20, 'src/IMG_1042.MOV', 0.50, (0.45, 0.75)),   # brand new interiors ...
-    ('L4', 8.20, 9.90, 'src/IMG_1044.MOV', 0.40, (0.45, 0.75)),
-    ('L4', 9.90, 11.40, 'src/IMG_1041.MOV', 0.50, (0.45, 0.75)),
-    ('L4', 11.40, 12.55, 'src/IMG_1040.MOV', 0.60, (0.45, 0.75)),
-    ('L5', 2.30, 4.10, 'src/IMG_1106.MOV', 1.00, (0.50, 1.00)),   # new menu: platter
-    ('L5', 4.10, 5.60, 'src/IMG_1083.MOV', 1.00, (0.50, 0.75)),   # chaat
-    ('L6', 1.95, 3.85, 'src/IMG_1064.MOV', 0.40, (0.55, 0.75)),   # palak
+    ('L1', 2.05, 3.75, 'v', 'src/IMG_1050.MOV', 0.00, (0.55, 0.75), 0.60),    # table close-up, pink niches
+    ('L1', 3.75, 5.47, 'v', 'src2/IMG_1057.MOV', 1.20, (0.50, 0.75), 0.70),   # pink niche wall (320p copy)
+    ('L2', 4.44, 6.55, 'v', 'src2/IMG_1070.MOV', 1.00, (0.50, 0.75), 0.70),   # wide hall, arches (320p copy)
+    ('L3', 8.80, 11.62, 'v', 'src2/IMG_1047.MOV', 2.50, (0.50, 0.75), 0.70),  # lamps -> hall (covers the look to his left)
+    ('L4', 6.32, 8.30, 'v', 'src/IMG_1043.MOV', 0.40, (0.45, 0.75), 0.70),    # brand new interiors: arch + lamp
+    ('L4', 8.30, 10.30, 'p', 'photos/IMG_1098.jpg', 0.00, (0.24, 0.46), 1.0), # hall, guest walking
+    ('L4', 10.30, 12.50, 'v', 'src/IMG_1052.MOV', 0.00, (0.55, 0.75), 0.70),  # tables wide
+    ('L5', 2.25, 4.00, 'v', 'src/IMG_1106.MOV', 1.20, (0.50, 1.00), 0.70),    # new menu: platter
+    ('L5', 4.00, 5.65, 'v', 'src/IMG_1083.MOV', 1.00, (0.50, 0.75), 0.70),    # chaat
+    ('L6', 1.95, 3.80, 'v', 'src/IMG_1064.MOV', 0.40, (0.55, 0.75), 0.70),    # palak
 ]
-END_HOLD = 3.4
+END_HOLD = 3.1
 
 def build():
     lines, shots, t = {}, [], 0.0
-    for key, f, a, b, crop in AROLL:
-        lines[key] = (t, a, b)
-        cuts = sorted([c for c in CUTAWAY if c[0] == key], key=lambda c: c[1])
-        pos = a
-        for (_, c0, c1, cf, cin, ccrop) in cuts:
-            if c0 > pos: shots.append((t + pos - a, t + c0 - a, f, pos, crop))
-            shots.append((t + c0 - a, t + c1 - a, cf, cin, ccrop)); pos = c1
-        if pos < b: shots.append((t + pos - a, t + b - a, f, pos, crop))
-        t += b - a
-    return lines, shots, t
-LINES, SHOTS, E = build()                  # E: end card starts
+    for key, f, pieces, crop in AROLL:
+        gp = []                                         # (src_in, src_out, global_start)
+        for (a, b) in pieces: gp.append((a, b, t)); t += b - a
+        lines[key] = gp
+    def gm(key, s):
+        for (a, b, g) in lines[key]:
+            if s <= b: return g + max(0.0, s - a)
+        a, b, g = lines[key][-1]; return g + b - a
+    for key, f, pieces, crop in AROLL:
+        g0 = lines[key][0][2]; g1 = gm(key, 1e9)
+        covers = sorted([(gm(key, c[1]), gm(key, c[2]), c) for c in CUTAWAY if c[0] == key])
+        pos = g0
+        def aroll(x, y):                                # A-roll between x..y, split at any joins (none are visible by design)
+            for (a, b, g) in lines[key]:
+                s0, s1 = max(x, g), min(y, g + b - a)
+                if s1 - s0 > 1e-3:
+                    if s0 > g + 1e-3 and s0 > x + 1e-3: print('WARNING: visible jump cut', key, round(s0, 2))
+                    shots.append((s0, s1, 'a', f, a + s0 - g, crop, 1.0))
+        for (x, y, c) in covers:
+            if x > pos: aroll(pos, x)
+            shots.append((x, y, c[3], c[4], c[5], c[6], c[7])); pos = y
+        if pos < g1: aroll(pos, g1)
+    return lines, shots, t, gm
+LINES, SHOTS, E, gmap = build()            # E: end card starts
+# punch-ins: hard cut from the wide to a medium crop of the same take on a phrase change (pace, no zoom move)
+PUNCH = [('L3', 4.48, (0.36, 0.42)),       # "... hum iss festive season saare din open"
+         ('L7', 5.10, (0.47, 0.44))]       # "Happy Diwali" + thumbs up
+for key, st, crop in PUNCH:
+    g = gmap(key, st)
+    for i, s in enumerate(SHOTS):
+        if s[2] == 'a' and s[0] < g < s[1]:
+            SHOTS[i:i + 1] = [s[:1] + (g,) + s[2:], (g, s[1], 'a', s[3], s[4] + g - s[0], crop, 1.0)]
+            break
 END = E + END_HOLD
 CUTS = [s[0] for s in SHOTS[1:]]
-def G(key, local):                          # global time of a moment in a line's source clock
-    t0, a, _ = LINES[key]; return t0 + local - a
+def G(key, local): return gmap(key, local)  # global time of a moment in a line's source clock
 
 # ---------------- base: crop every shot to the window, grade, concatenate ----------------
 def dims(path):
@@ -88,31 +111,63 @@ def dims(path):
     w, h = int(kv['width']), int(kv['height'])
     if abs(int(float(kv.get('rotation', 0)))) % 180 == 90: w, h = h, w
     return w, h
-def crop_expr(path, cy, hf):
-    fw, fh = dims(path)
+def crop_box(fw, fh, cy, hf):
     if fw > fh: ch = fh; cw = ch * 3 / 4
     else:
         ch = hf * fh; cw = ch * 3 / 4
         if cw > fw: cw = fw; ch = cw * 4 / 3
     cw, ch = int(cw) // 2 * 2, int(ch) // 2 * 2
     x0 = (fw - cw) // 2; y0 = int(clamp(cy * fh - ch / 2, 0, fh - ch))
-    return f'crop={cw}:{ch}:{x0}:{y0}', fw
+    return cw, ch, x0, y0
 
-def base_cmd(out, S=2):
-    ow, oh = int(WIN[2] * S), int(WIN[3] * S)
-    ins, fl = [], []
-    shots = SHOTS + [(E, END, SHOTS[-1][2], SHOTS[-1][3] + (SHOTS[-1][1] - SHOTS[-1][0]), SHOTS[-1][4])]
-    for k, (a, b, f, sin, (cy, hf)) in enumerate(shots):
-        d = b - a; path = os.path.join(SRC, f)
-        ins += ['-ss', f'{sin:.3f}', '-t', f'{d + 0.1:.3f}', '-i', path]
-        cr, fw = crop_expr(path, cy, hf)
-        g = 'eq=contrast=1.04:saturation=1.08,colorbalance=rs=0.03:gs=0.01:bs=-0.035'
-        if fw < 600: g = 'hqdn3d=2:2:3:3,' + g + ',unsharp=5:5:0.6'          # the 320p copy of the opener
-        fl.append(f'[{k}:v]setpts=PTS-STARTPTS,fps={FPS},{cr},scale={ow}:{oh}:flags=lanczos,{g},'
-                  f'tpad=stop_mode=clone:stop_duration={d:.3f},trim=duration={d:.4f},setpts=PTS-STARTPTS,format=yuv420p[v{k}]')
-    fl.append(''.join(f'[v{k}]' for k in range(len(shots))) + f'concat=n={len(shots)}:v=1:a=0[out]')
-    return ['ffmpeg', '-y', '-v', 'error'] + ins + ['-filter_complex', ';'.join(fl), '-map', '[out]', '-r', str(FPS),
-            '-c:v', 'libx264', '-preset', 'medium', '-crf', '12', '-pix_fmt', 'yuv420p', out]
+def fps_of(path):
+    r = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'default=nw=1:nk=1', path],
+                       capture_output=True, text=True).stdout.split()[0].split('/')
+    return float(r[0]) / float(r[1] if len(r) > 1 else 1)
+
+GRADE = 'eq=contrast=1.04:saturation=1.08,colorbalance=rs=0.03:gs=0.01:bs=-0.035'
+def prep_shot(k, shot, workdir, S=2):
+    """one window-sized 60 fps clip per shot: crop, grade; B-roll is stabilised (vidstab) and slowed."""
+    a, b, kind, f, sin, (cy, hf), speed = shot
+    d = b - a; ow, oh = int(WIN[2] * S), int(WIN[3] * S); path = os.path.join(SRC, f)
+    out = os.path.join(workdir, f'shot{k:02d}.mp4')
+    if os.path.exists(out) and os.environ.get('REUSE_SHOTS'): return out
+    enc = ['-r', str(FPS), '-c:v', 'libx264', '-preset', 'medium', '-crf', '12', '-pix_fmt', 'yuv420p', '-an', out]
+    if kind == 'p':
+        from PIL import Image
+        fw, fh = Image.open(path).size
+        cw, ch, x0, y0 = crop_box(fw, fh, cy, hf)
+        vf = f'crop={cw}:{ch}:{x0}:{y0},scale={ow}:{oh}:flags=lanczos,{GRADE},format=yuv420p'
+        subprocess.run(['ffmpeg', '-y', '-v', 'error', '-loop', '1', '-framerate', str(FPS), '-t', f'{d:.4f}', '-i', path, '-vf', vf] + enc, check=True)
+        return out
+    fw, fh = dims(path); cw, ch, x0, y0 = crop_box(fw, fh, cy, hf)
+    g = GRADE
+    if fw < 600: g = 'hqdn3d=2:2:3:3,' + g + ',unsharp=5:5:0.6'                    # 320p Google Photos copies
+    src_d = d * speed + 0.15
+    chain = []
+    if kind == 'v':
+        trf = os.path.join(workdir, f'shot{k:02d}.trf')
+        subprocess.run(['ffmpeg', '-y', '-v', 'error', '-ss', f'{sin:.3f}', '-t', f'{src_d:.3f}', '-i', path,
+                        '-vf', f'vidstabdetect=shakiness=6:accuracy=15:result={trf}', '-f', 'null', '-'], check=True)
+        chain.append(f'vidstabtransform=input={trf}:smoothing=45:optzoom=0:zoom=6:interpol=bicubic')
+    chain += [f'crop={cw}:{ch}:{x0}:{y0}', f'scale={ow}:{oh}:flags=lanczos', g]
+    if speed != 1.0: chain.append(f'setpts=PTS/{speed}')
+    if kind == 'v' and fps_of(path) * speed < 50:
+        chain.append(f'minterpolate=fps={FPS}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1')   # smooth slow motion
+    chain += [f'fps={FPS}', f'tpad=stop_mode=clone:stop_duration={d:.3f}', f'trim=duration={d:.4f}', 'setpts=PTS-STARTPTS', 'format=yuv420p']
+    subprocess.run(['ffmpeg', '-y', '-v', 'error', '-ss', f'{sin:.3f}', '-t', f'{src_d:.3f}', '-i', path, '-vf', ','.join(chain)] + enc, check=True)
+    return out
+
+def build_base(out, S=2):
+    from concurrent.futures import ThreadPoolExecutor
+    workdir = os.path.join(HERE, 'work'); os.makedirs(workdir, exist_ok=True)
+    last = SHOTS[-1]
+    shots = SHOTS + [(E, END, last[2], last[3], last[4] + (last[1] - last[0]), last[5], last[6])]   # end card plate
+    with ThreadPoolExecutor(4) as ex:
+        files = list(ex.map(lambda kv: prep_shot(kv[0], kv[1], workdir, S), enumerate(shots)))
+    lst = os.path.join(workdir, 'list.txt')
+    with open(lst, 'w') as fh: fh.write(''.join(f"file '{p}'\n" for p in files))
+    subprocess.run(['ffmpeg', '-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', lst, '-c', 'copy', out], check=True)
 
 # ---------------- text engine: per-letter dreamy reveal (same as teaser v2) ----------------
 def run_w(runs, sp): return sum(text_w(s, f, tr) for s, f, col, tr in runs) + sp * (len(runs) - 1)
@@ -175,7 +230,7 @@ for i, (k, lt, runs) in enumerate(BEATS):
 def draw_heads(c, t):
     for (a, b, runs) in HEADS:
         if a - 0.01 <= t < b + 0.4:
-            letters(c, runs, W / 2, 335, t, a, per=0.032, dur=0.65, sp=22, out_t=b, rise=22, blur=14)
+            letters(c, runs, W / 2, 335, t, a, per=0.022, dur=0.48, sp=22, out_t=b, rise=20, blur=12)
 
 def kicker(c, t):
     f = font('sans', 22); s = 'J A L S A R A   ·   R A T L A M'
@@ -248,13 +303,14 @@ def shot_at(t):
     return SHOTS[-1]
 def window(c, img, t, alpha=1.0, extra_blur=0.0, sc_extra=0.0):
     x, y, w, h = WIN
-    a, b = (E, END) if t >= E else shot_at(t)[:2]
-    push = 1.0 + 0.035 * eio3(prog(t, a, b if t < E else b)) + sc_extra   # one slow, smooth push per shot
+    sh = shot_at(t); a, b = (E, END) if t >= E else sh[:2]
+    amt = 0.06 if (t < E and sh[2] == 'p') else 0.035                     # photos get a slightly longer push
+    push = 1.0 + amt * eio3(prog(t, a, b)) + sc_extra                      # one slow, smooth push per shot
     bl, lift = 0.0, 0.0                                                   # dreamy light-bloom across cuts
     for ct in CUTS:
         d = t - ct
-        if -0.12 <= d < 0: q = (d + 0.12) / 0.12; bl, lift = 18 * q * q, 0.32 * q * q
-        elif 0 <= d < 0.22: q = 1 - d / 0.22; bl, lift = 18 * q * q, 0.32 * q * q
+        if -0.08 <= d < 0: q = (d + 0.08) / 0.08; bl, lift = 14 * q * q, 0.26 * q * q
+        elif 0 <= d < 0.16: q = 1 - d / 0.16; bl, lift = 14 * q * q, 0.26 * q * q
     rr = skia.RRect.MakeRectXY(R(x, y, w, h), RAD, RAD)
     with Layer(c, 0.55 * alpha, (40, 40)):
         c.drawRRect(skia.RRect.MakeRectXY(R(x + 8, y + 30, w, h), RAD, RAD), P(hexc('#000000')))
@@ -310,7 +366,7 @@ def main():
     a = ap.parse_args()
     basef = os.path.join(HERE, 'base.mp4')
     if a.base:
-        subprocess.run(base_cmd(basef), check=True); return
+        build_base(basef); return
     S = a.scale; OW, OH = int(W * S), int(H * S); bw, bh = int(WIN[2] * S), int(WIN[3] * S)
     surf = skia.Surface(OW, OH); c = surf.getCanvas()
     def frames(t0, t1):

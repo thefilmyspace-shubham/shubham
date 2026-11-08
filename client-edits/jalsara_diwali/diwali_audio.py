@@ -23,14 +23,17 @@ def swell(d=1.2):
 
 def main():
     vo = np.zeros(N, np.float32)
-    for key, f, a, b, _ in D.AROLL:
-        x = load(os.path.join(D.SRC, f), a, b - a)
-        fr = int(0.02 * SR)                                   # 20 ms in/out so every join is click-free
-        x[:fr] *= np.linspace(0, 1, fr); x[-fr:] *= np.linspace(1, 0, fr)
-        e = np.sqrt(np.convolve(x ** 2, np.ones(SR // 20) / (SR // 20), 'same'))
-        voiced = e[e > np.percentile(e, 60)]                  # match the speaking level of every take
-        x *= 0.1 / (np.sqrt(np.mean(voiced ** 2)) + 1e-9)
-        i0 = int(D.LINES[key][0] * SR); vo[i0:i0 + len(x)] += x[:N - i0]
+    for key, f, pieces, _ in D.AROLL:
+        full = load(os.path.join(D.SRC, f), 0, 60)
+        e = np.sqrt(np.convolve(full ** 2, np.ones(SR // 20) / (SR // 20), 'same'))
+        lo, hi = int(pieces[0][0] * SR), int(pieces[-1][1] * SR)
+        seg = e[lo:hi]; voiced = seg[seg > np.percentile(seg, 60)]   # match the speaking level of every take
+        gain = 0.1 / (np.sqrt(np.mean(voiced ** 2)) + 1e-9)
+        for (a, b, g) in D.LINES[key]:
+            x = full[int(a * SR):int(b * SR)] * gain
+            fr = int(0.015 * SR)                              # 15 ms in/out so every join is click-free
+            x[:fr] *= np.linspace(0, 1, fr); x[-fr:] *= np.linspace(1, 0, fr)
+            i0 = int(g * SR); vo[i0:i0 + len(x)] += x[:N - i0]
     raw_vo = os.path.join(HERE, 'vo_raw.wav')
     with wave.open(raw_vo, 'wb') as w:
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
@@ -48,7 +51,7 @@ def main():
     pl = lambda clip, tt, gd: FA.place(fx, clip, tt, gd)
     pl(FA.chime(), 0.0, -24)
     for key, *_ in D.AROLL[1:]:
-        pl(swell(0.6), D.LINES[key][0] - 0.3, -24)            # soft air at each new setup
+        pl(swell(0.6), D.LINES[key][0][2] - 0.3, -24)         # soft air at each new setup
     pl(swell(1.4), D.E - 0.7, -16); pl(FA.chime(), D.E + 0.5, -15); pl(FA.chime(), D.E + 1.5, -19)
     mix = mix + fx
     t = np.arange(N) / SR
