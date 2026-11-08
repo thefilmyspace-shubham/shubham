@@ -1,4 +1,4 @@
-# Jalsara: Diwali reel (9:16, 4K60, ~52 s)
+# Jalsara: Diwali reel (9:16, 4K60, ~50 s)
 
 Export: `Jalsara_Diwali_4K60.mp4`. The presenter speaks the Diwali script on camera; B-roll covers the lines about the venue and the menu.
 
@@ -11,13 +11,24 @@ Export: `Jalsara_Diwali_4K60.mp4`. The presenter speaks the Diwali script on cam
 
 | # | Line | A-roll | B-roll over the voice |
 |---|---|---|---|
-| 1 | Hello dosto… shubhkaamnaayein | IMG_1124 (320p) | IMG_1043 arch + lamp |
-| 2 | Iss Diwali… extra special | IMG_1130 | IMG_1052 set tables |
-| 3 | Ek zaroori baat… Padwa ho ya Bhai Dooj | IMG_1151 | IMG_1111 tables + food |
-| 4 | Project B ke final touches… brand new interiors | IMG_1136 (night exterior, voice only) | IMG_1042, 1044, 1041, 1040 interiors |
+| 1 | Hello dosto… shubhkaamnaayein | IMG_1124 (320p) | IMG_1050 table close-up, IMG_1057 pink niches (320p) |
+| 2 | Iss Diwali… extra special | IMG_1130 | IMG_1070 wide hall (320p) |
+| 3 | Ek zaroori baat… Padwa ho ya Bhai Dooj… operational | IMG_1151 (punch-in at "festive season") | IMG_1047 lamps → hall (320p), from 8.8 s |
+| 4 | Project B ke final touches… brand new interiors | IMG_1136 (night exterior, voice only) | IMG_1043 arch + lamp, photo IMG_1098 hall, IMG_1052 tables |
 | 5 | Ek aur exciting surprise… new menu pre-launch | 4FE2E755 Copy (selfie) | IMG_1106 platter, IMG_1083 chaat |
 | 6 | first few logon mein… introductory price | IMG_1177 (selfie) | IMG_1064 palak |
-| 7 | Toh der kis baat ki… Happy Diwali | IMG_1143 (Jalsara arch) | — |
+| 7 | Toh der kis baat ki… Happy Diwali | IMG_1143 (punch-in on "Happy Diwali") | — |
+
+**v2 changes (Shubham's feedback on v1):**
+- **Look to his left at ~22 s:** IMG_1151 turns left from 11.1 s, so B-roll now covers it from 8.8 s.
+- **Same clip repeated at 25–32 s:** IMG_1040–1044 are four takes of the same arch, so only IMG_1043 is used now. Every cutaway is a different subject.
+- **Food came in too early:** food shots now appear only on the new-menu lines (5–6).
+- **Stable, slow B-roll:** every video cutaway is stabilised (vidstab) and slowed to 0.6–0.7×. 30 fps clips use motion interpolation to 60 fps. The photo is held still and moved only by the window's slow push.
+- **Slightly faster pace:**
+  - pauses inside a line are cut out, but only under B-roll, so the presenter never jump-cuts on screen
+  - cutaways are about 1.7 s
+  - two punch-ins
+  - quicker headline reveal and cut bloom
 
 **Look:** the approved Project B teaser v2/v3 system.
 - Footage sits in a rounded 3:4 window on a warm terracotta background with line arches.
@@ -41,8 +52,8 @@ Hello dosto → Happy Deepawali → celebrate with family → make it extra spec
 
 **Rebuild** (sources in `$JALSARA_DIWALI_SRC`, default `../../../jalsara_diwali` with `src/` and `src2/`; needs `tfs-promo/film`):
 ```sh
-python3 diwali.py --base            # base.mp4: all shots cropped to the window, graded, concatenated
+python3 diwali.py --base            # base.mp4: each shot cropped/graded (B-roll stabilised + slowed) in work/, then concatenated
 python3 diwali_audio.py             # diwali_mix.wav
-python3 diwali.py --scale 2 --start 0 --end 13.2 --out c0.mp4   # 4 chunks (13.2 / 26.4 / 39.6 / end) in parallel
+python3 diwali.py --scale 2 --start 0 --end 12.6 --out c0.mp4   # 4 chunks (12.6 / 25.2 / 37.8 / end) in parallel
 # concat the chunks + mux diwali_mix.wav
 ```
