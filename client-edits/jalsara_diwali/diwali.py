@@ -62,7 +62,8 @@ CUTAWAY = [
     ('L5', 2.26, 4.00, 'v', 'src/IMG_1083.MOV', 1.00, (0.50, 0.75), 1.00),    # new menu: chaat
     ('L5', 4.00, 5.65, 'v', 'src/IMG_1064.MOV', 0.30, (0.55, 0.75), 0.70),    # palak (4K60)
     ('L5', 5.65, 7.40, 'p', 'photos/IMG_1095.jpg', 0.00, (0.50, 0.80), 1.0),  # platter, top-down on the Jalsara placemat
-    ('L6', 0.64, 2.30, 'v', 'src/IMG_1106.MOV', 1.20, (0.50, 1.00), 1.00),    # platter close (normal speed, stabilised)
+    ('L6', 0.64, 2.30, 'p', 'photos/IMG_1102.jpg', 0.00, (0.50, 1.00), 1.0),  # platter + Jalsara placemat (IMG_1106 was a fast
+                                                                               #   handheld pan: vidstab tore frames, so a photo)
     ('L6', 2.30, 3.95, 'p', 'photos/IMG_1072.jpg', 0.00, (0.45, 0.85), 1.0),  # chaat + "Our Services" placemat
     ('L6', 3.95, 5.54, 'v', 'src/IMG_1086.MOV', 0.40, (0.50, 0.75), 1.00),    # palak close
 ]
