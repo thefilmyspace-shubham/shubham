@@ -76,6 +76,10 @@ export function CallDone({ studentId, studentName, numbers, attempt, today }: { 
               <label className="mt-3 block">
                 <span className="label">{tr("fees.cd.promisedDate")}</span>
                 <input type="date" name="followUpDate" min={today} required className="field" />
+                <span className="mt-2 flex items-start gap-2 text-[13px]">
+                  <input type="checkbox" name="moveDue" defaultChecked className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]" />
+                  {tr("fees.call.moveDue")}
+                </span>
               </label>
             )}
             <label className="mt-3 block">

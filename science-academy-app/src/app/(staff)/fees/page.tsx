@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BellRing, ChevronLeft, ChevronRight, IndianRupee, Plus, Search } from "lucide-react";
 import { can, canSeeBatch, requirePermission } from "@/lib/auth";
 import { ensureLedgerForMonth, feeListForMonth } from "@/lib/fees-data";
-import type { FeeStatus } from "@/lib/fees";
+import { rowDue, type FeeStatus } from "@/lib/fees";
 import { getT } from "@/lib/i18n/server";
 import { addMonths, monthLabel, monthStart, rupees, todayIst } from "@/lib/format";
 import { boardName, parseStudentId } from "@/lib/ids";
@@ -11,6 +11,7 @@ import { Meter } from "@/components/BarChart";
 import { FeeStatusChip } from "./StatusChip";
 import { ActionForm } from "./ActionForm";
 import { remindAllOverdue, sendFeeReminder } from "./actions";
+import { DueDateEdit } from "./DueDateEdit";
 
 export const metadata = { title: "Fees" };
 
@@ -143,7 +144,7 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
             ) : (
               <>
                 <div className="hidden lg:block">
-                  <Table head={[t("fees.col.student"), t("fees.col.class"), t("fees.col.fee"), t("fees.col.paid"), t("fees.col.balance"), t("fees.col.status"), ""]}>
+                  <Table head={[t("fees.col.student"), t("fees.col.class"), t("fees.col.fee"), t("fees.col.paid"), t("fees.col.balance"), t("fees.col.status"), t("fees.col.due"), ""]}>
                     {rows.map((r) => (
                       <tr key={r.ledger.id} className="hover:bg-field/60">
                         <Td>
@@ -160,6 +161,9 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
                         <Td className={r.balance > 0 ? "font-bold" : "text-muted"}>{rupees(r.balance)}</Td>
                         <Td>
                           <FeeStatusChip status={r.status} />
+                        </Td>
+                        <Td className="text-[13px]">
+                          <DueDateEdit rowId={r.ledger.id} due={rowDue(r.ledger)} canEdit={canBill && r.balance > 0} />
                         </Td>
                         <Td>
                           <div className="flex justify-end gap-2">
@@ -179,18 +183,23 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
                 </div>
                 <Card className="divide-y divide-line overflow-hidden lg:hidden">
                   {rows.map((r) => (
-                    <Link key={r.ledger.id} href={`/fees/${r.student.id}`} className="flex items-center gap-3 px-4 py-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-bold text-navy">{r.student.name}</p>
-                        <p className="text-xs text-muted">
-                          {r.student.code} · {t("fees.classN", { n: r.student.current_class })}
-                        </p>
+                    <div key={r.ledger.id} className="px-4 py-3">
+                      <Link href={`/fees/${r.student.id}`} className="flex items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-bold text-navy">{r.student.name}</p>
+                          <p className="text-xs text-muted">
+                            {r.student.code} · {t("fees.classN", { n: r.student.current_class })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold">{r.balance > 0 ? rupees(r.balance) : rupees(r.ledger.paid)}</p>
+                          <FeeStatusChip status={r.status} />
+                        </div>
+                      </Link>
+                      <div className="mt-1">
+                        <DueDateEdit rowId={r.ledger.id} due={rowDue(r.ledger)} canEdit={canBill && r.balance > 0} compact />
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold">{r.balance > 0 ? rupees(r.balance) : rupees(r.ledger.paid)}</p>
-                        <FeeStatusChip status={r.status} />
-                      </div>
-                    </Link>
+                    </div>
                   ))}
                 </Card>
               </>

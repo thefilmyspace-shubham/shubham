@@ -1,3 +1,4 @@
+import { DueDateEdit } from "../../fees/DueDateEdit";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CheckCircle2, Eye, FileText, IndianRupee, NotebookPen, Pencil, Phone, PhoneCall, ReceiptText, RefreshCw } from "lucide-react";
@@ -271,9 +272,15 @@ export default async function StudentProfile({
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-xs text-muted">
-                        {plan === "monthly" ? monthLabel(feeMonth) : `${t(`fees.plan.${plan}`)}${ledger?.label ? ` · ${ledger.label}` : ""}`} ·{" "}
-                        {t("students.prof.due", { date: dateLabel(feeDue) })}
+                        {plan === "monthly" ? monthLabel(feeMonth) : `${t(`fees.plan.${plan}`)}${ledger?.label ? ` · ${ledger.label}` : ""}`}
                       </p>
+                      <div className="mt-0.5 text-xs text-muted">
+                        {ledger ? (
+                          <DueDateEdit rowId={ledger.id} due={feeDue} canEdit={can(viewer, "bills.create") && balanceOf({ amount: feeAmount, paid: feePaid }) > 0} compact />
+                        ) : (
+                          t("students.prof.due", { date: dateLabel(feeDue) })
+                        )}
+                      </div>
                       <p className="mt-1 text-xl font-extrabold">{rupees(feeAmount)}</p>
                       <p className="text-xs text-muted">
                         {t("students.prof.paidBalance", { paid: rupees(feePaid), balance: rupees(balanceOf({ amount: feeAmount, paid: feePaid })) })}

@@ -17,6 +17,7 @@ const Input = z.object({
   guardianId: z.string().uuid(),
   outcome: z.enum(["will_pay_today", "promised_date", "not_connected", "wrong_number", "needs_admin"]),
   followUpDate: z.string().optional(),
+  moveDue: z.string().optional(),
   note: z.string().max(1000).optional(),
 });
 
@@ -78,13 +79,25 @@ export async function logCall(_prev: ActionResult, formData: FormData): Promise<
     );
   }
   await db.from("fee_reminders").insert(stages);
+  // Promised a date: the overdue fees of this student are now due on that date.
+  let movedDue = 0;
+  if (outcome === "promised_date" && followUp && parsed.data.moveDue === "on" && can(viewer, "bills.create")) {
+    const { data: late } = await db.from("fees_ledger").select("id, amount, paid, due_date, month").eq("student_id", studentId);
+    const ids = ((late ?? []) as { id: string; amount: number; paid: number; due_date: string | null; month: string }[])
+      .filter((r) => Number(r.amount) - Number(r.paid) > 0 && (r.due_date ?? `${r.month.slice(0, 8)}05`) <= today)
+      .map((r) => r.id);
+    if (ids.length) {
+      await db.from("fees_ledger").update({ due_date: followUp }).in("id", ids);
+      movedDue = ids.length;
+    }
+  }
   // The day-after-due call task for this student is done once a call is logged.
   await db
     .from("call_tasks")
     .update({ status: "done", done_at: new Date().toISOString(), done_by: viewer.user.id })
     .eq("student_id", studentId)
     .eq("status", "open");
-  await logActivity(viewer, "call.log", { type: "student", id: studentId }, { outcome, attempt, follow_up_date: followUp });
+  await logActivity(viewer, "call.log", { type: "student", id: studentId }, { outcome, attempt, follow_up_date: followUp, due_dates_moved: movedDue });
   revalidatePath("/calls");
   revalidatePath(`/fees/${studentId}`);
   return { ok: true, message: t("fees.cd.saved", { outcome: t(`fees.call.${outcome}`), n: attempt }) };

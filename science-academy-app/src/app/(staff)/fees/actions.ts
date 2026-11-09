@@ -194,3 +194,41 @@ export async function updatePlan(studentId: string, plan: string, monthlyFee: nu
   revalidatePath(`/fees/${studentId}`);
   return { ok: true };
 }
+
+/**
+ * Give more time: moves one fee row's due date (any later or earlier day).
+ * The fee stays the same month's fee (November stays November); only the
+ * day it is due changes, so status, reminders and call tasks follow it.
+ */
+export async function changeDueDate(rowId: string, newDate: string): Promise<PlanResult> {
+  const { t } = await getT();
+  const db = adminClient();
+  if (!UUID.test(rowId) || !isDate(newDate)) return { ok: false, error: t("fees.due.chooseDate") };
+  const { data: row } = await db.from("fees_ledger").select("*").eq("id", rowId).maybeSingle();
+  if (!row) return { ok: false, error: t("fees.due.notFound") };
+  const ctx = await planEditor(row.student_id);
+  if (!ctx) return { ok: false, error: t("fees.due.notAllowed") };
+  const today = todayIst();
+  if (newDate < addDaysIso(today, -366) || newDate > addDaysIso(today, 366)) return { ok: false, error: t("fees.due.withinYear") };
+  const before = row.due_date ?? `${String(row.month).slice(0, 8)}05`;
+  if (before === newDate) return { ok: true };
+  const { error } = await db.from("fees_ledger").update({ due_date: newDate }).eq("id", row.id);
+  if (error) return { ok: false, error: t("fees.due.failed") };
+  // A call task for the old date is no longer needed.
+  await db.from("call_tasks").delete().eq("ledger_id", row.id).eq("status", "open");
+  await logActivity(ctx.viewer, "fee.edit", { type: "student", id: row.student_id }, {
+    student: ctx.student.name,
+    month: row.month,
+    due_date: { before, after: newDate },
+  });
+  revalidatePath("/fees", "layout");
+  revalidatePath(`/students/${row.student_id}`);
+  revalidatePath("/calls");
+  return { ok: true };
+}
+
+function addDaysIso(date: string, n: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
