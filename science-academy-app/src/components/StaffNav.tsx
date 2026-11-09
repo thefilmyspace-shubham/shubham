@@ -35,7 +35,7 @@ export function Sidebar({
         <Link
           href={i.href}
           className={`flex items-center gap-3 rounded-field px-3 py-2 text-[14px] font-semibold transition-colors ${
-            active ? "bg-white/12 text-white" : "text-white/70 hover:bg-white/6 hover:text-white"
+            active ? "bg-primary-soft text-primary" : "text-fg/75 hover:bg-field hover:text-navy"
           }`}
         >
           <Icon size={18} strokeWidth={active ? 2.3 : 1.9} />
@@ -45,39 +45,40 @@ export function Sidebar({
     );
   };
   return (
-    <aside className="no-print fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-navy text-white lg:flex">
-      <div className="m-3 rounded-card bg-white px-2 py-1.5">
-        <Logo size={46} />
+    <aside className="no-print fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-line bg-card text-fg lg:flex">
+      <div className="px-4 pt-5 pb-4">
+        <Logo size={50} />
       </div>
+      <div className="mx-4 mb-3 h-1 rounded-full bg-gradient-to-r from-navy via-primary to-green" />
       <nav className="flex-1 overflow-y-auto px-3 pb-3">
         <ul className="space-y-0.5">{main.map(link)}</ul>
         {admin.length > 0 && (
           <>
-            <p className="mt-5 mb-1.5 px-3 text-[11px] font-bold tracking-wider text-white/40 uppercase">Admin</p>
+            <p className="mt-5 mb-1.5 px-3 text-[11px] font-bold tracking-wider text-faint uppercase">Admin</p>
             <ul className="space-y-0.5">{admin.map(link)}</ul>
           </>
         )}
       </nav>
-      <div className="border-t border-white/10 p-3">
+      <div className="border-t border-line p-3">
         <Link
           href="/notifications"
           className={`mb-2 flex items-center gap-3 rounded-field px-3 py-2 text-[14px] font-semibold ${
-            isActive("/notifications", path) ? "bg-white/12 text-white" : "text-white/70 hover:bg-white/6"
+            isActive("/notifications", path) ? "bg-primary-soft text-primary" : "text-fg/75 hover:bg-field"
           }`}
         >
           <Bell size={18} />
           Notifications
-          {unread > 0 && <span className="ml-auto rounded-full bg-danger px-1.5 text-[11px] font-extrabold">{unread > 99 ? "99+" : unread}</span>}
+          {unread > 0 && <span className="ml-auto rounded-full bg-danger px-1.5 text-[11px] font-extrabold text-white">{unread > 99 ? "99+" : unread}</span>}
         </Link>
-        <div className="flex items-center gap-2 px-3">
+        <div className="flex items-center gap-2 rounded-field bg-field px-3 py-2">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{user.name}</p>
-            <p className="text-xs text-white/60">
+            <p className="truncate text-sm font-bold text-navy">{user.name}</p>
+            <p className="text-xs text-muted">
               {user.staffId} · {user.roleLabel}
             </p>
           </div>
           <form action="/api/auth/logout" method="post">
-            <button className="grid h-8 w-8 place-items-center rounded-full text-white/70 hover:bg-white/10" title="Log out" aria-label="Log out">
+            <button className="grid h-8 w-8 place-items-center rounded-full text-muted hover:bg-card hover:text-danger" title="Log out" aria-label="Log out">
               <LogOut size={17} />
             </button>
           </form>

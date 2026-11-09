@@ -11,21 +11,21 @@ export default async function ParentLayout({ children }: { children: React.React
   const unread = await unreadCount(viewer.user.id);
   return (
     <div className="min-h-dvh pb-20">
-      <header className="safe-top no-print sticky top-0 z-10 bg-navy text-white">
+      <header className="safe-top no-print sticky top-0 z-10 border-b border-line bg-card text-navy">
         <div className="mx-auto flex max-w-lg items-center gap-2 px-4 py-2.5">
-          <div className="flex flex-1 items-center rounded-full bg-white px-3 py-1.5">
-            <Logo size={28} />
+          <div className="flex flex-1 items-center">
+            <Logo size={34} />
           </div>
-          <Link href="/parent/notifications" className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label={`Notifications, ${unread} new`}>
+          <Link href="/parent/notifications" className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-field" aria-label={`Notifications, ${unread} new`}>
             <Bell size={21} />
             {unread > 0 && (
-              <span className="absolute top-1 right-1 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-danger px-1 text-[10px] font-extrabold">
+              <span className="absolute top-1 right-1 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-danger px-1 text-[10px] font-extrabold text-white">
                 {unread > 9 ? "9+" : unread}
               </span>
             )}
           </Link>
           <form action="/api/auth/logout" method="post">
-            <button className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="Log out" title="Log out">
+            <button className="grid h-10 w-10 place-items-center rounded-full text-muted hover:bg-field hover:text-danger" aria-label="Log out" title="Log out">
               <LogOut size={19} />
             </button>
           </form>
