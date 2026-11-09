@@ -43,7 +43,7 @@ export async function AdminHome({ viewer }: { viewer: StaffViewer }) {
   const month = monthStart(today);
   const fees = can(viewer, "fees.view");
   const [students, batches, entries, att] = await Promise.all([activeStudents(), allBatches(), timetableFor(null), attendanceOn(today)]);
-  const [feeData, calls, collectedMonth, chart, chain, low, tops] = await Promise.all([
+  const [feeData, calls, collectedMonth, chart, chain, low, tops, tests] = await Promise.all([
     fees ? feeOverview(today, students) : Promise.resolve(null),
     fees ? latestCalls() : Promise.resolve(null),
     fees ? collected(month, today) : Promise.resolve(0),
@@ -51,6 +51,7 @@ export async function AdminHome({ viewer }: { viewer: StaffViewer }) {
     fees ? reminderChain(month) : Promise.resolve({ reminded: 0, called: 0, escalated: 0 }),
     lowAttendance(today, students),
     can(viewer, "ranks.view") ? classTop5(today, students) : Promise.resolve([]),
+    upcomingTests(today, 14, null),
   ]);
   const bm = batchMap(batches);
   const withStudents = new Set(students.map((s) => s.batch_id));
@@ -128,6 +129,7 @@ export async function AdminHome({ viewer }: { viewer: StaffViewer }) {
         <div>
           {feeData && <CollectionChart data={chart} t={t} />}
           {feeData && <PendingByClass fees={feeData} t={t} />}
+          <UpcomingTests tests={tests} batches={bm} t={t} />
         </div>
       </div>
       {can(viewer, "ranks.view") && <ClassToppers tops={tops} t={t} />}
