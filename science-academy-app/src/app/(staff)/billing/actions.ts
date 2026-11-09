@@ -222,3 +222,27 @@ export async function logBillPrint(id: string): Promise<void> {
   const inv = await getInvoice(id);
   if (inv) await logActivity(viewer, "bill.print", { type: "invoice", id }, { number: inv.number });
 }
+
+export type OpenPayment = { month: string; label: string; due: string; balance: number };
+
+/** Payments still open for a student (installment plans pick from these on the bill form). */
+export async function openPaymentsFor(studentId: string): Promise<{ plan: string; open: OpenPayment[] }> {
+  const viewer = await staffForApi();
+  if (!viewer || !can(viewer, "bills.create") || !/^[0-9a-f-]{36}$/i.test(studentId)) return { plan: "monthly", open: [] };
+  const db = adminClient();
+  const [{ data: s }, { data: rows }] = await Promise.all([
+    db.from("students").select("*").eq("id", studentId).maybeSingle(),
+    db.from("fees_ledger").select("*").eq("student_id", studentId).order("month"),
+  ]);
+  if (!s || !canSeeBatch(viewer, s.batch_id)) return { plan: "monthly", open: [] };
+  const open = ((rows ?? []) as { month: string; amount: number; paid: number; due_date?: string | null; label?: string | null }[])
+    .filter((r) => Number(r.amount) - Number(r.paid) > 0)
+    .map((r) => ({
+      month: r.month,
+      label: r.label ?? monthLabel(r.month),
+      due: r.due_date ? String(r.due_date).slice(0, 10) : `${r.month.slice(0, 8)}05`,
+      balance: Math.round((Number(r.amount) - Number(r.paid)) * 100) / 100,
+    }))
+    .sort((a, b) => a.due.localeCompare(b.due));
+  return { plan: (s.fee_plan as string | undefined) ?? "monthly", open };
+}

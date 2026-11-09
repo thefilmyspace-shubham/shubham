@@ -10,6 +10,7 @@ import { ensureParentUser } from "@/lib/notify";
 import { readFile, saveFile } from "@/lib/storage";
 import { checkMarksheet } from "@/lib/ai/marksheet";
 import { monthStart, todayIst } from "@/lib/format";
+import { ledgerRowsFor, parseFeePlan, type ParsedFeePlan } from "@/lib/fee-plan-form";
 import {
   CONSENT_VERSION,
   getStudent,
@@ -35,8 +36,16 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
   const alreadyRegistered = existing !== null && existing.status !== "draft";
   // Editing a registered student is always strict.
   const parsed = parseRegistration(form, alreadyRegistered ? "register" : intent, { requireEmail: otpChannel() === "email" });
-  if (!parsed.ok) return { errors: parsed.errors, message: "Please fix the marked fields." };
+  // Fees & payment plan: set at registration; afterwards it is changed on the Fees page.
+  const feePlan = alreadyRegistered ? null : parseFeePlan(form, intent === "register");
+  if (!parsed.ok || (feePlan && !feePlan.ok)) {
+    return {
+      errors: { ...(parsed.ok ? {} : parsed.errors), ...(feePlan && !feePlan.ok ? feePlan.errors : {}) },
+      message: "Please fix the marked fields.",
+    };
+  }
   const data = parsed.data;
+  const plan = feePlan && feePlan.ok ? feePlan.data : null;
 
   // Marksheet files: check type and size before anything is saved.
   for (const i of [0, 1]) {
@@ -58,7 +67,13 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
   }
 
   // 1. Save the student row (as a draft until Register).
-  const fields = { ...data.student, updated_at: new Date().toISOString() };
+  const fields = {
+    ...data.student,
+    ...(plan
+      ? { monthly_fee: plan.monthly_fee, fee_plan: plan.fee_plan, fee_due_day: plan.fee_due_day, total_fee: plan.total_fee, fee_schedule: plan.fee_schedule }
+      : {}),
+    updated_at: new Date().toISOString(),
+  };
   let student: Student;
   if (existing) {
     const { data: row, error } = await db.from("students").update(fields).eq("id", existing.id).select("*").single<Student>();
@@ -106,7 +121,7 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
     if (regError || !row) return { message: "Could not register. Please try again." };
     student = row;
     await recordIdChange(student);
-    await afterRegister(student, data);
+    await afterRegister(student, data, plan);
     await logActivity(viewer, "student.register", { type: "student", id: student.id }, { code: student.code, name: student.name });
     revalidatePath("/students");
     redirect(`/students/${student.id}?registered=1`);
@@ -155,17 +170,14 @@ async function saveGuardians(studentId: string, data: ParsedRegistration) {
   );
 }
 
-async function afterRegister(student: Student, data: ParsedRegistration) {
+async function afterRegister(student: Student, data: ParsedRegistration, plan: ParsedFeePlan | null) {
   const db = adminClient();
   const login = data.guardians.find((g) => g.relation === data.loginRelation);
   if (login) await ensureParentUser(login.mobile, login.name ?? "Parent");
-  if (Number(student.monthly_fee) > 0) {
-    await db
-      .from("fees_ledger")
-      .upsert(
-        { student_id: student.id, month: monthStart(todayIst()), amount: student.monthly_fee },
-        { onConflict: "student_id,month", ignoreDuplicates: true },
-      );
+  // The fee rows from the payment plan: this month for monthly, every payment otherwise.
+  const rows = plan ? ledgerRowsFor(student.id, plan, todayIst()) : [];
+  if (rows.length) {
+    await db.from("fees_ledger").upsert(rows, { onConflict: "student_id,month", ignoreDuplicates: true });
   }
 }
 

@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { BellRing, PhoneCall, ReceiptText } from "lucide-react";
 import { can, canSeeBatch, requirePermission } from "@/lib/auth";
 import { staffNames, studentFeeDetail } from "@/lib/fees-data";
-import { CALL_OUTCOME_LABEL, PAYMENT_MODE_LABEL, dueDate } from "@/lib/fees";
+import { CALL_OUTCOME_LABEL, PAYMENT_MODE_LABEL, rowDue, type FeePlan } from "@/lib/fees";
 import { dateLabel, dateTimeLabel, monthLabel, rupees, todayIst } from "@/lib/format";
 import { boardName, formatMobile, maskMobile } from "@/lib/ids";
-import { Card, Chip, Empty, Page, PageHeader, Section, Stat, Table, Td } from "@/components/ui";
-import { FeeStatusChip } from "../StatusChip";
+import { Card, Chip, Empty, Page, PageHeader, Section, Stat } from "@/components/ui";
 import { ActionForm } from "../ActionForm";
 import { sendFeeReminder } from "../actions";
+import { PlanEditor } from "./PlanEditor";
 
 export const metadata = { title: "Student fees" };
 
@@ -24,7 +24,7 @@ export default async function StudentFeesPage({ params }: { params: Promise<{ st
   if (!d || !canSeeBatch(viewer, d.student.batch_id)) notFound();
   const names = await staffNames([...d.calls.map((c) => c.called_by), ...d.reminders.map((r) => r.created_by), ...d.invoices.map((i) => i.created_by)]);
   const showNumbers = can(viewer, "students.contacts");
-  const pending = d.ledger.reduce((s, r) => s + (r.month <= today ? r.balance : 0), 0);
+  const pending = d.ledger.reduce((t, r) => t + (rowDue(r) <= today || r.month <= today ? r.balance : 0), 0);
   const overdue = d.ledger.filter((r) => r.status === "overdue");
   const totalPaid = d.invoices.filter((i) => i.status === "issued").reduce((s, i) => s + i.received, 0);
   const s = d.student;
@@ -49,35 +49,35 @@ export default async function StudentFeesPage({ params }: { params: Promise<{ st
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Monthly fee" value={rupees(s.monthly_fee)} />
+          <Stat label={(s.fee_plan ?? "monthly") === "monthly" ? "Monthly fee" : "Total fee"} value={rupees((s.fee_plan ?? "monthly") === "monthly" ? s.monthly_fee : d.ledger.reduce((t, r) => t + r.amount, 0))} />
           <Stat label="Pending now" value={rupees(pending)} tone={pending > 0 ? "warn" : "ok"} />
-          <Stat label="Overdue months" value={overdue.length} tone={overdue.length ? "danger" : "ok"} />
+          <Stat label="Overdue payments" value={overdue.length} tone={overdue.length ? "danger" : "ok"} />
           <Stat label="Paid (all bills)" value={rupees(totalPaid)} tone="ok" />
         </div>
 
         <div className="grid grid-cols-1 gap-x-5 lg:grid-cols-[1fr_340px]">
           <div>
-            <Section title="Ledger">
-              {d.ledger.length === 0 ? (
-                <Empty>No fee months yet.</Empty>
-              ) : (
-                <Table head={["Month", "Fee", "Paid", "Balance", "Status"]}>
-                  {d.ledger.map((r) => (
-                    <tr key={r.id}>
-                      <Td className="whitespace-nowrap">
-                        <p className="font-semibold">{monthLabel(r.month)}</p>
-                        <p className="text-xs text-muted">due {dateLabel(dueDate(r.month))}</p>
-                      </Td>
-                      <Td>{rupees(r.amount)}</Td>
-                      <Td>{rupees(r.paid)}</Td>
-                      <Td className="font-bold">{rupees(r.balance)}</Td>
-                      <Td>
-                        <FeeStatusChip status={r.status} />
-                      </Td>
-                    </tr>
-                  ))}
-                </Table>
-              )}
+            <Section title="Payment plan and due dates">
+              <PlanEditor
+                studentId={s.id}
+                plan={(s.fee_plan as FeePlan | undefined) ?? "monthly"}
+                monthlyFee={s.monthly_fee}
+                dueDay={s.fee_due_day ?? 5}
+                canEdit={can(viewer, "bills.create")}
+                // Monthly: newest month first. Other plans: first payment first.
+                rows={[...d.ledger]
+                  .sort((a, b) => ((s.fee_plan ?? "monthly") === "monthly" ? rowDue(b).localeCompare(rowDue(a)) : rowDue(a).localeCompare(rowDue(b))))
+                  .map((r) => ({
+                    id: r.id,
+                    month: r.month,
+                    label: r.label ?? null,
+                    due: rowDue(r),
+                    amount: r.amount,
+                    paid: r.paid,
+                    balance: r.balance,
+                    status: r.status,
+                  }))}
+              />
             </Section>
 
             <Section title="Bills">

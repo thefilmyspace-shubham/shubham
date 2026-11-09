@@ -75,12 +75,12 @@ export function orderCallList<T extends CallItem>(items: T[], today: string): T[
   );
 }
 
-export type DueRow = { month: string; amount: number; paid: number };
+export type DueRow = { month: string; amount: number; paid: number; due_date?: string | null };
 
 /** Unpaid months that are past their due date, oldest first. */
 export function overdueMonths<T extends DueRow>(rows: T[], today: string): T[] {
   return rows
-    .filter((r) => Number(r.amount) - Number(r.paid) > 0 && today > dueDate(r.month))
+    .filter((r) => Number(r.amount) - Number(r.paid) > 0 && today > (r.due_date ? r.due_date.slice(0, 10) : dueDate(r.month)))
     .sort((a, b) => a.month.localeCompare(b.month));
 }
 
@@ -89,7 +89,7 @@ export function overdueSummary(rows: DueRow[], today: string): { oldestMonth: st
   const late = overdueMonths(rows, today);
   if (!late.length) return null;
   const totalDue = late.reduce((s, r) => s + Math.max(0, Number(r.amount) - Number(r.paid)), 0);
-  return { oldestMonth: late[0].month, totalDue: round2(totalDue), daysLate: daysLate(late[0].month, today) };
+  return { oldestMonth: late[0].month, totalDue: round2(totalDue), daysLate: daysLate(late[0].month, today, late[0].due_date) };
 }
 
 /** UPI payment link for the QR code. */

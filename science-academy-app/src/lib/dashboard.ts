@@ -45,20 +45,20 @@ export type FeeOverview = {
 /** Money still owed for this month and earlier, by active students. */
 export async function feeOverview(today: string, students: StudentLite[]): Promise<FeeOverview> {
   const current = monthStart(today);
-  const rows = await fetchAll<{ student_id: string; month: string; amount: number; paid: number }>(() =>
-    adminClient().from("fees_ledger").select("student_id, month, amount, paid").lte("month", current).order("id"),
+  const rows = await fetchAll<{ student_id: string; month: string; amount: number; paid: number; due_date?: string | null }>(() =>
+    adminClient().from("fees_ledger").select("*").lte("month", current).order("id"),
   );
   const byId = new Map(students.map((s) => [s.id, s]));
   const owing = new Map<string, Owing>();
   for (const r of rows) {
     const bal = balanceOf(r);
     if (bal <= 0 || !byId.has(r.student_id)) continue;
-    const late = today > dueDate(r.month);
+    const late = today > (r.due_date ? String(r.due_date).slice(0, 10) : dueDate(r.month));
     const o = owing.get(r.student_id) ?? { studentId: r.student_id, balance: 0, overdue: 0, oldestMonth: r.month, daysLate: 0 };
     o.balance += bal;
     if (late) o.overdue += bal;
     if (r.month < o.oldestMonth) o.oldestMonth = r.month;
-    o.daysLate = Math.max(o.daysLate, late ? daysLate(r.month, today) : 0);
+    o.daysLate = Math.max(o.daysLate, late ? daysLate(r.month, today, r.due_date) : 0);
     owing.set(r.student_id, o);
   }
   const classes = new Map<string, { board: string; cls: number; amount: number; students: number }>();

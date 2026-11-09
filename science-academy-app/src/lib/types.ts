@@ -39,6 +39,11 @@ export type Student = {
   guardian_name: string | null;
   email: string | null;
   monthly_fee: number;
+  /** Missing until the fee plans migration has run. */
+  fee_plan?: "monthly" | "one_time" | "installments" | "manual";
+  fee_due_day?: number;
+  total_fee?: number | null;
+  fee_schedule?: { due_date: string; amount: number; label: string }[] | null;
   status: StudentStatus;
   code: string | null;
   created_by: string | null;
@@ -92,6 +97,9 @@ export type LedgerRow = {
   month: string;
   amount: number;
   paid: number;
+  due_date?: string | null;
+  label?: string | null;
+  installment_no?: number | null;
 };
 
 export type PaymentMode = "upi" | "bank" | "cash";

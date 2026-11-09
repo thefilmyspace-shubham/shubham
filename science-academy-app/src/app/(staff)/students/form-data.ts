@@ -28,6 +28,12 @@ export async function formInitial(student: Student): Promise<FormInitial> {
     guardian_name: student.guardian_name,
     email: student.email,
     monthly_fee: Number(student.monthly_fee),
+    feePlan: {
+      fee_plan: student.fee_plan ?? "monthly",
+      monthly_fee: Number(student.monthly_fee),
+      fee_due_day: student.fee_due_day ?? 5,
+      fee_schedule: Array.isArray(student.fee_schedule) ? student.fee_schedule : [],
+    },
     mobiles,
     loginRelation: d.guardians.find((g) => g.is_login_number)?.relation ?? null,
     marksheets: d.marksheets.slice(0, 2).map((m) => ({

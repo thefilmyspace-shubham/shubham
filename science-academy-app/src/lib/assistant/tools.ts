@@ -436,7 +436,7 @@ const TOOLS: Record<ToolName, Impl> = {
         amount: rupees(r.amount),
         paid: rupees(r.paid),
         balance: rupees(balanceOf(r)),
-        status: FEE_STATUS_LABEL[feeStatus(r.amount, r.paid, r.month, today)],
+        status: FEE_STATUS_LABEL[feeStatus(r.amount, r.paid, r.month, today, r.due_date)],
       })),
     });
   },
@@ -509,13 +509,13 @@ async function overdueFor(viewer: Viewer, month: string | undefined, board?: str
   const m = month ? `${month}-01` : monthStart(today);
   const db = adminClient();
   const { data: ledger } = await db.from("fees_ledger").select("*").eq("month", m);
-  const rows = ((ledger ?? []) as LedgerRow[]).filter((r) => feeStatus(r.amount, r.paid, r.month, today) === "overdue");
+  const rows = ((ledger ?? []) as LedgerRow[]).filter((r) => feeStatus(r.amount, r.paid, r.month, today, r.due_date) === "overdue");
   if (!rows.length) return { month: m, items: [] as { student: Student; balance: number; daysLate: number }[] };
   const { data: students } = await db.from("students").select("*").in("id", rows.map((r) => r.student_id)).eq("status", "active");
   const scope = studentScope(viewer);
   const byId = new Map(((students ?? []) as Student[]).map((s) => [s.id, s]));
   const items = rows
-    .map((r) => ({ student: byId.get(r.student_id), balance: balanceOf(r), daysLate: daysLate(r.month, today) }))
+    .map((r) => ({ student: byId.get(r.student_id), balance: balanceOf(r), daysLate: daysLate(r.month, today, r.due_date) }))
     .filter((x): x is { student: Student; balance: number; daysLate: number } => Boolean(x.student))
     .filter((x) => inScope(scope, x.student.batch_id) && (!board || x.student.board === board) && (!cls || x.student.current_class === cls))
     .sort((x, y) => y.daysLate - x.daysLate || y.balance - x.balance);

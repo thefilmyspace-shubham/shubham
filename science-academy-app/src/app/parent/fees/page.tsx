@@ -4,7 +4,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { normalizeInvoice, qrDataUrl } from "@/lib/fees-data";
 import { upiLink } from "@/lib/billing-calc";
 import { academyDetails, upiIsPlaceholder } from "@/lib/env";
-import { balanceOf, dueDate, feeStatus, FEE_STATUS_LABEL } from "@/lib/fees";
+import { balanceOf, feeStatus, FEE_PLAN_LABEL, FEE_STATUS_LABEL, rowDue, type FeePlan } from "@/lib/fees";
 import { dateLabel, monthLabel, monthStart, rupees, todayIst } from "@/lib/format";
 import { ChildStrip } from "@/components/ChildStrip";
 import { Card, Empty, Section } from "@/components/ui";
@@ -28,21 +28,29 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
   const current = monthStart(today);
   const db = adminClient();
   const [{ data: ledgerRows }, { data: bills }] = await Promise.all([
-    db.from("fees_ledger").select("*").eq("student_id", child.id).lte("month", current).order("month", { ascending: false }),
+    db.from("fees_ledger").select("*").eq("student_id", child.id).order("month", { ascending: false }),
     db.from("invoices").select("*").eq("student_id", child.id).eq("status", "issued").order("created_at", { ascending: false }).limit(50),
   ]);
-  const ledger = ((ledgerRows ?? []) as { id: string; month: string; amount: number; paid: number }[]).map((r) => ({
+  const all = ((ledgerRows ?? []) as { id: string; month: string; amount: number; paid: number; due_date?: string | null; label?: string | null }[]).map((r) => ({
     ...r,
     amount: Number(r.amount),
     paid: Number(r.paid),
   }));
   const receipts = ((bills ?? []) as Invoice[]).map(normalizeInvoice);
 
-  // This month (the row may not exist yet early in the month).
-  const thisRow = ledger.find((r) => r.month === current) ?? (Number(child.monthly_fee) > 0 ? { id: "new", month: current, amount: Number(child.monthly_fee), paid: 0 } : null);
-  const earlier = ledger.filter((r) => r.month < current && balanceOf(r) > 0);
+  const plan: FeePlan = (child.fee_plan as FeePlan | undefined) ?? "monthly";
+  const ledger = all.filter((r) => r.month <= current);
+  // Monthly: this month's fee. Other plans: the next payment still open (else this month's).
+  const openRows = [...all].filter((r) => balanceOf(r) > 0).sort((a, b) => rowDue(a).localeCompare(rowDue(b)));
+  const thisRow =
+    plan === "monthly"
+      ? (ledger.find((r) => r.month === current) ??
+        (Number(child.monthly_fee) > 0 ? { id: "new", month: current, amount: Number(child.monthly_fee), paid: 0, due_date: null, label: null } : null))
+      : (openRows.find((r) => r.month >= current) ?? all.find((r) => r.month === current) ?? null);
+  const earlier = ledger.filter((r) => r.month < current && balanceOf(r) > 0 && r.id !== thisRow?.id);
   const earlierDue = earlier.reduce((s, r) => s + balanceOf(r), 0);
-  const status = thisRow ? feeStatus(thisRow.amount, thisRow.paid, thisRow.month, today) : null;
+  const status = thisRow ? feeStatus(thisRow.amount, thisRow.paid, thisRow.month, today, thisRow.due_date) : null;
+  const schedule = plan === "monthly" ? [] : [...all].sort((a, b) => rowDue(a).localeCompare(rowDue(b)));
 
   const academy = academyDetails();
   const qr = upiIsPlaceholder(academy.upiId) ? null : await qrDataUrl(upiLink(academy.upiId, thisRow ? balanceOf(thisRow) + earlierDue : undefined, child.code ?? undefined));
@@ -54,7 +62,7 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
         {thisRow && status ? (
           <Card className="mt-4 p-4">
             <div className="flex items-center justify-between">
-              <p className="font-bold text-navy">{monthLabel(thisRow.month)}</p>
+              <p className="font-bold text-navy">{plan === "monthly" ? monthLabel(thisRow.month) : (thisRow.label ?? "Next payment")}</p>
               <FeeStatusChip status={status} />
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
@@ -72,15 +80,15 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
               </div>
             </div>
             <p className="mt-3 text-sm text-muted">
-              Due date: <span className="font-semibold text-fg">{dateLabel(dueDate(thisRow.month))}</span>
+              Due date: <span className="font-semibold text-fg">{dateLabel(rowDue(thisRow))}</span>
               {status === "overdue" && <span className="font-semibold text-danger"> · {FEE_STATUS_LABEL.overdue}</span>}
             </p>
           </Card>
         ) : (
-          <Card className="mt-4 p-4 text-sm text-muted">No fee is set for this month.</Card>
+          <Card className="mt-4 p-4 text-sm text-muted">{plan === "monthly" ? "No fee is set for this month." : "All payments are done. Thank you!"}</Card>
         )}
 
-        {earlier.length > 0 && (
+        {plan === "monthly" && earlier.length > 0 && (
           <Section title={`Earlier months pending · ${rupees(earlierDue)}`}>
             <Card className="divide-y divide-line">
               {earlier.map((r) => (
@@ -89,6 +97,28 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
                   <span className="font-bold text-danger">{rupees(balanceOf(r))}</span>
                 </div>
               ))}
+            </Card>
+          </Section>
+        )}
+
+        {schedule.length > 0 && (
+          <Section title={`Payment plan · ${FEE_PLAN_LABEL[plan]}`}>
+            <Card className="divide-y divide-line">
+              {schedule.map((r) => {
+                const st = feeStatus(r.amount, r.paid, r.month, today, r.due_date);
+                return (
+                  <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-semibold">{r.label ?? monthLabel(r.month)}</p>
+                      <p className="text-xs text-muted">Due {dateLabel(rowDue(r))}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold">{rupees(r.amount)}</p>
+                      <FeeStatusChip status={st} />
+                    </div>
+                  </div>
+                );
+              })}
             </Card>
           </Section>
         )}

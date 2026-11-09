@@ -1,5 +1,6 @@
 "use client";
 
+import { FeePlanFields, type FeePlanInitial } from "./FeePlanFields";
 import { startTransition, useActionState, useMemo, useState } from "react";
 import { AlertCircle, ArrowLeft, ArrowRight, FileText, LoaderCircle, ShieldCheck, Upload } from "lucide-react";
 import { boardName, formatStudentId, sessionLabel } from "@/lib/ids";
@@ -23,6 +24,7 @@ export type FormInitial = {
   guardian_name: string | null;
   email: string | null;
   monthly_fee: number;
+  feePlan: FeePlanInitial;
   mobiles: Partial<Record<GuardianRelation, { mobile: string; name: string | null }>>;
   loginRelation: GuardianRelation | null;
   marksheets: { id: string; year_label: string; file_name: string | null; typed_percentage: number | null; ai: AiCheck; note: string | null }[];
@@ -41,6 +43,8 @@ const STEP1_FIELDS = [
   "guardian_name",
   "email",
   "monthly_fee",
+  "fee_due_day",
+  "fee_schedule",
   "father_mobile",
   "mother_mobile",
   "guardian_mobile",
@@ -274,13 +278,6 @@ export function StudentForm({
                 </select>
               </div>
               <div>
-                <label className="label" htmlFor="monthly_fee">
-                  Monthly fee (₹)
-                </label>
-                <input id="monthly_fee" name="monthly_fee" className="field" inputMode="decimal" defaultValue={initial ? String(initial.monthly_fee) : ""} placeholder="2500" />
-                <Err msg={errors.monthly_fee} />
-              </div>
-              <div>
                 <label className="label" htmlFor="email">
                   Parent&apos;s email (login code, bills and PDFs go here)
                 </label>
@@ -289,6 +286,8 @@ export function StudentForm({
               </div>
             </div>
           </section>
+
+          <FeePlanFields initial={initial?.feePlan ?? null} errors={errors} locked={registered} studentId={initial?.id} />
 
           <section className="rounded-card bg-card p-4 shadow-card">
             <h2 className="text-[15px] font-bold text-navy">Parents and contact numbers</h2>

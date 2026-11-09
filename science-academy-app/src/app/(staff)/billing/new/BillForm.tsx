@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { LoaderCircle, Search, X } from "lucide-react";
 import { billPreview } from "@/lib/billing-calc";
 import { boardName } from "@/lib/ids";
 import { dateLabel, rupees } from "@/lib/format";
-import { createBill, loadBillMonth, searchStudentsForBill, type BillFormState, type MonthInfo, type StudentHit } from "../actions";
+import { createBill, loadBillMonth, openPaymentsFor, searchStudentsForBill, type BillFormState, type MonthInfo, type OpenPayment, type StudentHit } from "../actions";
 
 const MODES = [
   { key: "upi", label: "UPI" },
@@ -40,6 +40,29 @@ export function BillForm({
   const searchSeq = useRef(0);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadSeq = useRef(0);
+  // Open payments of the chosen student (installment plans pick one of these).
+  const [loaded, setLoaded] = useState<{ studentId: string; plan: string; list: OpenPayment[] } | null>(null);
+  const open = loaded && student && loaded.studentId === student.id ? loaded : { plan: "monthly", list: [] as OpenPayment[] };
+
+  useEffect(() => {
+    if (!student) return;
+    let alive = true;
+    openPaymentsFor(student.id).then((r) => {
+      if (!alive) return;
+      setLoaded({ studentId: student.id, plan: r.plan, list: r.open });
+      // Not a monthly plan and nothing open this month: go to the next open payment.
+      if (r.plan !== "monthly" && r.open.length && !r.open.some((o) => o.month.slice(0, 7) === month)) {
+        const next = r.open[0].month.slice(0, 7);
+        setMonth(next);
+        loadMonth(student, next);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+    // Reload only when the student changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.id]);
 
   // Search as the user types.
   function onQuery(text: string) {
@@ -147,12 +170,37 @@ export function BillForm({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label>
-            <span className="label">Fee month</span>
+            <span className="label">{open.plan === "monthly" ? "Fee month" : "Payment (month)"}</span>
             <input type="month" name="month" className="field" value={month} onChange={(e) => {
                 setMonth(e.target.value);
                 loadMonth(student, e.target.value);
               }} required />
           </label>
+          {open.list.length > 0 && (
+            <div className="sm:col-span-2">
+              <span className="label">Open payments (tap to choose)</span>
+              <div className="flex flex-wrap gap-1.5">
+                {open.list.slice(0, 8).map((o) => {
+                  const m = o.month.slice(0, 7);
+                  return (
+                    <button
+                      key={o.month}
+                      type="button"
+                      onClick={() => {
+                        setMonth(m);
+                        loadMonth(student, m);
+                      }}
+                      className={`rounded-full border px-3 py-1 text-[12.5px] font-semibold ${
+                        month === m ? "border-primary bg-primary text-white" : "border-line bg-card text-fg hover:border-primary"
+                      }`}
+                    >
+                      {o.label} · due {dateLabel(o.due)} · {rupees(o.balance)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <label>
             <span className="label">Date of payment</span>
             <input type="date" name="paidOn" className="field" defaultValue={today} max={today} required />

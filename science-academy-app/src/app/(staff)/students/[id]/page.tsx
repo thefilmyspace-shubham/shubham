@@ -6,7 +6,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { batchShort } from "@/lib/batches";
 import { boardName, formatMobile, sessionLabel } from "@/lib/ids";
 import { dateLabel, monthLabel, monthShort, monthStart, rupees, todayIst } from "@/lib/format";
-import { balanceOf, dueDate, feeStatus, FEE_STATUS_LABEL, type FeeStatus } from "@/lib/fees";
+import { balanceOf, dueDate, feeStatus, FEE_PLAN_LABEL, FEE_STATUS_LABEL, rowDue, type FeePlan, type FeeStatus } from "@/lib/fees";
 import { ROLE_LABEL } from "@/lib/permissions";
 import { AI_CHECK_LABEL, AI_CHECK_TONE } from "@/lib/ai/marksheet-compare";
 import { earlierIds, facultyNotes, getStudent, RELATION_LABEL, studentDetails, studentProfileNumbers } from "@/lib/students";
@@ -50,7 +50,7 @@ export default async function StudentProfile({
     studentProfileNumbers(student, today),
     facultyNotes(student.id),
     student.batch_id ? db.from("batches").select("*").eq("id", student.batch_id).maybeSingle<Batch>() : Promise.resolve({ data: null }),
-    seeFees ? db.from("fees_ledger").select("*").eq("student_id", student.id).eq("month", month).maybeSingle<LedgerRow>() : Promise.resolve({ data: null }),
+    seeFees ? db.from("fees_ledger").select("*").eq("student_id", student.id).order("month") : Promise.resolve({ data: null }),
   ]);
   const batch = batchRes.data as Batch | null;
   const earlier = earlierIds(details.history, student.code);
@@ -65,10 +65,17 @@ export default async function StudentProfile({
     : "You see everything on this page, including contact numbers and fees.";
 
   const { thisMonth, byMonth } = numbers.attendance;
-  const ledger = ledgerRes.data as LedgerRow | null;
+  // Monthly plan: this month's row. Other plans: the next payment still open.
+  const plan: FeePlan = (student.fee_plan as FeePlan | undefined) ?? "monthly";
+  const rows = ((ledgerRes.data ?? []) as LedgerRow[]).map((r) => ({ ...r, amount: Number(r.amount), paid: Number(r.paid) }));
+  const open = rows.filter((r) => balanceOf(r) > 0).sort((a, b) => rowDue(a).localeCompare(rowDue(b)));
+  const ledger =
+    plan === "monthly" ? (rows.find((r) => r.month === month) ?? null) : (open.find((r) => r.month >= month) ?? open[0] ?? rows[rows.length - 1] ?? null);
+  const feeMonth = ledger?.month ?? month;
   const feeAmount = ledger ? Number(ledger.amount) : Number(student.monthly_fee);
   const feePaid = ledger ? Number(ledger.paid) : 0;
-  const status = feeStatus(feeAmount, feePaid, month, today);
+  const feeDue = ledger ? rowDue(ledger) : dueDate(month, student.fee_due_day ?? 5);
+  const status = feeStatus(feeAmount, feePaid, feeMonth, today, feeDue);
 
   return (
     <>
@@ -262,7 +269,9 @@ export default async function StudentProfile({
                 <Card className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-xs text-muted">{monthLabel(month)} · due {dateLabel(dueDate(month))}</p>
+                      <p className="text-xs text-muted">
+                        {plan === "monthly" ? monthLabel(feeMonth) : `${FEE_PLAN_LABEL[plan]}${ledger?.label ? ` · ${ledger.label}` : ""}`} · due {dateLabel(feeDue)}
+                      </p>
                       <p className="mt-1 text-xl font-extrabold">{rupees(feeAmount)}</p>
                       <p className="text-xs text-muted">
                         Paid {rupees(feePaid)} · Balance {rupees(balanceOf({ amount: feeAmount, paid: feePaid }))}

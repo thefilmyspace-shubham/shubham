@@ -2,8 +2,8 @@ import Link from "next/link";
 import { BellRing, ChevronLeft, ChevronRight, IndianRupee, Plus, Search } from "lucide-react";
 import { can, canSeeBatch, requirePermission } from "@/lib/auth";
 import { ensureLedgerForMonth, feeListForMonth } from "@/lib/fees-data";
-import { FEE_STATUS_LABEL, dueDate, type FeeStatus } from "@/lib/fees";
-import { addMonths, dateLabel, monthLabel, monthStart, rupees, todayIst } from "@/lib/format";
+import { FEE_STATUS_LABEL, type FeeStatus } from "@/lib/fees";
+import { addMonths, monthLabel, monthStart, rupees, todayIst } from "@/lib/format";
 import { boardName, parseStudentId } from "@/lib/ids";
 import { Card, Empty, FilterChips, Page, PageHeader, Section, Stat, Table, Td } from "@/components/ui";
 import { Meter } from "@/components/BarChart";
@@ -69,7 +69,7 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
     <>
       <PageHeader
         title="Fees"
-        subtitle={`${monthLabel(month)} · due ${dateLabel(dueDate(month))}`}
+        subtitle={`${monthLabel(month)} · each student's own due date`}
         right={
           canBill ? (
             <Link href="/billing/new" className="btn btn-primary">

@@ -193,7 +193,7 @@ async function buildEntry(studentId: string, today: string, viewer: StaffViewer)
     studentId,
     oldestMonth: oldest,
     totalDue: due.total,
-    daysLate: due.months[0] ? daysLate(oldest, today) : 0,
+    daysLate: due.months[0] ? daysLate(oldest, today, due.dues[0]) : 0,
     attempts: await attemptsSince(studentId, oldest),
     lastOutcome: null,
     followUpDate: null,

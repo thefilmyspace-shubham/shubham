@@ -1,18 +1,28 @@
 import "server-only";
 import QRCode from "qrcode";
 import { adminClient } from "./supabase/admin";
-import { feeStatus, balanceOf, type FeeStatus } from "./fees";
+import { feeStatus, balanceOf, dueDate, type FeeStatus } from "./fees";
 import { addMonths, monthStart } from "./format";
 import { orderCallList, overdueSummary, type CallItem } from "./billing-calc";
 import type { CallLogRow, CallOutcome, Guardian, Invoice, LedgerRow, Student } from "./types";
 
-type StudentLite = Pick<Student, "id" | "name" | "code" | "board" | "current_class" | "batch_id" | "monthly_fee" | "email" | "status">;
-const STUDENT_COLS = "id, name, code, board, current_class, batch_id, monthly_fee, email, status";
+type StudentLite = Pick<Student, "id" | "name" | "code" | "board" | "current_class" | "batch_id" | "monthly_fee" | "email" | "status" | "fee_plan" | "fee_due_day">;
+// "*" so the fee plan columns come along once their migration has run (and nothing breaks before).
+const STUDENT_COLS = "*";
 
 const num = (v: unknown) => Number(v ?? 0);
 
 function toLedger(r: Record<string, unknown>): LedgerRow {
-  return { id: String(r.id), student_id: String(r.student_id), month: String(r.month), amount: num(r.amount), paid: num(r.paid) };
+  return {
+    id: String(r.id),
+    student_id: String(r.student_id),
+    month: String(r.month),
+    amount: num(r.amount),
+    paid: num(r.paid),
+    due_date: r.due_date ? String(r.due_date) : null,
+    label: r.label ? String(r.label) : null,
+    installment_no: r.installment_no === null || r.installment_no === undefined ? null : Number(r.installment_no),
+  };
 }
 
 /**
@@ -22,12 +32,18 @@ function toLedger(r: Record<string, unknown>): LedgerRow {
 export async function ensureLedgerForMonth(month: string): Promise<number> {
   const m = monthStart(month);
   const db = adminClient();
-  const { data: students } = await db.from("students").select("id, monthly_fee").eq("status", "active").gt("monthly_fee", 0);
-  const rows = ((students ?? []) as { id: string; monthly_fee: number }[]).map((s) => ({
-    student_id: s.id,
-    month: m,
-    amount: num(s.monthly_fee),
-  }));
+  // Monthly-plan students only: one-time and installment plans have their rows made at registration.
+  // select("*") also works before the fee plans migration (then everyone is monthly, due on the 5th).
+  const { data: students } = await db.from("students").select("*").eq("status", "active").gt("monthly_fee", 0);
+  const list = (students ?? []) as { id: string; monthly_fee: number; fee_plan?: string; fee_due_day?: number }[];
+  const rows = list
+    .filter((s) => (s.fee_plan ?? "monthly") === "monthly")
+    .map((s) => ({
+      student_id: s.id,
+      month: m,
+      amount: num(s.monthly_fee),
+      ...(s.fee_due_day !== undefined ? { due_date: dueDate(m, s.fee_due_day) } : {}),
+    }));
   if (!rows.length) return 0;
   let made = 0;
   for (let i = 0; i < rows.length; i += 500) {
@@ -60,7 +76,7 @@ export async function feeListForMonth(month: string, today: string): Promise<Fee
     .map((r) => ({
       student: students.get(r.student_id)!,
       ledger: r,
-      status: feeStatus(r.amount, r.paid, r.month, today),
+      status: feeStatus(r.amount, r.paid, r.month, today, r.due_date),
       balance: balanceOf(r),
     }))
     .sort((a, b) => a.student.name.localeCompare(b.student.name));
@@ -122,7 +138,7 @@ export async function studentFeeDetail(studentId: string, today: string): Promis
     student: { ...student, monthly_fee: num(student.monthly_fee) },
     ledger: ((ledger ?? []) as Record<string, unknown>[]).map(toLedger).map((r) => ({
       ...r,
-      status: feeStatus(r.amount, r.paid, r.month, today),
+      status: feeStatus(r.amount, r.paid, r.month, today, r.due_date),
       balance: balanceOf(r),
     })),
     invoices: ((invoices ?? []) as Invoice[]).map(normalizeInvoice),
@@ -259,7 +275,7 @@ export async function attemptsSince(studentId: string, since: string): Promise<n
 }
 
 /** Total unpaid (any month up to now) and the oldest unpaid month, for reminders. */
-export async function outstandingFor(studentId: string, today: string): Promise<{ total: number; months: string[] }> {
+export async function outstandingFor(studentId: string, today: string): Promise<{ total: number; months: string[]; dues: (string | null)[] }> {
   const { data } = await adminClient()
     .from("fees_ledger")
     .select("*")
@@ -267,7 +283,7 @@ export async function outstandingFor(studentId: string, today: string): Promise<
     .lte("month", monthStart(today))
     .order("month");
   const rows = ((data ?? []) as Record<string, unknown>[]).map(toLedger).filter((r) => r.amount - r.paid > 0);
-  return { total: rows.reduce((s, r) => s + (r.amount - r.paid), 0), months: rows.map((r) => r.month) };
+  return { total: rows.reduce((s, r) => s + (r.amount - r.paid), 0), months: rows.map((r) => r.month), dues: rows.map((r) => r.due_date ?? null) };
 }
 
 /** Names of staff by user id, for "called by" / "made by". */

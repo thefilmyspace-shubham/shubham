@@ -13,26 +13,32 @@ export const FEE_STATUS_LABEL: Record<FeeStatus, string> = {
   overdue: "Overdue",
 };
 
-/** YYYY-MM-05 for a YYYY-MM-01. */
-export function dueDate(month: string): string {
-  return `${month.slice(0, 8)}${String(DUE_DAY).padStart(2, "0")}`;
+/** YYYY-MM-DD for a YYYY-MM-01 and a due day (default the 5th). */
+export function dueDate(month: string, day: number = DUE_DAY): string {
+  return `${month.slice(0, 8)}${String(day).padStart(2, "0")}`;
+}
+
+/** A fee row's own due date; older rows without one fall back to the 5th of their month. */
+export function rowDue(row: { month: string; due_date?: string | null }): string {
+  return row.due_date ? row.due_date.slice(0, 10) : dueDate(row.month);
 }
 
 /**
  * Paid: nothing left. Partial: some paid, the rest not yet late.
  * Overdue: money left after the due date (partial payments included).
  * Pending: nothing paid, not yet late.
+ * `due` is the row's own due date (else the 5th of the month).
  */
-export function feeStatus(amount: number, paid: number, month: string, today: string): FeeStatus {
+export function feeStatus(amount: number, paid: number, month: string, today: string, due?: string | null): FeeStatus {
   const balance = Number(amount) - Number(paid);
   if (balance <= 0) return "paid";
-  if (today > dueDate(month)) return "overdue";
+  if (today > (due ? due.slice(0, 10) : dueDate(month))) return "overdue";
   return Number(paid) > 0 ? "partial" : "pending";
 }
 
 /** Days late after the due date (0 when not late). */
-export function daysLate(month: string, today: string): number {
-  return Math.max(0, daysBetween(dueDate(month), today));
+export function daysLate(month: string, today: string, due?: string | null): number {
+  return Math.max(0, daysBetween(due ? due.slice(0, 10) : dueDate(month), today));
 }
 
 export function balanceOf(row: { amount: number; paid: number }): number {
@@ -82,4 +88,64 @@ export function rupeesInWords(amount: number): string {
   if (rest) parts.push(three(rest));
   const text = parts.join(" ");
   return `${text.charAt(0).toUpperCase()}${text.slice(1)} rupees only`;
+}
+
+// ---------------------------------------------------------------------------
+// Fee plans (chosen at registration)
+// ---------------------------------------------------------------------------
+
+export type FeePlan = "monthly" | "one_time" | "installments" | "manual";
+
+export const FEE_PLAN_LABEL: Record<FeePlan, string> = {
+  monthly: "Monthly",
+  one_time: "One time (full payment)",
+  installments: "Installments",
+  manual: "Manual schedule",
+};
+
+export type Installment = { due_date: string; amount: number; label: string };
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Adds months to a YYYY-MM-DD, keeping the day (capped at the month's end). */
+export function addMonthsToDate(date: string, n: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const total = y * 12 + (m - 1) + n;
+  const ny = Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  const last = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
+  return `${ny}-${String(nm).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
+}
+
+/**
+ * Splits a total into equal installments (whole rupees; the first one takes
+ * the remainder), the first on `firstDue`, then every `gapMonths` months.
+ */
+export function makeInstallments(total: number, count: number, firstDue: string, gapMonths = 1): Installment[] {
+  const n = Math.max(1, Math.min(24, Math.floor(count)));
+  const base = Math.floor(total / n);
+  const first = r2(total - base * (n - 1));
+  return Array.from({ length: n }, (_, i) => ({
+    due_date: addMonthsToDate(firstDue, i * Math.max(1, gapMonths)),
+    amount: i === 0 ? first : base,
+    label: `Installment ${i + 1} of ${n}`,
+  }));
+}
+
+/** Checks a schedule before saving. One installment per month (fee rows are kept per month). */
+export function checkSchedule(rows: Installment[]): string | null {
+  if (!rows.length) return "Add at least one payment.";
+  const months = new Set<string>();
+  for (const [i, r] of rows.entries()) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.due_date)) return `Payment ${i + 1}: choose a date.`;
+    if (!(Number(r.amount) > 0)) return `Payment ${i + 1}: enter the amount.`;
+    const m = r.due_date.slice(0, 7);
+    if (months.has(m)) return "Keep one payment per month (two payments fall in the same month).";
+    months.add(m);
+  }
+  return null;
+}
+
+export function scheduleTotal(rows: { amount: number }[]): number {
+  return r2(rows.reduce((a, r) => a + Number(r.amount || 0), 0));
 }
