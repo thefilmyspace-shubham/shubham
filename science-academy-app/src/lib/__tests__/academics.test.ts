@@ -132,3 +132,27 @@ describe("attendance", () => {
     expect(f.streak).toBe(3);
   });
 });
+
+import { parentTestView } from "../academics";
+
+describe("parent rank view", () => {
+  const rows = [
+    { studentId: "a", score: 90, absent: false },
+    { studentId: "b", score: 80, absent: false },
+    { studentId: "c", score: 80, absent: false },
+    { studentId: "d", score: 70, absent: false },
+    { studentId: "e", score: 60, absent: false },
+    { studentId: "f", score: 50, absent: false },
+    { studentId: "g", score: null, absent: true },
+  ];
+  it("gives the child's rank out of those who appeared", () => {
+    const v = parentTestView(rows, "c", 100);
+    expect(v.rank).toBe(2);
+    expect(v.outOf).toBe(6);
+    expect(v.highest).toBe(90);
+    expect(v.top.map((t) => t.studentId)).toEqual(["a", "b", "c", "d", "e"]);
+  });
+  it("absent child has no rank", () => {
+    expect(parentTestView(rows, "g", 100).rank).toBeNull();
+  });
+});

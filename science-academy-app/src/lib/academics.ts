@@ -225,3 +225,27 @@ export async function facultyNames(): Promise<Map<string, string>> {
 export function testTitle(t: Pick<Test, "board" | "class" | "name">): string {
   return `${boardName(t.board as Board)} ${t.class} · ${t.name}`;
 }
+
+export type ParentTestView = {
+  /** The child's rank among those who took the test; null if absent or no score. */
+  rank: number | null;
+  /** How many students were ranked (appeared with a score). */
+  outOf: number;
+  classAverage: number | null;
+  highest: number | null;
+  /** Top five (ties included up to rank 5), best first. */
+  top: { studentId: string; score: number; rank: number }[];
+};
+
+/** What a parent sees for one test: their child's rank, class numbers and the top five. */
+export function parentTestView(rows: ScoreRow[], childId: string, max: number | null): ParentTestView {
+  const ranked = rankScores(rows);
+  const summary = classSummary(rows, max);
+  return {
+    rank: ranked.find((r) => r.studentId === childId)?.rank ?? null,
+    outOf: ranked.length,
+    classAverage: summary.average,
+    highest: summary.highest,
+    top: ranked.filter((r) => r.rank <= 5),
+  };
+}

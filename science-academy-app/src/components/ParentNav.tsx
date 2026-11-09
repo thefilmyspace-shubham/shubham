@@ -7,7 +7,7 @@ import { CalendarDays, IndianRupee, MessagesSquare, Trophy } from "lucide-react"
 const TABS = [
   { href: "/parent", label: "Group", icon: MessagesSquare },
   { href: "/parent/fees", label: "Fees", icon: IndianRupee },
-  { href: "/parent/marks", label: "Marks", icon: Trophy },
+  { href: "/parent/marks", label: "Marks & Rank", icon: Trophy },
   { href: "/parent/timetable", label: "Timetable", icon: CalendarDays },
 ];
 
