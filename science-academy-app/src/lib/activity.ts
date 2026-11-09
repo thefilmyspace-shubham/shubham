@@ -49,6 +49,7 @@ export const ACTION_LABEL: Record<string, string> = {
   "test.delete": "Deleted a test",
   "timetable.save": "Changed the timetable",
   "group.post": "Posted in a batch group",
+  "group.delete": "Deleted a group message",
   "access.role": "Changed role access",
   "access.reset": "Reset access to defaults",
   "access.person": "Changed a person's access",

@@ -2,8 +2,8 @@
 
 import { getViewer, staffForApi } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
-import { groupFor, batchParentIds, markGroupRead } from "@/lib/groups-db";
-import { FEE_BLOCKED_ERROR, MESSAGE_TYPE_LABEL, looksLikeFeeMessage } from "@/lib/groups";
+import { groupFor, batchParentIds, markGroupRead, messageReaders, type Reader } from "@/lib/groups-db";
+import { FEE_BLOCKED_ERROR, MESSAGE_TYPE_LABEL, canDeleteMessage, looksLikeFeeMessage } from "@/lib/groups";
 import { saveFile } from "@/lib/storage";
 import { notify } from "@/lib/notify";
 import { logActivity } from "@/lib/activity";
@@ -90,4 +90,45 @@ export async function markRead(groupId: string): Promise<void> {
   const group = await groupFor(viewer, groupId);
   if (!group) return;
   await markGroupRead(viewer, group.id);
+}
+
+/** Who has seen a message (staff only). */
+export async function getSeenBy(messageId: string): Promise<{ seen: Reader[]; notSeen: Reader[]; audience: "parents" | "staff" } | null> {
+  const viewer = await staffForApi();
+  if (!viewer) return null;
+  return messageReaders(viewer, messageId);
+}
+
+/**
+ * Deletes a message for everyone: the sender can delete their own, Admin can
+ * delete any. Its file and the parents' notifications about it go too, and the
+ * deletion is written to the activity log (with the text, for the record).
+ */
+export async function deleteMessage(messageId: string): Promise<SendResult> {
+  const viewer = await staffForApi();
+  if (!viewer) return { ok: false, error: "Please log in again." };
+  if (!/^[0-9a-f-]{36}$/i.test(messageId)) return { ok: false, error: "Message not found." };
+  const db = adminClient();
+  const { data: msg } = await db.from("messages").select("*").eq("id", messageId).maybeSingle<{
+    id: string; group_id: string; sender_id: string; type: MessageType; body: string; attachment_path: string | null; attachment_name: string | null; created_at: string;
+  }>();
+  if (!msg) return { ok: false, error: "This message was already deleted." };
+  const group = await groupFor(viewer, msg.group_id);
+  if (!group) return { ok: false, error: "This group is not available." };
+  if (!canDeleteMessage(viewer.user.role, msg.sender_id === viewer.user.id)) {
+    return { ok: false, error: "You can delete only your own messages. Admin can delete any message." };
+  }
+  const { error } = await db.from("messages").delete().eq("id", msg.id);
+  if (error) return { ok: false, error: "Could not delete. Please try again." };
+  if (msg.attachment_path) await db.storage.from("attachments").remove([msg.attachment_path]).catch(() => null);
+  await db.from("notifications").delete().eq("dedupe_key", `post-${msg.id}`);
+  await logActivity(viewer, "group.delete", { type: "message", id: msg.id }, {
+    group: group.name,
+    sent_by: msg.sender_id === viewer.user.id ? "self" : msg.sender_id,
+    sent_at: msg.created_at,
+    type: msg.type,
+    text: msg.body.slice(0, 300),
+    file: msg.attachment_name,
+  });
+  return { ok: true };
 }

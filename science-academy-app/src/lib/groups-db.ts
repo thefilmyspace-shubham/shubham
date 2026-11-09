@@ -3,7 +3,7 @@ import { adminClient } from "./supabase/admin";
 import { childrenOf, type Viewer } from "./auth";
 import { allBatches, batchMap } from "./batches";
 import { ensureParentUser } from "./notify";
-import { seenSummary, staffCanPost, staffCanRead, tickState } from "./groups";
+import { canDeleteMessage, seenSummary, staffCanPost, staffCanRead, tickState } from "./groups";
 import type { AppUser, Batch, Group, Message } from "./types";
 
 export type GroupView = Group & { batch: Batch | null; canPost: boolean };
@@ -127,6 +127,7 @@ export type ChatMessage = Message & {
   mine: boolean;
   ticks: 1 | 2 | 3 | null;
   seen: { seen: number; total: number } | null;
+  canDelete: boolean;
 };
 
 /** The latest messages of a group, oldest first, with read info for staff. */
@@ -172,6 +173,7 @@ export async function loadChat(viewer: Viewer, group: GroupView, limit = 200): P
       mine,
       ticks: isStaff && mine && group.kind !== "batch" ? tickState([...r].filter((id) => others.includes(id)).length, others.length) : null,
       seen: isStaff && group.kind === "batch" ? seenSummary(r, parents) : null,
+      canDelete: canDeleteMessage(viewer.user.role, mine),
     };
   });
 }
@@ -190,4 +192,63 @@ export async function markGroupRead(viewer: Viewer, groupId: string): Promise<vo
     .map((m) => ({ message_id: m.id, user_id: viewer.user.id }));
   if (!rows.length) return;
   await db.from("message_reads").upsert(rows, { onConflict: "message_id,user_id", ignoreDuplicates: true });
+}
+
+export type Reader = { name: string; detail: string; at: string | null };
+
+/**
+ * Who has seen a message and who has not yet (staff only). Batch groups list
+ * the batch's parents with their children's names; staff groups list the staff
+ * who can read the group.
+ */
+export async function messageReaders(
+  viewer: Viewer,
+  messageId: string,
+): Promise<{ seen: Reader[]; notSeen: Reader[]; audience: "parents" | "staff" } | null> {
+  if (viewer.user.role === "parent" || !/^[0-9a-f-]{36}$/i.test(messageId)) return null;
+  const db = adminClient();
+  const { data: msg } = await db.from("messages").select("id, group_id, sender_id").eq("id", messageId).maybeSingle<{ id: string; group_id: string; sender_id: string }>();
+  if (!msg) return null;
+  const group = await groupFor(viewer, msg.group_id);
+  if (!group) return null;
+
+  const { data: reads } = await db.from("message_reads").select("user_id, read_at").eq("message_id", msg.id);
+  const readAt = new Map(((reads ?? []) as { user_id: string; read_at: string }[]).map((r) => [r.user_id, r.read_at]));
+
+  let audience: string[];
+  const detail = new Map<string, string>();
+  if (group.kind === "batch" && group.batch_id) {
+    audience = await batchParentIds(group.batch_id);
+    // Child names for each parent login in this batch.
+    const users = await usersById(audience);
+    const mobiles = [...users.values()].map((u) => u.mobile);
+    const { data: links } = await db
+      .from("guardians")
+      .select("mobile, students!inner(name, batch_id, status)")
+      .eq("is_login_number", true)
+      .in("mobile", mobiles.length ? mobiles : ["-"])
+      .eq("students.batch_id", group.batch_id)
+      .eq("students.status", "active");
+    const kids = new Map<string, string[]>();
+    for (const l of (links ?? []) as unknown as { mobile: string; students: { name: string } | { name: string }[] }[]) {
+      const names = Array.isArray(l.students) ? l.students.map((x) => x.name) : [l.students.name];
+      kids.set(l.mobile, [...(kids.get(l.mobile) ?? []), ...names]);
+    }
+    for (const u of users.values()) detail.set(u.id, kids.get(u.mobile)?.length ? `Parent of ${kids.get(u.mobile)!.join(", ")}` : "Parent");
+  } else {
+    audience = await staffAudience(group.kind);
+  }
+  audience = audience.filter((id) => id !== msg.sender_id);
+  const people = await usersById(audience);
+  const row = (id: string): Reader => {
+    const u = people.get(id);
+    return {
+      name: u?.name ?? "Unknown",
+      detail: detail.get(id) ?? (u?.staff_id ? `${u.staff_id}` : ""),
+      at: readAt.get(id) ?? null,
+    };
+  };
+  const seen = audience.filter((id) => readAt.has(id)).map(row).sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""));
+  const notSeen = audience.filter((id) => !readAt.has(id)).map(row).sort((a, b) => a.name.localeCompare(b.name));
+  return { seen, notSeen, audience: group.kind === "batch" ? "parents" : "staff" };
 }

@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, CheckCheck, Eye, FileText, Info, LoaderCircle, Lock, Paperclip, Send, X } from "lucide-react";
+import { AlertTriangle, Check, CheckCheck, Eye, FileText, Info, LoaderCircle, Lock, MoreVertical, Paperclip, Send, Trash2, X } from "lucide-react";
 import { browserClient } from "@/lib/supabase/browser";
-import { dayLabel, timeLabel, todayIst } from "@/lib/format";
+import { dateTimeLabel, dayLabel, timeLabel, todayIst } from "@/lib/format";
 import { MESSAGE_TYPE_LABEL, POST_TYPES, looksLikeFeeMessage, FEE_BLOCKED_ERROR } from "@/lib/groups";
-import type { ChatMessage } from "@/lib/groups-db";
+import type { ChatMessage, Reader } from "@/lib/groups-db";
 import type { MessageType } from "@/lib/types";
-import { markRead, sendMessage } from "./actions";
+import { deleteMessage, getSeenBy, markRead, sendMessage } from "./actions";
 
 type Props = {
   groupId: string;
@@ -19,6 +19,8 @@ type Props = {
   showSenderTag?: boolean;
   /** false: no read-only bar at the bottom (the parent app shows it at the top). */
   bottomBar?: boolean;
+  /** Tap a message for "Seen by" and Delete (staff only). */
+  actions?: boolean;
 };
 
 const TYPE_TONE: Record<MessageType, string> = {
@@ -28,7 +30,7 @@ const TYPE_TONE: Record<MessageType, string> = {
   test: "bg-violet-soft text-violet",
 };
 
-export function ChatRoom({ groupId, messages, composer, readOnlyText, showSenderTag = true, bottomBar = true }: Props) {
+export function ChatRoom({ groupId, messages, composer, readOnlyText, showSenderTag = true, bottomBar = true, actions = true }: Props) {
   const router = useRouter();
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -38,6 +40,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [live, setLive] = useState(false);
+  const [menu, setMenu] = useState<ChatMessage | null>(null);
 
   // New messages: realtime (RLS lets readers of this group see inserts); polling if that is not connected.
   useEffect(() => {
@@ -45,6 +48,8 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
     const channel = supabase
       .channel(`group-${groupId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `group_id=eq.${groupId}` }, () => router.refresh())
+      // Deletes carry no group id, so any delete refreshes (it is rare).
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages" }, () => router.refresh())
       .subscribe((status) => setLive(status === "SUBSCRIBED"));
     return () => {
       void supabase.removeChannel(channel);
@@ -108,12 +113,22 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
                   </span>
                 </div>
               )}
-              <Bubble m={m} showSenderTag={showSenderTag} />
+              <Bubble m={m} showSenderTag={showSenderTag} onOpen={actions ? () => setMenu(m) : undefined} />
             </div>
           );
         })}
         <div ref={endRef} />
       </div>
+      {menu && (
+        <MessageSheet
+          m={menu}
+          onClose={() => setMenu(null)}
+          onDeleted={() => {
+            setMenu(null);
+            router.refresh();
+          }}
+        />
+      )}
 
       {composer ? (
         <form onSubmit={submit} className="safe-bottom sticky bottom-0 z-10 border-t border-line bg-card px-3 pt-2 pb-2 lg:rounded-b-card">
@@ -200,11 +215,21 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
   );
 }
 
-function Bubble({ m, showSenderTag }: { m: ChatMessage; showSenderTag: boolean }) {
+function Bubble({ m, showSenderTag, onOpen }: { m: ChatMessage; showSenderTag: boolean; onOpen?: () => void }) {
   return (
-    <div className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
+    <div className={`group flex items-center gap-1 ${m.mine ? "justify-end" : "justify-start"}`}>
+      {onOpen && m.mine && <MenuButton onOpen={onOpen} />}
       <div
-        className={`max-w-[85%] rounded-2xl px-3 pt-2 pb-1.5 shadow-card lg:max-w-[70%] ${
+        onClick={(e) => {
+          if (!onOpen || (e.target as HTMLElement).closest("a")) return;
+          onOpen();
+        }}
+        onContextMenu={(e) => {
+          if (!onOpen) return;
+          e.preventDefault();
+          onOpen();
+        }}
+        className={`max-w-[85%] rounded-2xl px-3 pt-2 pb-1.5 shadow-card lg:max-w-[70%] ${onOpen ? "cursor-pointer select-text" : ""} ${
           m.mine ? "rounded-br-md bg-bubble-out" : "rounded-bl-md bg-bubble-in"
         }`}
       >
@@ -242,6 +267,148 @@ function Bubble({ m, showSenderTag }: { m: ChatMessage; showSenderTag: boolean }
           {m.ticks === 2 && <CheckCheck size={13} aria-label="Seen by some" />}
           {m.ticks === 3 && <CheckCheck size={13} className="text-seen" aria-label="Seen by everyone" />}
         </div>
+      </div>
+      {onOpen && !m.mine && <MenuButton onOpen={onOpen} />}
+    </div>
+  );
+}
+
+function MenuButton({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Message options: seen by, delete"
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-faint opacity-60 hover:bg-card hover:text-fg lg:opacity-0 lg:group-hover:opacity-100"
+    >
+      <MoreVertical size={16} />
+    </button>
+  );
+}
+
+type SeenBy = { seen: Reader[]; notSeen: Reader[]; audience: "parents" | "staff" };
+
+/** Tapped message: who has seen it, and Delete (own messages; Admin any). */
+function MessageSheet({ m, onClose, onDeleted }: { m: ChatMessage; onClose: () => void; onDeleted: () => void }) {
+  const [data, setData] = useState<SeenBy | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  useEffect(() => {
+    let alive = true;
+    getSeenBy(m.id)
+      .then((d) => alive && setData(d))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [m.id]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const who = data?.audience === "parents" ? "parents" : "people";
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/35 lg:items-center" onClick={onClose} role="presentation">
+      <div
+        role="dialog"
+        aria-label="Message details"
+        onClick={(e) => e.stopPropagation()}
+        className="safe-bottom flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-3xl bg-card shadow-sheet lg:rounded-3xl"
+      >
+        <div className="flex items-start gap-3 border-b border-line px-5 pt-4 pb-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-bold text-muted">
+              {m.mine ? "You" : m.senderName} · {dateTimeLabel(m.created_at)}
+            </p>
+            <p className="mt-0.5 line-clamp-2 text-[14px] text-fg">{m.body || m.attachment_name || "File"}</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-full hover:bg-field" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+          {loading ? (
+            <p className="flex items-center gap-2 py-6 text-sm text-muted">
+              <LoaderCircle size={16} className="animate-spin" /> Loading who has seen it…
+            </p>
+          ) : !data ? (
+            <p className="py-6 text-sm text-muted">Seen details are not available.</p>
+          ) : (
+            <>
+              <p className="flex items-center gap-1.5 text-[13px] font-bold text-navy">
+                <CheckCheck size={15} className="text-seen" /> Seen by {data.seen.length} of {data.seen.length + data.notSeen.length} {who}
+              </p>
+              <ul className="mt-2 divide-y divide-line">
+                {data.seen.map((r, i) => (
+                  <li key={`s${i}`} className="flex items-center justify-between gap-3 py-2 text-[13.5px]">
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{r.name}</span>
+                      {r.detail && <span className="block truncate text-[12px] text-muted">{r.detail}</span>}
+                    </span>
+                    {r.at && <span className="shrink-0 text-[11.5px] text-faint">{dateTimeLabel(r.at)}</span>}
+                  </li>
+                ))}
+                {data.seen.length === 0 && <li className="py-2 text-[13px] text-muted">Nobody has seen it yet.</li>}
+              </ul>
+              {data.notSeen.length > 0 && (
+                <>
+                  <p className="mt-4 flex items-center gap-1.5 text-[13px] font-bold text-muted">
+                    <Check size={15} /> Not seen yet ({data.notSeen.length})
+                  </p>
+                  <ul className="mt-2 divide-y divide-line">
+                    {data.notSeen.map((r, i) => (
+                      <li key={`n${i}`} className="py-2 text-[13.5px]">
+                        <span className="block truncate font-semibold text-fg/80">{r.name}</span>
+                        {r.detail && <span className="block truncate text-[12px] text-muted">{r.detail}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+        {m.canDelete && (
+          <div className="border-t border-line px-5 py-3">
+            {error && <p className="mb-2 text-[12.5px] font-semibold text-danger">{error}</p>}
+            {!confirm ? (
+              <button type="button" onClick={() => setConfirm(true)} className="btn btn-danger w-full">
+                <Trash2 size={16} /> Delete message
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-[13px] font-semibold text-fg">Delete this message for everyone? This cannot be undone.</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setConfirm(false)} className="btn btn-ghost flex-1" disabled={pending}>
+                    Keep it
+                  </button>
+                  <button
+                    type="button"
+                    className="btn flex-1 bg-danger text-white"
+                    disabled={pending}
+                    onClick={() =>
+                      start(async () => {
+                        const res = await deleteMessage(m.id);
+                        if (!res.ok) setError(res.error);
+                        else onDeleted();
+                      })
+                    }
+                  >
+                    {pending ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />} Delete for everyone
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

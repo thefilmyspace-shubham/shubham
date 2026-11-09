@@ -72,3 +72,15 @@ describe("group rules", () => {
     expect(tickState(5, 5)).toBe(3);
   });
 });
+
+import { canDeleteMessage } from "../groups";
+
+describe("deleting group messages", () => {
+  it("own message, or any for Admin; never parents", () => {
+    expect(canDeleteMessage("reception", true)).toBe(true);
+    expect(canDeleteMessage("reception", false)).toBe(false);
+    expect(canDeleteMessage("management", false)).toBe(false);
+    expect(canDeleteMessage("admin", false)).toBe(true);
+    expect(canDeleteMessage("parent", true)).toBe(false);
+  });
+});

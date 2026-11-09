@@ -38,7 +38,7 @@ export default async function ParentGroupPage({ searchParams }: { searchParams: 
       </div>
       <div className="mx-auto max-w-lg">
         {group ? (
-          <ChatRoom groupId={group.id} messages={messages} composer={null} bottomBar={false} showSenderTag={false} />
+          <ChatRoom groupId={group.id} messages={messages} composer={null} bottomBar={false} showSenderTag={false} actions={false} />
         ) : (
           <div className="px-4 pt-6">
             <Empty icon={MessagesSquare}>{child.name} is not in a batch yet, so there are no batch posts.</Empty>

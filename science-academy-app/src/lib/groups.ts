@@ -73,3 +73,9 @@ export function tickState(readers: number, audience: number): 1 | 2 | 3 {
   if (readers <= 0) return 1;
   return audience > 0 && readers >= audience ? 3 : 2;
 }
+
+/** Delete: your own message, or any message for Admin. Parents never delete. */
+export function canDeleteMessage(role: Who["role"], isSender: boolean): boolean {
+  if (role === "parent") return false;
+  return isSender || role === "admin";
+}
