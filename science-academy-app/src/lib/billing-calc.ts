@@ -1,0 +1,101 @@
+// Pure billing and call-list logic (no database), shared by server pages,
+// client forms and tests.
+
+import { dueDate, daysLate } from "./fees";
+import type { CallOutcome } from "./types";
+
+export type BillPreview = {
+  fee: number;
+  paidBefore: number;
+  balanceBefore: number;
+  received: number;
+  balanceAfter: number;
+  error: string | null;
+};
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** What the bill will say, and why it cannot be made (if so). */
+export function billPreview(fee: number, paidBefore: number, received: number): BillPreview {
+  const f = round2(Number(fee) || 0);
+  const p = round2(Number(paidBefore) || 0);
+  const r = round2(Number(received) || 0);
+  const balanceBefore = Math.max(0, round2(f - p));
+  let error: string | null = null;
+  if (f <= 0) error = "Enter the fee amount.";
+  else if (f < p) error = `Fee cannot be less than what is already paid (${p}).`;
+  else if (balanceBefore === 0) error = "This month is already fully paid.";
+  else if (r <= 0) error = "Enter the amount received now.";
+  else if (r > balanceBefore) error = `Amount received is more than the balance (${balanceBefore}).`;
+  return { fee: f, paidBefore: p, balanceBefore, received: r, balanceAfter: Math.max(0, round2(balanceBefore - r)), error };
+}
+
+export type PaymentModeInput = "upi" | "bank" | "cash";
+
+export function validModes(modes: string[]): modes is PaymentModeInput[] {
+  return modes.length > 0 && modes.every((m) => m === "upi" || m === "bank" || m === "cash");
+}
+
+export type CallItem = {
+  studentId: string;
+  /** Oldest unpaid month (YYYY-MM-01). */
+  oldestMonth: string;
+  totalDue: number;
+  daysLate: number;
+  attempts: number;
+  lastOutcome: CallOutcome | null;
+  followUpDate: string | null;
+};
+
+export type CallBucket = "promised_due" | "escalated" | "call" | "promised_later";
+
+/**
+ * Which part of the call list a student belongs in:
+ * a promise that is due today or has passed floats to the top; escalated
+ * ones wait for Admin; a promise for a later date waits at the bottom.
+ */
+export function callBucket(item: CallItem, today: string): CallBucket {
+  if (item.lastOutcome === "promised_date" && item.followUpDate) {
+    return item.followUpDate <= today ? "promised_due" : "promised_later";
+  }
+  if (item.lastOutcome === "needs_admin") return "escalated";
+  return "call";
+}
+
+const BUCKET_ORDER: Record<CallBucket, number> = { promised_due: 0, call: 1, escalated: 2, promised_later: 3 };
+
+/** Promises due today first, then longest overdue first (bigger amount breaks ties). */
+export function orderCallList<T extends CallItem>(items: T[], today: string): T[] {
+  return [...items].sort(
+    (a, b) =>
+      BUCKET_ORDER[callBucket(a, today)] - BUCKET_ORDER[callBucket(b, today)] ||
+      b.daysLate - a.daysLate ||
+      b.totalDue - a.totalDue ||
+      a.studentId.localeCompare(b.studentId),
+  );
+}
+
+export type DueRow = { month: string; amount: number; paid: number };
+
+/** Unpaid months that are past their due date, oldest first. */
+export function overdueMonths<T extends DueRow>(rows: T[], today: string): T[] {
+  return rows
+    .filter((r) => Number(r.amount) - Number(r.paid) > 0 && today > dueDate(r.month))
+    .sort((a, b) => a.month.localeCompare(b.month));
+}
+
+/** Total overdue and how late the oldest month is. Null when nothing is overdue. */
+export function overdueSummary(rows: DueRow[], today: string): { oldestMonth: string; totalDue: number; daysLate: number } | null {
+  const late = overdueMonths(rows, today);
+  if (!late.length) return null;
+  const totalDue = late.reduce((s, r) => s + Math.max(0, Number(r.amount) - Number(r.paid)), 0);
+  return { oldestMonth: late[0].month, totalDue: round2(totalDue), daysLate: daysLate(late[0].month, today) };
+}
+
+/** UPI payment link for the QR code. */
+export function upiLink(upiId: string, amount?: number, note?: string): string {
+  const params = new URLSearchParams({ pa: upiId, pn: "Science Academy", cu: "INR" });
+  if (amount && amount > 0) params.set("am", amount.toFixed(2));
+  if (note) params.set("tn", note.slice(0, 50));
+  return `upi://pay?${params.toString().replace(/\+/g, "%20")}`;
+}
