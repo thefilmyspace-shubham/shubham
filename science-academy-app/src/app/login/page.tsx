@@ -16,9 +16,24 @@ export default async function LoginPage() {
         <div className="w-fit rounded-card bg-white px-4 py-3">
           <Logo size={44} />
         </div>
-        <div>
-          <h1 className="text-4xl font-extrabold tracking-tight">Ratlam&apos;s science coaching, run in one app.</h1>
-          <p className="mt-3 max-w-md text-white/70">Students, fees, bills, attendance, timetable, tests, ranks and parent updates for classes 6 to 12, CBSE and MP Board.</p>
+        <div className="max-w-lg">
+          <p className="text-sm font-bold tracking-widest text-[#9fd36a] uppercase">We believe in quality</p>
+          <h1 className="mt-3 text-4xl leading-tight font-extrabold tracking-tight">
+            Strong basics today,
+            <br />
+            bright results tomorrow.
+          </h1>
+          <p className="mt-4 text-[15px] leading-relaxed text-white/75">
+            Science Academy, Ratlam guides students of classes 6 to 12, CBSE and MP Board, with clear concepts, regular tests and
+            personal attention, so every child learns with confidence and every parent stays informed.
+          </p>
+          <ul className="mt-6 flex flex-wrap gap-2 text-[13px] font-semibold">
+            {["Classes 6 to 12", "CBSE & MP Board", "Regular tests & ranks", "Parents stay updated"].map((t) => (
+              <li key={t} className="rounded-full bg-white/10 px-3 py-1.5">
+                {t}
+              </li>
+            ))}
+          </ul>
         </div>
         <p className="text-sm text-white/50">Powered by TFS · The First Solutions</p>
       </div>
