@@ -76,6 +76,12 @@ export async function logCall(_prev: ActionResult, formData: FormData): Promise<
     );
   }
   await db.from("fee_reminders").insert(stages);
+  // The day-after-due call task for this student is done once a call is logged.
+  await db
+    .from("call_tasks")
+    .update({ status: "done", done_at: new Date().toISOString(), done_by: viewer.user.id })
+    .eq("student_id", studentId)
+    .eq("status", "open");
   await logActivity(viewer, "call.log", { type: "student", id: studentId }, { outcome, attempt, follow_up_date: followUp });
   revalidatePath("/calls");
   revalidatePath(`/fees/${studentId}`);

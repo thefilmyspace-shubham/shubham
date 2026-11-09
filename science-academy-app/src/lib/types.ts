@@ -10,6 +10,8 @@ export type AppUser = {
   mobile: string;
   email: string | null;
   status: "active" | "suspended";
+  /** en | hi | hinglish; missing until the language migration has run. */
+  language?: string | null;
   created_at: string;
 };
 

@@ -2,14 +2,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ensureLedgerForMonth } from "@/lib/fees-data";
 import { runDailyReminders } from "@/lib/reminders";
 import { runDailyBackup } from "@/lib/backup";
+import { runFeeAutomation } from "@/lib/fee-automation";
 import { monthStart } from "@/lib/format";
 import { logActivity } from "@/lib/activity";
 
 export const maxDuration = 120;
 
 /**
- * Once a day (vercel.json, 6:00 AM IST): this month's fee rows, reminders
- * (calls due, attendance not marked, escalations) and the Excel backup.
+ * Once a day (vercel.json, about 9 AM IST): this month's fee rows, the fee
+ * automation (WhatsApp a day before, Reception on the due date, call tasks the
+ * day after), reminders (calls due, attendance, escalations) and the Excel backup.
  * Each step runs even if an earlier one fails.
  */
 export async function GET(req: NextRequest) {
@@ -23,6 +25,11 @@ export async function GET(req: NextRequest) {
     result.ledgerRows = await ensureLedgerForMonth(monthStart(now));
   } catch (err) {
     result.ledgerError = String(err);
+  }
+  try {
+    result.feeAutomation = await runFeeAutomation(now);
+  } catch (err) {
+    result.feeAutomationError = String(err);
   }
   try {
     result.reminders = await runDailyReminders(now);

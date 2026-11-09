@@ -23,10 +23,26 @@ Make one new Gmail for the academy (for example `scienceacademy.ratlam@gmail.com
 | MSG91 (later, optional) | SMS OTP instead of email | Not needed to start. Needs **DLT registration** (Jio / Airtel / Vi DLT portal): register the academy as entity, a 6-letter sender ID (e.g. `SCIACD`), and an OTP template such as `Your Science Academy login code is ##otp##. It is valid for 10 minutes. Do not share it.` Put the approved template into MSG91 Flow and copy the template ID. |
 | Anthropic Console | Claude API key | For the AI marksheet check and the AI assistant. Add a small monthly spend limit. |
 
+## WhatsApp fee reminders (optional)
+
+Every day (about 9 AM) the app:
+1. **A day before a due date** sends the parent a WhatsApp message (and an in-app reminder).
+2. **On the due date** tells Reception who is due today, to call tomorrow if unpaid.
+3. **The day after**, if still unpaid, makes a **call task** at the top of Reception's Call log. Logging the call closes it.
+
+Steps 2 and 3 and the in-app reminder work without WhatsApp. For the WhatsApp message:
+1. business.facebook.com (with the academy Gmail) → **WhatsApp Manager** → add a phone number for the academy (a number not already used on the WhatsApp app).
+2. **Message templates → Create**: category **Utility**, name `fee_due_tomorrow`, language English, body for example:
+   `Dear Parent, the fee of {{1}} of {{2}} is due on {{3}}. Please pay on time. – Science Academy, Ratlam`
+3. When it is approved: **Business settings → System users** → make a permanent token with `whatsapp_business_messaging`.
+4. In Vercel add `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` (from WhatsApp Manager → API setup), `WHATSAPP_FEE_TEMPLATE=fee_due_tomorrow`, then Redeploy.
+
+Meta charges a small fee per message. Every message sent (or failed) is recorded in the `whatsapp_messages` table, and a fee row never gets the same message twice.
+
 ## 2. Set up the database (Supabase)
 
 1. Supabase → SQL Editor → New query. Paste and **Run** the files in `supabase/migrations/` **in name order**:
-   `20261201000000_init.sql`, then `20261201000100_seed.sql`, then any later files (for example `20261201000300_fee_plans.sql`). Later files are safe to run again.
+   `20261201000000_init.sql`, then `20261201000100_seed.sql`, then any later files (`20261201000300_fee_plans.sql`, `20261201000400_language.sql`, `20261201000500_fee_automation.sql` ...). Later files are safe to run again.
    (Or with the CLI: `npx supabase link --project-ref <ref>` then `npx supabase db push`.)
 2. Put the owner's real name and mobile on the first Admin login (AD-01):
    ```sql
@@ -50,7 +66,7 @@ Make one new Gmail for the academy (for example `scienceacademy.ratlam@gmail.com
    - `ANTHROPIC_API_KEY`
    - `CRON_SECRET` (any long random text)
    - Bill details: `ACADEMY_ADDRESS`, `ACADEMY_PHONE`, `ACADEMY_UPI_ID`, `ACADEMY_BANK_NAME`, `ACADEMY_ACCOUNT_NUMBER`, `ACADEMY_IFSC`, `ACADEMY_ACCOUNT_NAME`. Until these are set, bills print the placeholders `[YOUR UPI ID]`, `[BANK NAME]` and so on, and no payable QR code is printed.
-4. Deploy. The daily job (`vercel.json` → `/api/cron/daily`, 6:00 AM IST) creates the month's fee rows, sends reminders and makes the daily Excel backup.
+4. Deploy. The daily job (`vercel.json` → `/api/cron/daily`, about 9 AM IST) creates the month's fee rows, runs the fee reminder automation, sends reminders and makes the daily Excel backup.
 5. Log in as Admin (role Admin → `AD-01` or the owner's mobile → SMS code). Then, in order:
    1. **Batches & faculty**: add batches (board, class, name, time). Each batch gets its parents' group automatically.
    2. **Access control → Add staff**: Management (MG-xx), Reception (RC-xx), Faculty (FC-xx). Each logs in with their ID or mobile.

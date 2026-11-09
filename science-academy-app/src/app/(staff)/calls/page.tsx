@@ -8,6 +8,7 @@ import { CALL_OUTCOME_LABEL, daysLate } from "@/lib/fees";
 import { dateLabel, dateTimeLabel, monthLabel, monthStart, rupees, todayIst } from "@/lib/format";
 import { formatMobile, maskMobile } from "@/lib/ids";
 import { Banner, Card, Chip, Empty, Page, PageHeader, Section, Stat } from "@/components/ui";
+import { openCallTasks } from "@/lib/fee-automation";
 import { CallDone } from "./CallDone";
 
 export const metadata = { title: "Call log" };
@@ -43,16 +44,22 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
 
   const showNumbers = can(viewer, "students.contacts");
   const totalDue = list.reduce((s, e) => s + e.totalDue, 0);
-  const groups = SECTIONS.map((s) => ({ ...s, items: list.filter((e) => callBucket(e, today) === s.bucket) })).filter((g) => g.items.length);
+  // Call tasks made the day after a due date (fee still unpaid): on top until a call is logged.
+  const tasks = focusId ? [] : await openCallTasks();
+  const taskIds = new Set(tasks.map((t) => t.student_id));
+  const taskItems = list.filter((e) => taskIds.has(e.studentId));
+  const rest = list.filter((e) => !taskIds.has(e.studentId));
+  const groups = SECTIONS.map((s) => ({ ...s, items: rest.filter((e) => callBucket(e, today) === s.bucket) })).filter((g) => g.items.length);
 
   return (
     <>
       <PageHeader title="Call log" subtitle="Parents to call about fees" back={focusId ? "/calls" : undefined} />
       <Page>
         {!focusId && (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Stat label="To call" value={list.filter((e) => ["call", "promised_due"].includes(callBucket(e, today))).length} />
             <Stat label="Overdue amount" value={rupees(totalDue)} tone="danger" />
+            <Stat label="Call tasks today" value={taskItems.length} tone="danger" />
             <Stat label="Promised today" value={list.filter((e) => callBucket(e, today) === "promised_due").length} tone="primary" />
             <Stat label="Escalated" value={list.filter((e) => callBucket(e, today) === "escalated").length} tone="warn" />
           </div>
@@ -73,6 +80,17 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           <div className="mt-5">
             <Empty icon={PhoneCall}>No overdue fees. Nobody to call today.</Empty>
           </div>
+        )}
+
+        {taskItems.length > 0 && (
+          <Section title={`Today's call tasks · ${taskItems.length}`}>
+            <p className="-mt-1 mb-2 text-xs text-muted">The fee was due and is still not paid. Logging the call closes the task.</p>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {taskItems.map((e) => (
+                <CallCard key={e.studentId} e={e} today={today} showNumbers={showNumbers} canBill={can(viewer, "bills.create")} />
+              ))}
+            </div>
+          </Section>
         )}
 
         {groups.map((g) => (

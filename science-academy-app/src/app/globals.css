@@ -5,7 +5,8 @@
  * Every colour, radius and shadow the screens use is a token here.
  */
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Devanagari falls back to the phone's own Hindi font (Noto Sans Devanagari, Kohinoor, Mangal). */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Devanagari", "Kohinoor Devanagari", "Mangal", sans-serif;
 
   --color-bg: #f3f5f9;
   --color-card: #ffffff;

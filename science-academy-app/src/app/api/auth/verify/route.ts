@@ -4,6 +4,8 @@ import { verifyLoginCode } from "@/lib/otp";
 import { startSession } from "@/lib/session";
 import { logActivity } from "@/lib/activity";
 import { resolvePermissions } from "@/lib/permissions";
+import { adminClient } from "@/lib/supabase/admin";
+import { LANG_COOKIE, isLang } from "@/lib/i18n";
 
 const Body = z.object({ challenge: z.string(), code: z.string().trim() });
 
@@ -20,6 +22,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not sign in. Please try again." }, { status: 500 });
   }
   const user = result.user;
+  // First login on a device where a language was chosen: keep it on the login too.
+  const chosen = req.cookies.get(LANG_COOKIE)?.value;
+  if (!user.language && isLang(chosen)) await adminClient().from("users").update({ language: chosen }).eq("id", user.id);
   await logActivity(
     { user, sessionId: "", perms: resolvePermissions(user.role, {}, {}), ownBatchIds: null },
     "auth.login",

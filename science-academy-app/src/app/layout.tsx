@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { getLang } from "@/lib/i18n/server";
+import { htmlLang } from "@/lib/i18n";
+import { I18nProvider } from "@/components/I18nProvider";
 import "./globals.css";
 
 const inter = localFont({
@@ -27,10 +30,13 @@ export const viewport: Viewport = {
   themeColor: "#0b3c5d",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const lang = await getLang();
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="min-h-dvh font-sans antialiased">{children}</body>
+    <html lang={htmlLang(lang)} className={inter.variable}>
+      <body className="min-h-dvh font-sans antialiased">
+        <I18nProvider lang={lang}>{children}</I18nProvider>
+      </body>
     </html>
   );
 }
