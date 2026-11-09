@@ -37,7 +37,7 @@ export default async function LoginPage() {
         </div>
         <p className="text-sm text-faint">Powered by TFS · The First Solutions</p>
       </div>
-      <div className="flex flex-1 flex-col bg-bg">
+      <div className="flex flex-1 flex-col bg-card">
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-5 py-10">
           <div className="mb-8 lg:hidden">
             <Logo size={44} />
