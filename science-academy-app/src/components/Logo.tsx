@@ -1,35 +1,38 @@
+/* eslint-disable @next/next/no-img-element -- small static brand images, no optimisation needed */
+
 /**
- * Science Academy mark, drawn in the logo colours (navy, blue, green).
- * Replace with the real logo file (public/brand/logo.png) when the owner
- * sends it: set `src` below and the <img> is used instead.
+ * Science Academy logo (public/brand, cut from the owner's logo file):
+ * logo.png = mark + "SCIENCE ACADEMY / WE BELIEVE IN QUALITY",
+ * logo-mark.png = the graduate mark only. Both have a transparent background
+ * and are shown on white.
  */
-const LOGO_SRC: string | null = null;
+
+const FULL_RATIO = 1198 / 262;
+const MARK_RATIO = 357 / 393;
 
 export function LogoMark({ size = 36 }: { size?: number }) {
-  if (LOGO_SRC) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={LOGO_SRC} alt="Science Academy" width={size} height={size} className="shrink-0 object-contain" />;
-  }
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden className="shrink-0">
-      <circle cx="24" cy="24" r="23" fill="#13265c" />
-      <ellipse cx="24" cy="24" rx="17" ry="6.5" fill="none" stroke="#2e9b4e" strokeWidth="2.4" transform="rotate(-30 24 24)" />
-      <ellipse cx="24" cy="24" rx="17" ry="6.5" fill="none" stroke="#5aa0ff" strokeWidth="2.4" transform="rotate(30 24 24)" />
-      <circle cx="24" cy="24" r="4.2" fill="#ffffff" />
-    </svg>
+    <img
+      src="/brand/logo-mark.png"
+      alt="Science Academy"
+      width={Math.round(size * MARK_RATIO)}
+      height={size}
+      className="shrink-0 object-contain"
+      style={{ height: size, width: "auto" }}
+    />
   );
 }
 
-export function Logo({ size = 36, tagline = true }: { size?: number; tagline?: boolean }) {
+/** Full logo. `size` is its height in pixels. */
+export function Logo({ size = 36 }: { size?: number; tagline?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <LogoMark size={size} />
-      <div className="leading-tight">
-        <p className="text-[16px] font-extrabold tracking-tight text-navy">
-          Science <span className="text-primary">Academy</span>
-        </p>
-        {tagline && <p className="text-[10.5px] font-semibold text-green">We believe in quality</p>}
-      </div>
-    </div>
+    <img
+      src="/brand/logo.png"
+      alt="Science Academy · We believe in quality"
+      width={Math.round(size * FULL_RATIO)}
+      height={size}
+      className="block max-w-full shrink-0 object-contain"
+      style={{ height: size, width: "auto" }}
+    />
   );
 }

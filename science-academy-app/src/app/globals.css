@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Science Academy theme, built on the logo colours (navy, blue, green).
+ * Science Academy theme, built on the logo colours (navy #0b3c5d, blue #0a7cc4, DNA green).
  * Every colour, radius and shadow the screens use is a token here.
  */
 @theme {
@@ -15,13 +15,13 @@
   --color-line: #e4e8ef;
   --color-field: #f3f5f9;
 
-  --color-navy: #13265c;
-  --color-navy-soft: #e8ecf6;
-  --color-primary: #1f63d6;
-  --color-primary-strong: #174fae;
-  --color-primary-soft: #e7effc;
-  --color-green: #2e9b4e;
-  --color-green-soft: #e4f4e9;
+  --color-navy: #0b3c5d;
+  --color-navy-soft: #e6eef4;
+  --color-primary: #0a7cc4;
+  --color-primary-strong: #08649f;
+  --color-primary-soft: #e4f2fb;
+  --color-green: #6aa232;
+  --color-green-soft: #eef6e4;
   --color-ok: #1f7f45;
   --color-ok-soft: #e3f4ea;
   --color-danger: #c8322b;
@@ -32,10 +32,10 @@
   --color-violet: #6b4fa0;
   --color-violet-soft: #efeaf8;
 
-  --color-chat: #e9eef6;
+  --color-chat: #e8eff4;
   --color-bubble-in: #ffffff;
-  --color-bubble-out: #dfeafd;
-  --color-seen: #1f63d6;
+  --color-bubble-out: #dcefff;
+  --color-seen: #0a7cc4;
 
   --radius-card: 16px;
   --radius-field: 12px;

@@ -1,14 +1,15 @@
 import "server-only";
 import { jsPDF } from "jspdf";
 import { academyDetails } from "./env";
+import { LOGO_JPEG_BASE64, LOGO_RATIO } from "./brand-logo";
 
 // Server-side PDFs (bills, rankings, AI comparisons) share this look:
 // Science Academy header, a title, tables, and the TFS footer on every page.
 // Built-in PDF fonts have no ₹ sign, so amounts use "Rs." in PDFs.
 
-export const NAVY: [number, number, number] = [19, 38, 92];
-export const BLUE: [number, number, number] = [31, 99, 214];
-export const GREEN: [number, number, number] = [46, 155, 78];
+export const NAVY: [number, number, number] = [11, 60, 93];
+export const BLUE: [number, number, number] = [10, 124, 196];
+export const GREEN: [number, number, number] = [106, 162, 50];
 export const MUTED: [number, number, number] = [95, 107, 125];
 export const LINE: [number, number, number] = [228, 232, 239];
 
@@ -25,27 +26,13 @@ export function pdfRupees(amount: number | string): string {
 export function drawHeader(doc: jsPDF, opts: { title: string; subtitle?: string; right?: string[]; y?: number }): number {
   const a = academyDetails();
   const y = opts.y ?? MARGIN;
-  // Mark: navy circle with two orbits.
-  doc.setFillColor(...NAVY);
-  doc.circle(MARGIN + 7, y + 7, 7, "F");
-  doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.7);
-  doc.ellipse(MARGIN + 7, y + 7, 5.2, 2, "S");
-  doc.setDrawColor(90, 160, 255);
-  doc.ellipse(MARGIN + 7, y + 7, 2, 5.2, "S");
-  doc.setFillColor(255, 255, 255);
-  doc.circle(MARGIN + 7, y + 7, 1.3, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(...NAVY);
-  doc.text("Science Academy", MARGIN + 17, y + 6);
+  // The logo (mark + "SCIENCE ACADEMY / WE BELIEVE IN QUALITY"), 11 mm tall.
+  const logoH = 11;
+  doc.addImage(LOGO_JPEG_BASE64, "JPEG", MARGIN, y, logoH * LOGO_RATIO, logoH);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
-  doc.setTextColor(...GREEN);
-  doc.text("We believe in quality", MARGIN + 17, y + 10.5);
   doc.setTextColor(...MUTED);
-  doc.text(`${a.address}, ${a.city}  ·  Phone ${a.phone}`, MARGIN + 17, y + 14.5);
+  doc.text(`${a.address}, ${a.city}  ·  Phone ${a.phone}`, MARGIN, y + 15.5);
 
   if (opts.right?.length) {
     doc.setFontSize(9);

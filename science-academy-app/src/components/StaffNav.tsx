@@ -47,7 +47,7 @@ export function Sidebar({
   return (
     <aside className="no-print fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-navy text-white lg:flex">
       <div className="m-3 rounded-card bg-white px-3 py-2.5">
-        <Logo size={34} />
+        <Logo size={40} />
       </div>
       <nav className="flex-1 overflow-y-auto px-3 pb-3">
         <ul className="space-y-0.5">{main.map(link)}</ul>

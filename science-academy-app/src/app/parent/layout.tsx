@@ -13,8 +13,8 @@ export default async function ParentLayout({ children }: { children: React.React
     <div className="min-h-dvh pb-20">
       <header className="safe-top no-print sticky top-0 z-10 bg-navy text-white">
         <div className="mx-auto flex max-w-lg items-center gap-2 px-4 py-2.5">
-          <div className="flex-1 rounded-full bg-white px-3 py-1">
-            <Logo size={26} tagline={false} />
+          <div className="flex flex-1 items-center rounded-full bg-white px-3 py-1.5">
+            <Logo size={28} />
           </div>
           <Link href="/parent/notifications" className="relative grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label={`Notifications, ${unread} new`}>
             <Bell size={21} />

@@ -94,6 +94,6 @@ npm run test:db                                  # migrations + database rules o
 
 - Roll numbers above 999: built as 4 digits (`1000` and up). **Confirm with the owner.**
 - Real UPI ID, QR code, bank details, address and phone for the bill (environment variables above).
-- Science Academy logo file: put it at `public/brand/logo.png` and set `LOGO_SRC` in `src/components/Logo.tsx`. TFS logo for the footer (text for now).
+- Logo: done (`public/brand/`, cut from the owner's file; PDFs use `src/lib/brand-logo.ts`). A bigger original (PNG/PDF/CDR) would print sharper. TFS logo for the footer (text for now).
 - MSG91 account and DLT template approval.
 - Management correcting attendance: built as allowed and logged (Admin can turn it off in Access control).
