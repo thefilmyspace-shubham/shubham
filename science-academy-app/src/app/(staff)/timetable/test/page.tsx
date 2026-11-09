@@ -18,10 +18,11 @@ const ERRORS: Record<string, DictKey> = {
   form: "academics.test.err.form",
   save: "academics.test.err.save",
   hasmarks: "academics.test.err.hasmarks",
+  duty: "academics.test.err.duty",
 };
 
 /** Add or edit a test or exam (Admin, Management). */
-export default async function TestFormPage({ searchParams }: { searchParams: Promise<{ id?: string; for?: string; error?: string }> }) {
+export default async function TestFormPage({ searchParams }: { searchParams: Promise<{ id?: string; for?: string; error?: string; detail?: string }> }) {
   const viewer = await requireStaff();
   if (!can(viewer, "academics.edit")) notFound();
   const sp = await searchParams;
@@ -40,6 +41,7 @@ export default async function TestFormPage({ searchParams }: { searchParams: Pro
             <div className="mb-3">
               <Banner tone="danger" icon={AlertTriangle}>
                 {t(ERRORS[sp.error])}
+                {sp.detail && <span className="mt-1 block text-[11.5px] font-normal opacity-80">{sp.detail.slice(0, 160)}</span>}
               </Banner>
             </div>
           )}

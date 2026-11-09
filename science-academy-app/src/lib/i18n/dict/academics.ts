@@ -240,6 +240,7 @@ export const en = {
   "academics.duty.savedDone": "Saved and test marked done: {present} came, {absent} absent.",
   "academics.duty.undoDone": "Undo done",
   "academics.duty.yourDuty": "Your duty",
+  "academics.test.err.duty": "Test saved, but the faculty on duty was not: the database update (SQL test_duty) has not been run yet.",
 } satisfies Record<string, string>;
 
 export const hi: Record<keyof typeof en, string> = {
@@ -481,6 +482,7 @@ export const hi: Record<keyof typeof en, string> = {
   "academics.duty.savedDone": "सेव हुआ और टेस्ट पूरा: {present} आए, {absent} अनुपस्थित।",
   "academics.duty.undoDone": "पूरा हटाएँ",
   "academics.duty.yourDuty": "आपकी ड्यूटी",
+  "academics.test.err.duty": "टेस्ट सेव हुआ, पर ड्यूटी वाली फैकल्टी नहीं: डेटाबेस अपडेट (SQL test_duty) अभी नहीं चला है।",
 };
 
 export const hinglish: Record<keyof typeof en, string> = {
@@ -722,4 +724,5 @@ export const hinglish: Record<keyof typeof en, string> = {
   "academics.duty.savedDone": "Save ho gaya aur test done: {present} aaye, {absent} absent.",
   "academics.duty.undoDone": "Done hatao",
   "academics.duty.yourDuty": "Aapki duty",
+  "academics.test.err.duty": "Test save ho gaya, par duty wali faculty nahi: database update (SQL test_duty) abhi nahi chala hai.",
 };

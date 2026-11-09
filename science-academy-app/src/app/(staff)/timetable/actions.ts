@@ -151,10 +151,23 @@ export async function saveTest(form: FormData) {
     const { data: same } = await dup.limit(1).maybeSingle<{ id: string }>();
     if (same) redirect(`/timetable?board=${target.board}&class=${target.class}&saved=test&test=${same.id}`);
   }
-  const { data, error } = t.id
-    ? await db.from("tests").update(row).eq("id", t.id).select("id").single()
-    : await db.from("tests").insert({ ...row, created_by: viewer.user.id }).select("id").single();
-  if (error || !data) redirect(`${back}${back.includes("?") ? "&" : "?"}error=save`);
+  const write = (r: Partial<typeof row>) =>
+    t.id ? db.from("tests").update(r).eq("id", t.id).select("id").single() : db.from("tests").insert({ ...r, created_by: viewer.user.id }).select("id").single();
+  let { data, error } = await write(row);
+  // The database update for "faculty on duty" not run yet: save the test without it.
+  let dutySkipped = false;
+  if (error && /faculty_id|schema cache|42703|PGRST204/i.test(`${error.code} ${error.message}`)) {
+    const { faculty_id: _skip, ...rest } = row;
+    void _skip;
+    ({ data, error } = await write(rest));
+    dutySkipped = Boolean(row.faculty_id) && !error;
+  }
+  if (error || !data) {
+    console.error("saveTest failed", error);
+    const detail = encodeURIComponent(`${error?.code ?? ""} ${error?.message ?? "no row"}`.trim().slice(0, 160));
+    redirect(`${back}${back.includes("?") ? "&" : "?"}error=save&detail=${detail}`);
+  }
+  if (dutySkipped) redirect(`/timetable/test?id=${data.id}&error=duty`);
   await logActivity(viewer, "test.save", { type: "test", id: data.id }, { ...row, edited: Boolean(t.id) });
   // The faculty put on duty hears about it (once per test and person).
   if (row.faculty_id && row.faculty_id !== before?.data?.faculty_id && row.faculty_id !== viewer.user.id) {
