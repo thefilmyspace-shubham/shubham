@@ -94,8 +94,9 @@ export function overdueSummary(rows: DueRow[], today: string): { oldestMonth: st
 
 /** UPI payment link for the QR code. */
 export function upiLink(upiId: string, amount?: number, note?: string): string {
-  const params = new URLSearchParams({ pa: upiId, pn: "Science Academy", cu: "INR" });
-  if (amount && amount > 0) params.set("am", amount.toFixed(2));
-  if (note) params.set("tn", note.slice(0, 50));
-  return `upi://pay?${params.toString().replace(/\+/g, "%20")}`;
+  // UPI apps expect the VPA as is (name@bank), so pa is not percent-encoded.
+  let link = `upi://pay?pa=${upiId.trim()}&pn=Science%20Academy&cu=INR`;
+  if (amount && amount > 0) link += `&am=${amount.toFixed(2)}`;
+  if (note) link += `&tn=${encodeURIComponent(note.slice(0, 50))}`;
+  return link;
 }

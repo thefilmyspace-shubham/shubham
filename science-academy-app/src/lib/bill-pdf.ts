@@ -137,7 +137,9 @@ export async function buildBillPdf(inv: Invoice, opts: { copies?: ("Office copy"
       doc.setTextColor(200, 50, 43);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(54);
+      doc.setGState(doc.GState({ opacity: 0.3 }));
       doc.text("CANCELLED", PAGE_W / 2, 150, { align: "center", angle: 25 });
+      doc.setGState(doc.GState({ opacity: 1 }));
       doc.setFontSize(10);
       doc.text(`Cancelled: ${inv.cancelled_reason ?? ""}`, MARGIN, y + 14);
     }

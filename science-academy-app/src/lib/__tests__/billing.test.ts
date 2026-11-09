@@ -64,7 +64,7 @@ describe("call list order", () => {
 
 describe("UPI link", () => {
   it("is a upi:// payment link", () => {
-    expect(upiLink("academy@okhdfc")).toBe("upi://pay?pa=academy%40okhdfc&pn=Science%20Academy&cu=INR");
+    expect(upiLink("academy@okhdfc")).toBe("upi://pay?pa=academy@okhdfc&pn=Science%20Academy&cu=INR");
     expect(upiLink("academy@okhdfc", 2500)).toContain("am=2500.00");
   });
 });
