@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { MessagesSquare, ShieldCheck, Users } from "lucide-react";
 import { can, requireStaff } from "@/lib/auth";
 import { groupSummaries, readableGroups } from "@/lib/groups-db";
-import { MESSAGE_TYPE_LABEL } from "@/lib/groups";
+import { getT } from "@/lib/i18n/server";
 import { dateTimeLabel } from "@/lib/format";
 import { Card, Empty, Page, PageHeader, Section } from "@/components/ui";
 
@@ -12,6 +12,7 @@ export const metadata = { title: "Groups" };
 export default async function GroupsPage() {
   const viewer = await requireStaff();
   if (!can(viewer, "groups.staff_chat") && !can(viewer, "groups.post_batch")) notFound();
+  const { t } = await getT();
   const groups = await readableGroups(viewer);
   const summaries = await groupSummaries(viewer, groups.map((g) => g.id));
   const staff = groups.filter((g) => g.kind !== "batch");
@@ -33,10 +34,10 @@ export default async function GroupsPage() {
           <span className="flex items-center gap-2">
             <span className="min-w-0 flex-1 truncate text-[13px] text-muted">
               {s?.last
-                ? `${s.last.senderName.split(" ")[0]}: ${s.last.type !== "chat" ? `[${MESSAGE_TYPE_LABEL[s.last.type]}] ` : ""}${s.last.body || s.last.attachment_name || "File"}`
+                ? `${s.last.senderName.split(" ")[0]}: ${s.last.type !== "chat" ? `[${t(`groups.type.${s.last.type}`)}] ` : ""}${s.last.body || s.last.attachment_name || t("groups.file")}`
                 : g.kind === "batch"
-                  ? "Parents of this batch · read only for them"
-                  : "No messages yet"}
+                  ? t("groups.batchEmpty")
+                  : t("groups.noMessages")}
             </span>
             {s && s.unread > 0 && (
               <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-extrabold text-white">
@@ -51,17 +52,17 @@ export default async function GroupsPage() {
 
   return (
     <>
-      <PageHeader title="Groups" subtitle="Staff chat and batch groups for parents" />
+      <PageHeader title={t("groups.title")} subtitle={t("groups.subtitle")} />
       <Page>
-        {groups.length === 0 && <Empty icon={MessagesSquare}>No groups for your login yet.</Empty>}
+        {groups.length === 0 && <Empty icon={MessagesSquare}>{t("groups.none")}</Empty>}
         {staff.length > 0 && (
-          <Section title="Staff groups" className="pt-2">
+          <Section title={t("groups.staffGroups")} className="pt-2">
             <Card className="divide-y divide-line overflow-hidden">{staff.map(row)}</Card>
           </Section>
         )}
         {batch.length > 0 && (
-          <Section title="Batch groups (parents)">
-            <p className="mb-2 text-xs text-muted">Only management and admin post here. Parents read. Never post fee details.</p>
+          <Section title={t("groups.batchGroups")}>
+            <p className="mb-2 text-xs text-muted">{t("groups.batchNote")}</p>
             <Card className="divide-y divide-line overflow-hidden">{batch.map(row)}</Card>
           </Section>
         )}

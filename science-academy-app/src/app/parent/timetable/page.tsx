@@ -2,21 +2,26 @@ import { CalendarDays, ClipboardList } from "lucide-react";
 import { parentContext } from "@/lib/parent";
 import { adminClient } from "@/lib/supabase/admin";
 import { batchLabel } from "@/lib/batches";
-import { WEEKDAYS, clockLabel, dayLabel, todayIst, weekdayOf } from "@/lib/format";
+import { clockLabel, dayLabel, todayIst, weekdayOf } from "@/lib/format";
 import { testsForBatches, timetableOf } from "@/lib/academics";
 import type { Batch } from "@/lib/types";
 import { ChildStrip } from "@/components/ChildStrip";
 import { Card, Chip, Empty } from "@/components/ui";
+import { getT } from "@/lib/i18n/server";
+import type { DictKey } from "@/lib/i18n";
+
+const DAY_KEYS: DictKey[] = ["academics.day.1", "academics.day.2", "academics.day.3", "academics.day.4", "academics.day.5", "academics.day.6", "academics.day.7"];
 
 export const metadata = { title: "Timetable" };
 
 /** The child's batch timetable and upcoming tests (own child's batch only). */
 export default async function ParentTimetablePage() {
   const { children, child } = await parentContext();
+  const { t } = await getT();
   if (!child) {
     return (
       <div className="mx-auto max-w-lg px-4 pt-6">
-        <Empty>No student is linked to this login number. Please contact the academy.</Empty>
+        <Empty>{t("academics.noStudentLinked")}</Empty>
       </div>
     );
   }
@@ -33,37 +38,37 @@ export default async function ParentTimetablePage() {
     <>
       <ChildStrip list={children} current={child} basePath="/parent/timetable" />
       <div className="mx-auto max-w-lg px-4 pt-4">
-        <h1 className="text-xl font-extrabold text-navy">Timetable</h1>
+        <h1 className="text-xl font-extrabold text-navy">{t("academics.ptt.title")}</h1>
         {batch && <p className="mb-3 text-xs text-muted">{batchLabel(batch)}</p>}
         {!batch ? (
-          <Empty icon={CalendarDays}>No batch assigned yet.</Empty>
+          <Empty icon={CalendarDays}>{t("academics.ptt.noBatch")}</Empty>
         ) : (
           <>
-            <h2 className="mt-2 mb-2 text-[15px] font-bold text-navy">Upcoming tests and exams</h2>
+            <h2 className="mt-2 mb-2 text-[15px] font-bold text-navy">{t("academics.ptt.upcoming")}</h2>
             {tests.length === 0 ? (
-              <Empty icon={ClipboardList}>No upcoming tests.</Empty>
+              <Empty icon={ClipboardList}>{t("academics.ptt.noUpcoming")}</Empty>
             ) : (
               <Card className="divide-y divide-line">
-                {tests.map((t) => (
-                  <div key={t.id} className="flex items-start gap-2 px-4 py-3">
+                {tests.map((x) => (
+                  <div key={x.id} className="flex items-start gap-2 px-4 py-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold">{t.name}</p>
+                      <p className="font-bold">{x.name}</p>
                       <p className="text-xs text-muted">
-                        {dayLabel(t.date)}
-                        {t.start_time ? ` · ${clockLabel(t.start_time)}` : ""}
-                        {t.subject ? ` · ${t.subject}` : ""}
-                        {t.max_marks ? ` · Max ${Number(t.max_marks)}` : ""}
+                        {dayLabel(x.date)}
+                        {x.start_time ? ` · ${clockLabel(x.start_time)}` : ""}
+                        {x.subject ? ` · ${x.subject}` : ""}
+                        {x.max_marks ? ` · ${t("academics.max", { n: Number(x.max_marks) })}` : ""}
                       </p>
                     </div>
-                    <Chip tone={t.tag === "School" ? "violet" : "primary"}>{t.tag}</Chip>
+                    <Chip tone={x.tag === "School" ? "violet" : "primary"}>{t(x.tag === "School" ? "academics.tag.School" : "academics.tag.Coaching")}</Chip>
                   </div>
                 ))}
               </Card>
             )}
 
-            <h2 className="mt-5 mb-2 text-[15px] font-bold text-navy">This week</h2>
+            <h2 className="mt-5 mb-2 text-[15px] font-bold text-navy">{t("academics.ptt.thisWeek")}</h2>
             {entries.length === 0 ? (
-              <Empty icon={CalendarDays}>The timetable is not added yet.</Empty>
+              <Empty icon={CalendarDays}>{t("academics.ptt.notAdded")}</Empty>
             ) : (
               <div className="space-y-2">
                 {order.map((d) => {
@@ -72,8 +77,8 @@ export default async function ParentTimetablePage() {
                   return (
                     <Card key={d} className="p-3.5">
                       <p className="mb-1.5 text-xs font-extrabold tracking-wide text-navy uppercase">
-                        {WEEKDAYS[d - 1]}
-                        {d === todayNo ? " · Today" : ""}
+                        {t(DAY_KEYS[d - 1])}
+                        {d === todayNo ? ` · ${t("core.today")}` : ""}
                       </p>
                       <ul className="space-y-1.5">
                         {list.map((e) => (
@@ -83,7 +88,7 @@ export default async function ParentTimetablePage() {
                               {e.end_time ? `–${clockLabel(e.end_time)}` : ""}
                             </span>
                             <span className="flex-1 font-bold">{e.subject}</span>
-                            {e.tag === "School" && <Chip tone="violet">School</Chip>}
+                            {e.tag === "School" && <Chip tone="violet">{t("academics.tag.School")}</Chip>}
                           </li>
                         ))}
                       </ul>

@@ -7,6 +7,7 @@ import { clockLabel, dayLabel, monthShort, rupees, rupeesShort } from "@/lib/for
 import { batchLabel } from "@/lib/batches";
 import type { ClassTop, DayAttendance, FeeOverview, LowAttendance } from "@/lib/dashboard";
 import type { Batch, Test, TimetableEntry } from "@/lib/types";
+import type { TFn } from "@/lib/i18n";
 
 export type AttentionItem = {
   key: string;
@@ -19,11 +20,11 @@ export type AttentionItem = {
 
 const ATTENTION_ICON = { call: PhoneCall, escalation: AlertTriangle, attendance: ClipboardX, low: UserX, promise: BellRing };
 
-export function NeedsAttention({ items }: { items: AttentionItem[] }) {
+export function NeedsAttention({ items, t }: { items: AttentionItem[]; t: TFn }) {
   return (
-    <Section title="Needs attention today">
+    <Section title={t("admin.home.needsAttention")}>
       {items.length === 0 ? (
-        <Empty>All clear for today.</Empty>
+        <Empty>{t("admin.home.allClear")}</Empty>
       ) : (
         <Card className="divide-y divide-line overflow-hidden">
           {items.map((i) => {
@@ -48,9 +49,9 @@ export function NeedsAttention({ items }: { items: AttentionItem[] }) {
   );
 }
 
-export function CollectionChart({ data }: { data: { month: string; amount: number }[] }) {
+export function CollectionChart({ data, t }: { data: { month: string; amount: number }[]; t: TFn }) {
   return (
-    <Section title="Fee collection, last six months" action={<SectionLink href="/fees">Fees</SectionLink>}>
+    <Section title={t("admin.home.collection6")} action={<SectionLink href="/fees">{t("admin.home.fees")}</SectionLink>}>
       <Card className="p-4">
         <BarChart data={data.map((d) => ({ label: monthShort(d.month), value: d.amount }))} format={rupeesShort} color="var(--color-primary)" />
       </Card>
@@ -58,15 +59,23 @@ export function CollectionChart({ data }: { data: { month: string; amount: numbe
   );
 }
 
-export function ReminderChainCard({ chain, overdueStudents }: { chain: { reminded: number; called: number; escalated: number }; overdueStudents: number }) {
+export function ReminderChainCard({
+  chain,
+  overdueStudents,
+  t,
+}: {
+  chain: { reminded: number; called: number; escalated: number };
+  overdueStudents: number;
+  t: TFn;
+}) {
   const steps = [
-    { label: "Overdue", value: overdueStudents, tone: "text-danger" },
-    { label: "Reminded", value: chain.reminded, tone: "text-primary" },
-    { label: "Called", value: chain.called, tone: "text-warn" },
-    { label: "Escalated", value: chain.escalated, tone: "text-violet" },
+    { label: t("admin.home.chainOverdue"), value: overdueStudents, tone: "text-danger" },
+    { label: t("admin.home.chainReminded"), value: chain.reminded, tone: "text-primary" },
+    { label: t("admin.home.chainCalled"), value: chain.called, tone: "text-warn" },
+    { label: t("admin.home.chainEscalated"), value: chain.escalated, tone: "text-violet" },
   ];
   return (
-    <Section title="Fee reminder chain, this month" action={<SectionLink href="/calls">Call log</SectionLink>}>
+    <Section title={t("admin.home.chain")} action={<SectionLink href="/calls">{t("admin.home.callLog")}</SectionLink>}>
       <Card className="grid grid-cols-4 divide-x divide-line p-0">
         {steps.map((s) => (
           <div key={s.label} className="px-2 py-3 text-center">
@@ -75,17 +84,17 @@ export function ReminderChainCard({ chain, overdueStudents }: { chain: { reminde
           </div>
         ))}
       </Card>
-      <p className="mt-1.5 text-[11.5px] text-muted">Reminders go to each parent privately. Fee messages are never posted in batch groups.</p>
+      <p className="mt-1.5 text-[11.5px] text-muted">{t("admin.home.chainNote")}</p>
     </Section>
   );
 }
 
-export function PendingByClass({ fees }: { fees: FeeOverview }) {
+export function PendingByClass({ fees, t }: { fees: FeeOverview; t: TFn }) {
   const max = Math.max(1, ...fees.byClass.map((c) => c.amount));
   return (
-    <Section title="Pending fees by class" action={<SectionLink href="/fees?status=pending">See all</SectionLink>}>
+    <Section title={t("admin.home.pendingByClass")} action={<SectionLink href="/fees?status=pending">{t("admin.home.seeAll")}</SectionLink>}>
       {fees.byClass.length === 0 ? (
-        <Empty>No pending fees.</Empty>
+        <Empty>{t("admin.home.noPending")}</Empty>
       ) : (
         <Card className="space-y-2.5 p-4">
           {fees.byClass.map((c) => (
@@ -95,7 +104,7 @@ export function PendingByClass({ fees }: { fees: FeeOverview }) {
                   {boardName(c.board)} {c.cls}
                 </span>
                 <span className="text-muted">
-                  <span className="font-bold text-fg">{rupees(c.amount)}</span> · {c.students} student{c.students === 1 ? "" : "s"}
+                  <span className="font-bold text-fg">{rupees(c.amount)}</span> · {t("admin.home.nStudents", { n: c.students })}
                 </span>
               </div>
               <Meter value={c.amount} max={max} tone="danger" />
@@ -107,11 +116,11 @@ export function PendingByClass({ fees }: { fees: FeeOverview }) {
   );
 }
 
-export function ClassToppers({ tops }: { tops: ClassTop[] }) {
+export function ClassToppers({ tops, t }: { tops: ClassTop[]; t: TFn }) {
   return (
-    <Section title="Class-wise top 5" action={<SectionLink href="/ranks">Ranks</SectionLink>}>
+    <Section title={t("admin.home.toppers")} action={<SectionLink href="/ranks">{t("admin.home.ranks")}</SectionLink>}>
       {tops.length === 0 ? (
-        <Empty icon={Trophy}>No marks entered yet.</Empty>
+        <Empty icon={Trophy}>{t("admin.home.noMarks")}</Empty>
       ) : (
         <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-2 lg:overflow-visible lg:px-0 xl:grid-cols-3">
           {tops.map((c) => (
@@ -125,16 +134,16 @@ export function ClassToppers({ tops }: { tops: ClassTop[] }) {
                 </p>
               </div>
               <ol className="space-y-1.5">
-                {c.top.map((t, i) => (
-                  <li key={t.student.id} className="flex items-center gap-2 text-[13.5px]">
+                {c.top.map((r, i) => (
+                  <li key={r.student.id} className="flex items-center gap-2 text-[13.5px]">
                     <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11.5px] font-extrabold ${i === 0 ? "bg-warn-soft text-warn" : "bg-field text-muted"}`}>
                       {i + 1}
                     </span>
-                    <Link href={`/students/${t.student.id}`} className="min-w-0 flex-1 truncate font-semibold hover:text-primary">
-                      {t.student.name}
+                    <Link href={`/students/${r.student.id}`} className="min-w-0 flex-1 truncate font-semibold hover:text-primary">
+                      {r.student.name}
                     </Link>
                     <span className="font-bold">
-                      {t.score}
+                      {r.score}
                       {c.test.max_marks ? <span className="font-medium text-muted">/{Number(c.test.max_marks)}</span> : null}
                     </span>
                   </li>
@@ -148,36 +157,36 @@ export function ClassToppers({ tops }: { tops: ClassTop[] }) {
   );
 }
 
-export function AttendanceTodayCard({ att, notMarked, href = "/attendance" }: { att: DayAttendance; notMarked: Batch[]; href?: string }) {
+export function AttendanceTodayCard({ att, notMarked, href = "/attendance", t }: { att: DayAttendance; notMarked: Batch[]; href?: string; t: TFn }) {
   return (
-    <Section title="Attendance today" action={<SectionLink href={href}>Open</SectionLink>}>
+    <Section title={t("admin.home.attToday")} action={<SectionLink href={href}>{t("admin.home.open")}</SectionLink>}>
       <Card className="p-4">
         {att.total === 0 ? (
-          <p className="text-sm text-muted">Not marked yet today.</p>
+          <p className="text-sm text-muted">{t("admin.home.notMarkedToday")}</p>
         ) : (
           <>
             <div className="mb-2 flex items-baseline gap-2">
               <span className="text-2xl font-extrabold text-ok">{att.pct}%</span>
-              <span className="text-[13px] text-muted">present</span>
+              <span className="text-[13px] text-muted">{t("admin.home.presentWord")}</span>
             </div>
             <Meter value={att.pct} tone={att.pct >= 75 ? "ok" : "warn"} />
             <div className="mt-2 flex gap-3 text-[12.5px] text-muted">
               <span>
-                <b className="text-ok">{att.present}</b> present
+                <b className="text-ok">{att.present}</b> {t("admin.home.presentWord")}
               </span>
               <span>
-                <b className="text-warn">{att.late}</b> late
+                <b className="text-warn">{att.late}</b> {t("admin.home.lateWord")}
               </span>
               <span>
-                <b className="text-danger">{att.absent}</b> absent
+                <b className="text-danger">{att.absent}</b> {t("admin.home.absentWord")}
               </span>
             </div>
           </>
         )}
         {notMarked.length > 0 && (
           <p className="mt-2 text-[12.5px] font-semibold text-warn">
-            Not marked: {notMarked.slice(0, 4).map((b) => batchLabel(b)).join(", ")}
-            {notMarked.length > 4 ? ` +${notMarked.length - 4} more` : ""}
+            {t("admin.home.notMarkedList", { list: notMarked.slice(0, 4).map((b) => batchLabel(b)).join(", ") })}
+            {notMarked.length > 4 ? ` ${t("admin.home.more", { n: notMarked.length - 4 })}` : ""}
           </p>
         )}
       </Card>
@@ -185,32 +194,32 @@ export function AttendanceTodayCard({ att, notMarked, href = "/attendance" }: { 
   );
 }
 
-export function UpcomingTests({ tests, batches, title = "Upcoming tests and exams" }: { tests: Test[]; batches: Map<string, Batch>; title?: string }) {
+export function UpcomingTests({ tests, batches, title, t }: { tests: Test[]; batches: Map<string, Batch>; title?: string; t: TFn }) {
   return (
-    <Section title={title} action={<SectionLink href="/timetable">Timetable</SectionLink>}>
+    <Section title={title ?? t("admin.home.upcoming")} action={<SectionLink href="/timetable">{t("admin.home.timetable")}</SectionLink>}>
       {tests.length === 0 ? (
-        <Empty icon={CalendarClock}>No tests in the next two weeks.</Empty>
+        <Empty icon={CalendarClock}>{t("admin.home.noTests")}</Empty>
       ) : (
         <Card className="divide-y divide-line overflow-hidden">
-          {tests.slice(0, 8).map((t) => {
-            const b = t.batch_id ? batches.get(t.batch_id) : undefined;
+          {tests.slice(0, 8).map((x) => {
+            const b = x.batch_id ? batches.get(x.batch_id) : undefined;
             return (
-              <div key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+              <div key={x.id} className="flex items-center gap-3 px-4 py-2.5">
                 <div className="w-14 shrink-0 text-center">
-                  <p className="text-[11px] font-bold text-muted uppercase">{dayLabel(t.date).split(",")[0]}</p>
-                  <p className="text-[15px] font-extrabold text-navy">{dayLabel(t.date).split(", ")[1]}</p>
+                  <p className="text-[11px] font-bold text-muted uppercase">{dayLabel(x.date).split(",")[0]}</p>
+                  <p className="text-[15px] font-extrabold text-navy">{dayLabel(x.date).split(", ")[1]}</p>
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-bold">
-                    {t.name}
-                    {t.subject ? ` · ${t.subject}` : ""}
+                    {x.name}
+                    {x.subject ? ` · ${x.subject}` : ""}
                   </p>
                   <p className="truncate text-[12.5px] text-muted">
-                    {b ? batchLabel(b) : `${boardName(t.board)} ${t.class} · whole class`}
-                    {t.start_time ? ` · ${clockLabel(t.start_time)}` : ""}
+                    {b ? batchLabel(b) : `${boardName(x.board)} ${x.class} · ${t("admin.home.wholeClass")}`}
+                    {x.start_time ? ` · ${clockLabel(x.start_time)}` : ""}
                   </p>
                 </div>
-                <Chip tone={t.tag === "School" ? "violet" : "primary"}>{t.tag}</Chip>
+                <Chip tone={x.tag === "School" ? "violet" : "primary"}>{t(`admin.home.tag.${x.tag}`)}</Chip>
               </div>
             );
           })}
@@ -220,11 +229,11 @@ export function UpcomingTests({ tests, batches, title = "Upcoming tests and exam
   );
 }
 
-export function LowAttendanceList({ list, batches }: { list: LowAttendance[]; batches: Map<string, Batch> }) {
+export function LowAttendanceList({ list, batches, t }: { list: LowAttendance[]; batches: Map<string, Batch>; t: TFn }) {
   return (
-    <Section title="Low attendance and repeated absence" action={<SectionLink href="/attendance">Attendance</SectionLink>}>
+    <Section title={t("admin.home.lowList")} action={<SectionLink href="/attendance">{t("admin.home.attendance")}</SectionLink>}>
       {list.length === 0 ? (
-        <Empty>Nobody below 75% in the last 30 days.</Empty>
+        <Empty>{t("admin.home.nobodyLow")}</Empty>
       ) : (
         <Card className="divide-y divide-line overflow-hidden">
           {list.slice(0, 8).map((l) => {
@@ -238,23 +247,23 @@ export function LowAttendanceList({ list, batches }: { list: LowAttendance[]; ba
                     {b ? ` · ${batchLabel(b)}` : ""}
                   </p>
                 </div>
-                {l.absentStreak >= 3 && <Chip tone="danger">Absent {l.absentStreak} days in a row</Chip>}
+                {l.absentStreak >= 3 && <Chip tone="danger">{t("admin.home.absentInRow", { n: l.absentStreak })}</Chip>}
                 <Chip tone={l.pct < 75 ? "warn" : "neutral"}>{l.pct}%</Chip>
               </Link>
             );
           })}
-          {list.length > 8 && <p className="px-4 py-2 text-[12.5px] text-muted">+{list.length - 8} more</p>}
+          {list.length > 8 && <p className="px-4 py-2 text-[12.5px] text-muted">{t("admin.home.more", { n: list.length - 8 })}</p>}
         </Card>
       )}
     </Section>
   );
 }
 
-export function TodayClasses({ entries, batches }: { entries: TimetableEntry[]; batches: Map<string, Batch> }) {
+export function TodayClasses({ entries, batches, t }: { entries: TimetableEntry[]; batches: Map<string, Batch>; t: TFn }) {
   return (
-    <Section title="Today's classes" action={<SectionLink href="/timetable">Week</SectionLink>}>
+    <Section title={t("admin.home.todayClasses")} action={<SectionLink href="/timetable">{t("admin.home.week")}</SectionLink>}>
       {entries.length === 0 ? (
-        <Empty icon={CalendarClock}>No classes on the timetable today.</Empty>
+        <Empty icon={CalendarClock}>{t("admin.home.noClassesToday")}</Empty>
       ) : (
         <Card className="divide-y divide-line overflow-hidden">
           {entries.map((e) => {
@@ -266,7 +275,7 @@ export function TodayClasses({ entries, batches }: { entries: TimetableEntry[]; 
                   <p className="truncate text-[14px] font-bold">{e.subject}</p>
                   <p className="truncate text-[12.5px] text-muted">{b ? batchLabel(b) : ""}</p>
                 </div>
-                <Chip tone={e.tag === "School" ? "violet" : "primary"}>{e.tag}</Chip>
+                <Chip tone={e.tag === "School" ? "violet" : "primary"}>{t(`admin.home.tag.${e.tag}`)}</Chip>
               </div>
             );
           })}

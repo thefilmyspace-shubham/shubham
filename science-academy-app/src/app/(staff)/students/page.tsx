@@ -6,20 +6,22 @@ import { adminClient } from "@/lib/supabase/admin";
 import { boardName, type Board } from "@/lib/ids";
 import type { Batch, Student } from "@/lib/types";
 import { Card, Chip, Empty, FilterChips, Page, PageHeader } from "@/components/ui";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "Students" };
 
 type Search = { board?: string; class?: string; batch?: string; status?: string };
 
 const STATUS = [
-  { key: "active", label: "Active" },
-  { key: "draft", label: "Drafts" },
-  { key: "left", label: "Left" },
-  { key: "passed_out", label: "Passed out" },
+  { key: "active", label: "students.status.active" },
+  { key: "draft", label: "students.status.draft" },
+  { key: "left", label: "students.status.left" },
+  { key: "passed_out", label: "students.status.passed_out" },
 ] as const;
 
 export default async function StudentsPage({ searchParams }: { searchParams: Promise<Search> }) {
   const viewer = await requirePermission("students.view");
+  const { t } = await getT();
   const sp = await searchParams;
   const canEdit = can(viewer, "students.edit");
   const board = sp.board === "CB" || sp.board === "MP" ? (sp.board as Board) : null;
@@ -62,18 +64,18 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const batchChoices = batches.filter((b) => (!board || b.board === board) && (!cls || b.class === cls));
   const label = (key: string): string => {
     const b: Batch | undefined = batchById.get(key);
-    return b ? batchShort(b) : "No batch";
+    return b ? batchShort(b) : t("students.noBatch");
   };
 
   return (
     <>
       <PageHeader
-        title="Students"
-        subtitle={`${students.length} ${STATUS.find((s) => s.key === status)?.label.toLowerCase()} · Board, then class, then batch`}
+        title={t("students.title")}
+        subtitle={t("students.list.subtitle", { n: students.length, status: t(STATUS.find((s) => s.key === status)?.label ?? "students.status.active").toLowerCase() })}
         right={
           canEdit ? (
             <Link href="/students/new" className="btn btn-primary">
-              <UserPlus size={16} /> <span className="hidden sm:inline">Register student</span>
+              <UserPlus size={16} /> <span className="hidden sm:inline">{t("students.register")}</span>
             </Link>
           ) : undefined
         }
@@ -82,21 +84,21 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         <div className="space-y-2">
           <FilterChips
             items={[
-              { href: href({ board: undefined, batch: undefined }), label: "All boards", active: !board },
+              { href: href({ board: undefined, batch: undefined }), label: t("students.list.allBoards"), active: !board },
               { href: href({ board: "CB", batch: undefined }), label: "CBSE", active: board === "CB" },
               { href: href({ board: "MP", batch: undefined }), label: "MP Board", active: board === "MP" },
             ]}
           />
           <FilterChips
             items={[
-              { href: href({ class: undefined, batch: undefined }), label: "All classes", active: !cls },
-              ...[6, 7, 8, 9, 10, 11, 12].map((c) => ({ href: href({ class: String(c), batch: undefined }), label: `Class ${c}`, active: cls === c })),
+              { href: href({ class: undefined, batch: undefined }), label: t("students.list.allClasses"), active: !cls },
+              ...[6, 7, 8, 9, 10, 11, 12].map((c) => ({ href: href({ class: String(c), batch: undefined }), label: t("students.classN", { n: c }), active: cls === c })),
             ]}
           />
           {batchChoices.length > 0 && (board || cls) && (
             <FilterChips
               items={[
-                { href: href({ batch: undefined }), label: "All batches", active: !batch },
+                { href: href({ batch: undefined }), label: t("students.list.allBatches"), active: !batch },
                 ...batchChoices.map((b) => ({
                   href: href({ batch: b.id }),
                   label: `${board ? "" : `${b.board} `}${cls ? "" : `${b.class} · `}${batchShort(b)}`,
@@ -105,16 +107,16 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
               ]}
             />
           )}
-          <FilterChips items={statuses.map((s) => ({ href: href({ status: s.key }), label: s.label, active: status === s.key }))} />
+          <FilterChips items={statuses.map((s) => ({ href: href({ status: s.key }), label: t(s.label), active: status === s.key }))} />
         </div>
 
         {viewer.user.role === "faculty" && (
-          <p className="mt-3 text-xs text-muted">You see students of your own batches only.</p>
+          <p className="mt-3 text-xs text-muted">{t("students.list.facultyNote")}</p>
         )}
 
         {!students.length ? (
           <div className="mt-5">
-            <Empty icon={Users}>No students here.</Empty>
+            <Empty icon={Users}>{t("students.list.empty")}</Empty>
           </div>
         ) : (
           boards.map((b) => (
@@ -128,7 +130,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                   return (
                     <div key={c} className="mb-4">
                       <h3 className="mb-2 text-sm font-bold text-muted">
-                        Class {c} · {total} {total === 1 ? "student" : "students"}
+                        {total === 1 ? t("students.list.classCountOne", { c }) : t("students.list.classCount", { c, n: total })}
                       </h3>
                       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                         {[...byBatch.keys()]
@@ -148,12 +150,12 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                                     >
                                       <span className="min-w-0 flex-1">
                                         <span className="block truncate text-[14px] font-semibold">{s.name}</span>
-                                        <span className="block truncate text-xs text-muted">{s.school ?? "School not entered"}</span>
+                                        <span className="block truncate text-xs text-muted">{s.school ?? t("students.list.noSchool")}</span>
                                       </span>
                                       {s.code ? (
                                         <span className="font-mono text-[12.5px] font-bold text-navy">{s.code}</span>
                                       ) : (
-                                        <Chip tone="warn">Draft</Chip>
+                                        <Chip tone="warn">{t("students.draft")}</Chip>
                                       )}
                                       <ChevronRight size={16} className="text-faint" />
                                     </Link>

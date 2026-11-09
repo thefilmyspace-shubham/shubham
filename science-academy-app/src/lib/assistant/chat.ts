@@ -7,6 +7,15 @@ import { todayIst } from "../format";
 import { sessionLabel, sessionYearFor } from "../ids";
 import { toolNamesFor } from "./gating";
 import { runTool, toolsFor, type AnswerTable, type ToolContext } from "./tools";
+import { asLang, translator, type Lang } from "../i18n";
+
+/** The asker's language for the answer. */
+const LANGUAGE_RULE: Record<Lang, string> = {
+  en: "- Reply in simple English.",
+  hi: "- Reply in Hindi, written in Devanagari script, with simple everyday words. Keep student IDs, numbers, ₹ amounts, board names (CBSE, MP Board) and subject names as they are.",
+  hinglish:
+    "- Reply in Hinglish: Hindi written in Roman (English) letters mixed with common English words, the way people chat on WhatsApp in India (for example 'Riya ki attendance is mahine 92% hai'). Keep IDs, numbers and ₹ amounts as they are.",
+};
 
 export const ASSISTANT_MODEL = "claude-sonnet-5-5";
 const MAX_STEPS = 6;
@@ -50,7 +59,8 @@ function systemPrompt(viewer: Viewer): string {
       ? "- Actions: you never send anything yourself. propose_fee_reminders only prepares a list; the admin sees a confirm card and decides. Say that it is waiting for their confirmation."
       : "- You are read-only for this person. You cannot send messages or change anything; say so if asked.",
     "- Fee reminders go privately to each parent. Never suggest posting fees in a batch group.",
-    "- Be short. Plain text, simple English, short lists. Amounts in rupees like ₹35,200.",
+    "- Be short. Plain text, short lists. Amounts in rupees like ₹35,200.",
+    LANGUAGE_RULE[asLang(viewer.user.language)],
   ].join("\n");
 }
 
@@ -58,10 +68,11 @@ export type AskResult = { ok: true } | { ok: false; error: string };
 
 /** One question: saved, answered with tools, answer saved (with a table or action card). */
 export async function askAssistant(viewer: Viewer, text: string): Promise<AskResult> {
+  const t = translator(asLang(viewer.user.language));
   const question = text.trim().slice(0, 2000);
-  if (!question) return { ok: false, error: "Type a question." };
+  if (!question) return { ok: false, error: t("admin.ai.typeQuestion") };
   const ai = assistantClient();
-  if (!ai) return { ok: false, error: "AI is not set up yet." };
+  if (!ai) return { ok: false, error: t("admin.ai.notSetUpShort") };
   const db = adminClient();
 
   const { data: past } = await db
@@ -119,14 +130,14 @@ export async function askAssistant(viewer: Viewer, text: string): Promise<AskRes
     }
   } catch (err) {
     console.error("assistant failed", err);
-    answer = "Sorry, I could not answer right now. Please try again.";
+    answer = t("admin.ai.sorry");
   }
 
   const attachment: AiAttachment | null = ctx.actionId ? { kind: "action", id: ctx.actionId } : ctx.table;
   await db.from("ai_messages").insert({
     user_id: viewer.user.id,
     role: "assistant",
-    body: answer || "I could not find an answer to that.",
+    body: answer || t("admin.ai.noAnswer"),
     attachment,
   });
   return { ok: true };

@@ -8,6 +8,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { logActivity } from "@/lib/activity";
 import { ensureParentUser, notify } from "@/lib/notify";
 import type { Batch, Test } from "@/lib/types";
+import { all } from "@/lib/i18n";
 
 async function editor(): Promise<StaffViewer> {
   const viewer = await requireStaff();
@@ -183,7 +184,7 @@ export async function postToGroups(form: FormData) {
       items.push({
         userId: parent.id,
         kind: "group_post",
-        title: kind === "test" ? "New test posted" : "Timetable updated",
+        title: all(kind === "test" ? "academics.post.notifTest" : "academics.post.notifTimetable"),
         body: body.split("\n")[0].slice(0, 140),
         link: "/parent",
         dedupeKey: `post-${msg.id}`,

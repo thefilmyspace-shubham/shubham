@@ -6,10 +6,10 @@ import { adminClient } from "@/lib/supabase/admin";
 import { batchShort } from "@/lib/batches";
 import { boardName, formatMobile, sessionLabel } from "@/lib/ids";
 import { dateLabel, monthLabel, monthShort, monthStart, rupees, todayIst } from "@/lib/format";
-import { balanceOf, dueDate, feeStatus, FEE_PLAN_LABEL, FEE_STATUS_LABEL, rowDue, type FeePlan, type FeeStatus } from "@/lib/fees";
-import { ROLE_LABEL } from "@/lib/permissions";
-import { AI_CHECK_LABEL, AI_CHECK_TONE } from "@/lib/ai/marksheet-compare";
-import { earlierIds, facultyNotes, getStudent, RELATION_LABEL, studentDetails, studentProfileNumbers } from "@/lib/students";
+import { balanceOf, dueDate, feeStatus, rowDue, type FeePlan, type FeeStatus } from "@/lib/fees";
+import { getT } from "@/lib/i18n/server";
+import { AI_CHECK_TONE } from "@/lib/ai/marksheet-compare";
+import { earlierIds, facultyNotes, getStudent, studentDetails, studentProfileNumbers } from "@/lib/students";
 import type { Batch, LedgerRow } from "@/lib/types";
 import { BarChart } from "@/components/BarChart";
 import { Banner, Card, Chip, Empty, Page, PageHeader, Section, Stat } from "@/components/ui";
@@ -27,6 +27,7 @@ export default async function StudentProfile({
   searchParams: Promise<{ registered?: string; saved?: string }>;
 }) {
   const viewer = await requirePermission("students.view");
+  const { t } = await getT();
   const { id } = await params;
   const sp = await searchParams;
   const student = await getStudent(id);
@@ -56,13 +57,13 @@ export default async function StudentProfile({
   const earlier = earlierIds(details.history, student.code);
 
   const hidden: string[] = [];
-  if (!seeContacts) hidden.push("contact numbers");
-  if (!seeFees) hidden.push("fees");
-  if (!seeMarksheets) hidden.push("marksheets");
-  const list = hidden.length > 1 ? `${hidden.slice(0, -1).join(", ")} and ${hidden[hidden.length - 1]}` : hidden[0];
+  if (!seeContacts) hidden.push(t("students.prof.hideContacts"));
+  if (!seeFees) hidden.push(t("students.prof.hideFees"));
+  if (!seeMarksheets) hidden.push(t("students.prof.hideMarksheets"));
+  const list = hidden.length > 1 ? `${hidden.slice(0, -1).join(", ")} ${t("students.prof.and")} ${hidden[hidden.length - 1]}` : hidden[0];
   const banner = hidden.length
-    ? `${ROLE_LABEL[viewer.user.role]} see this page without ${list}.`
-    : "You see everything on this page, including contact numbers and fees.";
+    ? t("students.prof.bannerHidden", { role: t(`core.role.${viewer.user.role}`), list })
+    : t("students.prof.bannerAll");
 
   const { thisMonth, byMonth } = numbers.attendance;
   // Monthly plan: this month's row. Other plans: the next payment still open.
@@ -86,7 +87,7 @@ export default async function StudentProfile({
         right={
           canEdit ? (
             <Link href={`/students/${student.id}/edit`} className="btn btn-ghost">
-              <Pencil size={15} /> <span className="hidden sm:inline">Edit</span>
+              <Pencil size={15} /> <span className="hidden sm:inline">{t("core.edit")}</span>
             </Link>
           ) : undefined
         }
@@ -95,12 +96,12 @@ export default async function StudentProfile({
         <div className="space-y-3">
           {sp.registered && (
             <Banner tone="ok" icon={CheckCircle2}>
-              Registered. Student ID <b>{student.code}</b>. The parent can log in with the login number.
+              {t("students.prof.registered", { code: student.code ?? "" })}
             </Banner>
           )}
           {sp.saved && (
             <Banner tone="ok" icon={CheckCircle2}>
-              Changes saved.
+              {t("students.prof.saved")}
             </Banner>
           )}
           <Banner tone="navy" icon={Eye}>
@@ -112,11 +113,11 @@ export default async function StudentProfile({
           <div className="bg-navy px-4 py-4 text-white lg:px-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-2xl font-extrabold tracking-tight">{student.code}</span>
-              {student.status !== "active" && <Chip tone="warn">{student.status === "left" ? "Left" : "Passed out"}</Chip>}
+              {student.status !== "active" && <Chip tone="warn">{student.status === "left" ? t("students.left") : t("students.passedOut")}</Chip>}
             </div>
             {earlier.length > 0 && (
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-white/70">Earlier ID</span>
+                <span className="text-xs text-white/70">{t("students.prof.earlierId")}</span>
                 {earlier.map((c) => (
                   <span key={c} className="rounded-full bg-white/15 px-2 py-0.5 font-mono text-[11.5px] font-bold">
                     {c}
@@ -127,24 +128,24 @@ export default async function StudentProfile({
           </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 px-4 py-4 text-sm sm:grid-cols-4 lg:px-6">
             <div>
-              <dt className="text-xs text-muted">Class</dt>
-              <dd className="font-bold">Class {student.current_class}</dd>
+              <dt className="text-xs text-muted">{t("students.class")}</dt>
+              <dd className="font-bold">{t("students.classN", { n: student.current_class })}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Board</dt>
+              <dt className="text-xs text-muted">{t("students.board")}</dt>
               <dd className="font-bold">{boardName(student.board)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Batch</dt>
-              <dd className="font-bold">{batch ? batchShort(batch) : "Not set"}</dd>
+              <dt className="text-xs text-muted">{t("students.batch")}</dt>
+              <dd className="font-bold">{batch ? batchShort(batch) : t("students.prof.notSet")}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted">Admission session</dt>
+              <dt className="text-xs text-muted">{t("students.prof.admission")}</dt>
               <dd className="font-bold">{student.admission_session !== null ? sessionLabel(student.admission_session) : "—"}</dd>
             </div>
             {student.school && (
               <div className="col-span-2 sm:col-span-4">
-                <dt className="text-xs text-muted">School</dt>
+                <dt className="text-xs text-muted">{t("students.prof.school")}</dt>
                 <dd className="font-bold">{student.school}</dd>
               </div>
             )}
@@ -153,22 +154,22 @@ export default async function StudentProfile({
 
         <div className="mt-3 grid grid-cols-3 gap-3">
           <Stat
-            label="Attendance this month"
+            label={t("students.prof.attThisMonth")}
             value={thisMonth.total ? `${thisMonth.pct}%` : "—"}
-            hint={thisMonth.total ? `${thisMonth.present} of ${thisMonth.total} days` : "Not marked yet"}
+            hint={thisMonth.total ? t("students.prof.daysOf", { p: thisMonth.present, t: thisMonth.total }) : t("students.prof.notMarked")}
             tone={thisMonth.total && thisMonth.pct < 75 ? "danger" : "ok"}
           />
-          <Stat label="Test average" value={numbers.average !== null ? `${numbers.average}%` : "—"} hint={`${numbers.results.length} tests`} tone="primary" />
+          <Stat label={t("students.prof.testAvg")} value={numbers.average !== null ? `${numbers.average}%` : "—"} hint={t("students.prof.nTests", { n: numbers.results.length })} tone="primary" />
           <Stat
-            label="Rank in class"
+            label={t("students.prof.rank")}
             value={numbers.rank ? `#${numbers.rank.rank}` : "—"}
-            hint={numbers.rank ? `of ${numbers.rank.of} in Class ${student.current_class}` : "No scores yet"}
+            hint={numbers.rank ? t("students.prof.rankOf", { n: numbers.rank.of, c: student.current_class }) : t("students.prof.noScores")}
           />
         </div>
 
         <div className="grid grid-cols-1 gap-x-4 lg:grid-cols-[1fr_360px]">
           <div>
-            <Section title="Recent tests">
+            <Section title={t("students.prof.recentTests")}>
               {numbers.results.length ? (
                 <Card className="divide-y divide-line">
                   {numbers.results.slice(0, 8).map((r) => (
@@ -183,7 +184,7 @@ export default async function StudentProfile({
                       <Chip tone={r.tag === "School" ? "violet" : "primary"}>{r.tag}</Chip>
                       <div className="w-20 text-right">
                         {r.absent ? (
-                          <span className="text-sm font-bold text-danger">Absent</span>
+                          <span className="text-sm font-bold text-danger">{t("students.prof.absent")}</span>
                         ) : (
                           <>
                             <p className="text-sm font-bold">
@@ -198,11 +199,11 @@ export default async function StudentProfile({
                   ))}
                 </Card>
               ) : (
-                <Empty>No test marks yet.</Empty>
+                <Empty>{t("students.prof.noMarks")}</Empty>
               )}
             </Section>
 
-            <Section title="Attendance, last six months">
+            <Section title={t("students.prof.att6")}>
               <Card className="p-4">
                 <BarChart
                   data={byMonth.map((m) => ({ label: monthShort(m.month), value: m.total ? m.pct : null }))}
@@ -213,7 +214,7 @@ export default async function StudentProfile({
               </Card>
             </Section>
 
-            <Section title="Faculty note">
+            <Section title={t("students.prof.facultyNote")}>
               <Card className="divide-y divide-line">
                 {notes.length ? (
                   notes.map((n) => (
@@ -225,14 +226,14 @@ export default async function StudentProfile({
                     </div>
                   ))
                 ) : (
-                  <p className="px-4 py-3 text-sm text-muted">No notes yet.</p>
+                  <p className="px-4 py-3 text-sm text-muted">{t("students.prof.noNotes")}</p>
                 )}
                 {canNote && (
                   <form action={addFacultyNote} className="flex flex-col gap-2 p-3 sm:flex-row">
                     <input type="hidden" name="student_id" value={student.id} />
-                    <textarea name="note" rows={2} required maxLength={1000} className="field flex-1 resize-none" placeholder="Add a note about this student" />
+                    <textarea name="note" rows={2} required maxLength={1000} className="field flex-1 resize-none" placeholder={t("students.prof.notePh")} />
                     <button className="btn btn-soft self-end">
-                      <NotebookPen size={15} /> Add note
+                      <NotebookPen size={15} /> {t("students.prof.addNote")}
                     </button>
                   </form>
                 )}
@@ -242,64 +243,65 @@ export default async function StudentProfile({
 
           <div>
             {seeContacts && (
-              <Section title="Contact">
+              <Section title={t("students.prof.contact")}>
                 <Card className="divide-y divide-line">
                   {details.guardians.map((g) => (
                     <div key={g.id} className="flex items-center gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-semibold">
-                          {g.name ?? RELATION_LABEL[g.relation]} <span className="font-normal text-muted">· {RELATION_LABEL[g.relation]}</span>
+                          {g.name ?? t(`students.rel.${g.relation}`)} <span className="font-normal text-muted">· {t(`students.rel.${g.relation}`)}</span>
                         </p>
                         <p className="font-mono text-[13px]">+91 {formatMobile(g.mobile)}</p>
-                        <div className="mt-1">{g.is_login_number ? <Chip tone="ok">Login number</Chip> : <Chip>Contact only</Chip>}</div>
+                        <div className="mt-1">{g.is_login_number ? <Chip tone="ok">{t("students.prof.loginNumber")}</Chip> : <Chip>{t("students.prof.contactOnly")}</Chip>}</div>
                       </div>
-                      <a href={`tel:+91${g.mobile}`} className="grid h-10 w-10 place-items-center rounded-full bg-green-soft text-green" aria-label={`Call ${g.name ?? g.relation}`}>
+                      <a href={`tel:+91${g.mobile}`} className="grid h-10 w-10 place-items-center rounded-full bg-green-soft text-green" aria-label={t("students.prof.call", { who: g.name ?? t(`students.rel.${g.relation}`) })}>
                         <Phone size={18} />
                       </a>
                     </div>
                   ))}
-                  {!details.guardians.length && <p className="px-4 py-3 text-sm text-muted">No numbers entered.</p>}
-                  {student.email && <p className="px-4 py-3 text-sm">Email: {student.email}</p>}
+                  {!details.guardians.length && <p className="px-4 py-3 text-sm text-muted">{t("students.prof.noNumbers")}</p>}
+                  {student.email && <p className="px-4 py-3 text-sm">{t("students.prof.email", { email: student.email })}</p>}
                 </Card>
               </Section>
             )}
 
             {seeFees && (
-              <Section title="Fees">
+              <Section title={t("students.prof.fees")}>
                 <Card className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-xs text-muted">
-                        {plan === "monthly" ? monthLabel(feeMonth) : `${FEE_PLAN_LABEL[plan]}${ledger?.label ? ` · ${ledger.label}` : ""}`} · due {dateLabel(feeDue)}
+                        {plan === "monthly" ? monthLabel(feeMonth) : `${t(`fees.plan.${plan}`)}${ledger?.label ? ` · ${ledger.label}` : ""}`} ·{" "}
+                        {t("students.prof.due", { date: dateLabel(feeDue) })}
                       </p>
                       <p className="mt-1 text-xl font-extrabold">{rupees(feeAmount)}</p>
                       <p className="text-xs text-muted">
-                        Paid {rupees(feePaid)} · Balance {rupees(balanceOf({ amount: feeAmount, paid: feePaid }))}
+                        {t("students.prof.paidBalance", { paid: rupees(feePaid), balance: rupees(balanceOf({ amount: feeAmount, paid: feePaid })) })}
                       </p>
                     </div>
                     <Chip tone={FEE_TONE[status]}>
-                      <IndianRupee size={11} /> {FEE_STATUS_LABEL[status]}
+                      <IndianRupee size={11} /> {t(`fees.status.${status}`)}
                     </Chip>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     {can(viewer, "bills.create") && (
                       <Link href={`/billing/new?student=${student.id}`} className="btn btn-primary">
-                        <ReceiptText size={15} /> Make bill
+                        <ReceiptText size={15} /> {t("students.prof.makeBill")}
                       </Link>
                     )}
                     <Link href={`/calls?student=${student.id}`} className="btn btn-soft">
-                      <PhoneCall size={15} /> Call parent
+                      <PhoneCall size={15} /> {t("students.prof.callParent")}
                     </Link>
                   </div>
                   <Link href={`/fees/${student.id}`} className="mt-2 block text-center text-xs font-bold text-primary">
-                    Fee ledger and reminders
+                    {t("students.prof.ledgerLink")}
                   </Link>
                 </Card>
               </Section>
             )}
 
             {seeMarksheets && (
-              <Section title="Documents">
+              <Section title={t("students.prof.documents")}>
                 <Card className="divide-y divide-line">
                   {details.marksheets.length ? (
                     details.marksheets.map((m) => (
@@ -307,40 +309,40 @@ export default async function StudentProfile({
                         <div className="flex items-center gap-2">
                           <FileText size={16} className="shrink-0 text-muted" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[14px] font-semibold">Marksheet {m.year_label}</p>
-                            <p className="text-xs text-muted">Typed: {m.typed_percentage !== null ? `${Number(m.typed_percentage)}%` : "—"}</p>
+                            <p className="truncate text-[14px] font-semibold">{t("students.prof.marksheet", { year: m.year_label })}</p>
+                            <p className="text-xs text-muted">{t("students.prof.typed", { pct: m.typed_percentage !== null ? `${Number(m.typed_percentage)}%` : "—" })}</p>
                           </div>
-                          <Chip tone={AI_CHECK_TONE[m.ai_check_result]}>{AI_CHECK_LABEL[m.ai_check_result]}</Chip>
+                          <Chip tone={AI_CHECK_TONE[m.ai_check_result]}>{t(`students.ai.${m.ai_check_result}`)}</Chip>
                         </div>
                         {m.ai_note && <p className="mt-1 pl-6 text-xs text-muted">{m.ai_note}</p>}
                         <div className="mt-2 flex gap-3 pl-6">
                           {m.file_path && (
                             <a href={`/api/marksheets/${m.id}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-primary">
-                              Open file
+                              {t("students.prof.openFile")}
                             </a>
                           )}
                           {canEdit && m.file_path && m.ai_check_result !== "matched" && (
                             <form action={recheckMarksheet}>
                               <input type="hidden" name="marksheet_id" value={m.id} />
                               <button className="flex items-center gap-1 text-xs font-bold text-primary">
-                                <RefreshCw size={12} /> Check again
+                                <RefreshCw size={12} /> {t("students.prof.checkAgain")}
                               </button>
                             </form>
                           )}
                           {canEdit && (
                             <Link href={`/students/${student.id}/edit`} className="text-xs font-bold text-primary">
-                              Upload better photo
+                              {t("students.prof.betterPhoto")}
                             </Link>
                           )}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="px-4 py-3 text-sm text-muted">No marksheets uploaded.</p>
+                    <p className="px-4 py-3 text-sm text-muted">{t("students.prof.noMarksheets")}</p>
                   )}
                   {details.consent && (
                     <p className="px-4 py-3 text-xs text-muted">
-                      Consent given by {details.consent.given_by} on {dateLabel(details.consent.given_at.slice(0, 10))}
+                      {t("students.prof.consentBy", { name: details.consent.given_by, date: dateLabel(details.consent.given_at.slice(0, 10)) })}
                     </p>
                   )}
                 </Card>

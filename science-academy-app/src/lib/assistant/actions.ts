@@ -3,6 +3,7 @@ import { adminClient } from "../supabase/admin";
 import { can, type Viewer } from "../auth";
 import { logActivity } from "../activity";
 import { notify, parentUserOf } from "../notify";
+import { all } from "../i18n";
 import { balanceOf } from "../fees";
 import { monthLabel, rupees } from "../format";
 import type { LedgerRow } from "../types";
@@ -68,8 +69,8 @@ export async function confirmAction(viewer: Viewer, id: string): Promise<{ ok: b
       {
         userId: parent.id,
         kind: "fee_reminder",
-        title: "Fee reminder",
-        body: `${s.name}: ${rupees(balance)} is due for ${monthLabel(month)}. Please pay at the earliest. Ignore if already paid.`,
+        title: all("admin.ai.notify.title"),
+        body: all("admin.ai.notify.body", { name: s.name, amount: rupees(balance), month: monthLabel(month) }),
         link: "/parent/fees",
         dedupeKey: `fee-reminder:${s.id}:${month}:${id}`,
       },

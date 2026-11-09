@@ -8,6 +8,8 @@ import { notify, parentUserOf } from "@/lib/notify";
 import { callList, outstandingFor } from "@/lib/fees-data";
 import { monthLabel, rupees, todayIst } from "@/lib/format";
 import type { ActionResult } from "./ActionForm";
+import { all, type TFn } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -15,38 +17,39 @@ const UUID = /^[0-9a-f-]{36}$/i;
  * Sends one PRIVATE fee reminder to the parent's own login (never to a batch
  * group) and records it in the reminder chain. Once per student per day.
  */
-async function remindOne(studentId: string, staffUserId: string, today: string): Promise<{ ok: boolean; message: string }> {
+async function remindOne(studentId: string, staffUserId: string, today: string, t: TFn): Promise<{ ok: boolean; message: string }> {
   const db = adminClient();
   const { data: student } = await db.from("students").select("id, name, status, batch_id").eq("id", studentId).maybeSingle();
-  if (!student || student.status !== "active") return { ok: false, message: "Student not found." };
+  if (!student || student.status !== "active") return { ok: false, message: t("fees.msg.studentNotFound") };
   const due = await outstandingFor(studentId, today);
-  if (due.total <= 0) return { ok: false, message: "Nothing is pending for this student." };
+  if (due.total <= 0) return { ok: false, message: t("fees.msg.nothingPendingStudent") };
   const parent = await parentUserOf(studentId);
-  if (!parent) return { ok: false, message: "No login number for this student." };
+  if (!parent) return { ok: false, message: t("fees.msg.noLoginNumber") };
   const months = due.months.map(monthLabel).join(", ");
   await notify([
     {
       userId: parent.id,
       kind: "fee_reminder",
-      title: `Fee reminder: ${student.name}`,
-      body: `${rupees(due.total)} is pending (${months}). Fees are due on the 5th of every month. Tap to see how to pay.`,
+      title: all("fees.notify.reminderTitle", { name: student.name }),
+      body: all("fees.notify.reminderBody", { amount: rupees(due.total), months }),
       link: "/parent/fees",
       dedupeKey: `fee-reminder:${studentId}:${today}`,
     },
   ]);
   await db.from("fee_reminders").insert({ student_id: studentId, month: due.months[0], stage: "reminded", created_by: staffUserId });
-  return { ok: true, message: `Reminder sent to the parent (${rupees(due.total)}).` };
+  return { ok: true, message: t("fees.msg.reminderSent", { amount: rupees(due.total) }) };
 }
 
 export async function sendFeeReminder(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const viewer = await staffForApi();
-  if (!viewer || !can(viewer, "fees.view")) return { ok: false, message: "No access." };
+  const { t } = await getT();
+  if (!viewer || !can(viewer, "fees.view")) return { ok: false, message: t("fees.msg.noAccess") };
   const studentId = String(formData.get("studentId") ?? "");
-  if (!UUID.test(studentId)) return { ok: false, message: "Student not found." };
+  if (!UUID.test(studentId)) return { ok: false, message: t("fees.msg.studentNotFound") };
   const { data: s } = await adminClient().from("students").select("batch_id").eq("id", studentId).maybeSingle();
-  if (!s || !canSeeBatch(viewer, s.batch_id)) return { ok: false, message: "Student not found." };
+  if (!s || !canSeeBatch(viewer, s.batch_id)) return { ok: false, message: t("fees.msg.studentNotFound") };
   const today = todayIst();
-  const result = await remindOne(studentId, viewer.user.id, today);
+  const result = await remindOne(studentId, viewer.user.id, today, t);
   if (result.ok) {
     await logActivity(viewer, "fee.remind", { type: "student", id: studentId }, { count: 1 });
     revalidatePath(`/fees/${studentId}`);
@@ -57,17 +60,18 @@ export async function sendFeeReminder(_prev: ActionResult, formData: FormData): 
 /** Private reminders to every parent with an overdue fee. */
 export async function remindAllOverdue(): Promise<ActionResult> {
   const viewer = await staffForApi();
-  if (!viewer || !can(viewer, "fees.view")) return { ok: false, message: "No access." };
+  const { t } = await getT();
+  if (!viewer || !can(viewer, "fees.view")) return { ok: false, message: t("fees.msg.noAccess") };
   const today = todayIst();
   const list = (await callList(today)).filter((e) => canSeeBatch(viewer, e.student.batch_id));
   let sent = 0;
   for (const e of list) {
-    const r = await remindOne(e.studentId, viewer.user.id, today);
+    const r = await remindOne(e.studentId, viewer.user.id, today, t);
     if (r.ok) sent++;
   }
   await logActivity(viewer, "fee.remind", { type: "bulk" }, { count: sent, overdue: list.length });
   revalidatePath("/fees");
-  return { ok: true, message: sent ? `Reminders sent to ${sent} parent${sent === 1 ? "" : "s"}.` : "No overdue parents to remind." };
+  return { ok: true, message: sent ? t("fees.msg.remindersSent", { n: sent }) : t("fees.msg.noOverdueToRemind") };
 }
 
 // ---------------------------------------------------------------------------
@@ -90,24 +94,25 @@ const monthOf = (d: string) => `${d.slice(0, 7)}-01`;
 
 /** Change one payment's due date and amount (the amount cannot go below what is already paid). */
 export async function updateFeeRow(rowId: string, dueDate: string, amount: number, label: string): Promise<PlanResult> {
+  const { t } = await getT();
   const db = adminClient();
-  if (!UUID.test(rowId) || !isDate(dueDate)) return { ok: false, error: "Choose a date." };
+  if (!UUID.test(rowId) || !isDate(dueDate)) return { ok: false, error: t("fees.err.chooseDate") };
   const { data: row } = await db.from("fees_ledger").select("*").eq("id", rowId).maybeSingle();
-  if (!row) return { ok: false, error: "This payment was not found." };
+  if (!row) return { ok: false, error: t("fees.err.paymentNotFound") };
   const ctx = await planEditor(row.student_id);
-  if (!ctx) return { ok: false, error: "Only Admin and Reception can change fees." };
-  if (!(amount > 0) || amount > 10_00_000) return { ok: false, error: "Enter the amount." };
-  if (amount < Number(row.paid)) return { ok: false, error: `₹${Number(row.paid)} is already paid for this one. The amount cannot be less.` };
+  if (!ctx) return { ok: false, error: t("fees.err.onlyAdminReception") };
+  if (!(amount > 0) || amount > 10_00_000) return { ok: false, error: t("fees.err.enterAmount") };
+  if (amount < Number(row.paid)) return { ok: false, error: t("fees.err.amountBelowPaid", { paid: `₹${Number(row.paid)}` }) };
   const month = monthOf(dueDate);
   if (month !== row.month) {
     const { data: clash } = await db.from("fees_ledger").select("id").eq("student_id", row.student_id).eq("month", month).neq("id", row.id).maybeSingle();
-    if (clash) return { ok: false, error: "There is already a payment in that month. Change that one instead." };
+    if (clash) return { ok: false, error: t("fees.err.monthTaken") };
     const { count } = await db.from("invoices").select("id", { count: "exact", head: true }).eq("student_id", row.student_id).eq("month", row.month);
-    if (count) return { ok: false, error: "Bills are already made for this payment, so it must stay in its month. You can change the day." };
+    if (count) return { ok: false, error: t("fees.err.billedStayMonth") };
   }
   const next = { due_date: dueDate, month, amount, label: label.trim().slice(0, 60) || row.label };
   const { error } = await db.from("fees_ledger").update(next).eq("id", row.id);
-  if (error) return { ok: false, error: "Could not save. Please try again." };
+  if (error) return { ok: false, error: t("fees.err.couldNotSave") };
   await logActivity(ctx.viewer, "fee.edit", { type: "student", id: row.student_id }, {
     student: ctx.student.name,
     before: { due_date: row.due_date, amount: Number(row.amount), label: row.label },
@@ -119,17 +124,18 @@ export async function updateFeeRow(rowId: string, dueDate: string, amount: numbe
 
 /** Add a payment to the plan (one per month). */
 export async function addFeeRow(studentId: string, dueDate: string, amount: number, label: string): Promise<PlanResult> {
+  const { t } = await getT();
   const ctx = await planEditor(studentId);
-  if (!ctx) return { ok: false, error: "Only Admin and Reception can change fees." };
-  if (!isDate(dueDate)) return { ok: false, error: "Choose a date." };
-  if (!(amount > 0) || amount > 10_00_000) return { ok: false, error: "Enter the amount." };
+  if (!ctx) return { ok: false, error: t("fees.err.onlyAdminReception") };
+  if (!isDate(dueDate)) return { ok: false, error: t("fees.err.chooseDate") };
+  if (!(amount > 0) || amount > 10_00_000) return { ok: false, error: t("fees.err.enterAmount") };
   const db = adminClient();
   const month = monthOf(dueDate);
   const { data: clash } = await db.from("fees_ledger").select("id").eq("student_id", studentId).eq("month", month).maybeSingle();
-  if (clash) return { ok: false, error: "There is already a payment in that month. Change that one instead." };
+  if (clash) return { ok: false, error: t("fees.err.monthTaken") };
   const row = { student_id: studentId, month, due_date: dueDate, amount, label: label.trim().slice(0, 60) || null };
   const { error } = await db.from("fees_ledger").insert(row);
-  if (error) return { ok: false, error: "Could not save. Please try again." };
+  if (error) return { ok: false, error: t("fees.err.couldNotSave") };
   await logActivity(ctx.viewer, "fee.edit", { type: "student", id: studentId }, { student: ctx.student.name, added: row });
   revalidatePath(`/fees/${studentId}`);
   return { ok: true };
@@ -137,14 +143,15 @@ export async function addFeeRow(studentId: string, dueDate: string, amount: numb
 
 /** Remove a payment that has nothing paid and no bill. */
 export async function deleteFeeRow(rowId: string): Promise<PlanResult> {
+  const { t } = await getT();
   const db = adminClient();
-  if (!UUID.test(rowId)) return { ok: false, error: "Not found." };
+  if (!UUID.test(rowId)) return { ok: false, error: t("fees.err.paymentNotFound") };
   const { data: row } = await db.from("fees_ledger").select("*").eq("id", rowId).maybeSingle();
-  if (!row) return { ok: false, error: "This payment was not found." };
+  if (!row) return { ok: false, error: t("fees.err.paymentNotFound") };
   const ctx = await planEditor(row.student_id);
-  if (!ctx) return { ok: false, error: "Only Admin and Reception can change fees." };
+  if (!ctx) return { ok: false, error: t("fees.err.onlyAdminReception") };
   const { count } = await db.from("invoices").select("id", { count: "exact", head: true }).eq("student_id", row.student_id).eq("month", row.month);
-  if (Number(row.paid) > 0 || count) return { ok: false, error: "Money or bills are recorded for this payment, so it cannot be removed." };
+  if (Number(row.paid) > 0 || count) return { ok: false, error: t("fees.err.cannotRemove") };
   await db.from("fees_ledger").delete().eq("id", row.id);
   await logActivity(ctx.viewer, "fee.edit", { type: "student", id: row.student_id }, {
     student: ctx.student.name,
@@ -160,11 +167,12 @@ export async function deleteFeeRow(rowId: string): Promise<PlanResult> {
  * earlier months keep what they had.
  */
 export async function updatePlan(studentId: string, plan: string, monthlyFee: number, dueDay: number): Promise<PlanResult> {
+  const { t } = await getT();
   const ctx = await planEditor(studentId);
-  if (!ctx) return { ok: false, error: "Only Admin and Reception can change fees." };
-  if (!["monthly", "one_time", "installments", "manual"].includes(plan)) return { ok: false, error: "Choose a plan." };
-  if (plan === "monthly" && (!(monthlyFee > 0) || monthlyFee > 1_00_000)) return { ok: false, error: "Enter the monthly fee." };
-  if (plan === "monthly" && !(dueDay >= 1 && dueDay <= 28)) return { ok: false, error: "Choose a due day from 1 to 28." };
+  if (!ctx) return { ok: false, error: t("fees.err.onlyAdminReception") };
+  if (!["monthly", "one_time", "installments", "manual"].includes(plan)) return { ok: false, error: t("fees.err.choosePlan") };
+  if (plan === "monthly" && (!(monthlyFee > 0) || monthlyFee > 1_00_000)) return { ok: false, error: t("fees.err.enterMonthly") };
+  if (plan === "monthly" && !(dueDay >= 1 && dueDay <= 28)) return { ok: false, error: t("fees.err.dueDay") };
   const db = adminClient();
   const before = { fee_plan: ctx.student.fee_plan, monthly_fee: Number(ctx.student.monthly_fee), fee_due_day: ctx.student.fee_due_day };
   const after =
@@ -172,7 +180,7 @@ export async function updatePlan(studentId: string, plan: string, monthlyFee: nu
       ? { fee_plan: plan, monthly_fee: monthlyFee, fee_due_day: Math.round(dueDay) }
       : { fee_plan: plan, monthly_fee: 0, fee_due_day: ctx.student.fee_due_day ?? 5 };
   const { error } = await db.from("students").update(after).eq("id", studentId);
-  if (error) return { ok: false, error: "Could not save. Has the fee plans update been run in Supabase?" };
+  if (error) return { ok: false, error: t("fees.err.planMigration") };
   if (plan === "monthly") {
     const current = monthOf(todayIst());
     const { data: rows } = await db.from("fees_ledger").select("*").eq("student_id", studentId).gte("month", current);

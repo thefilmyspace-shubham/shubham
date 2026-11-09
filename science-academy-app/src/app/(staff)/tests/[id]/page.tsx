@@ -8,12 +8,14 @@ import { dayLabel } from "@/lib/format";
 import { classSummary, getTest, marksOf, studentsForTest } from "@/lib/academics";
 import { Banner, Chip, Empty, Page, PageHeader } from "@/components/ui";
 import { MarksForm, type MarksRow } from "./MarksForm";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "Marks" };
 
 export default async function TestMarksPage({ params }: { params: Promise<{ id: string }> }) {
   const viewer = await requireStaff();
   const { id } = await params;
+  const { t } = await getT();
   const canEnter = can(viewer, "marks.enter");
   if (!canEnter && !can(viewer, "students.view")) notFound();
   const test = await getTest(id);
@@ -41,47 +43,47 @@ export default async function TestMarksPage({ params }: { params: Promise<{ id: 
     <>
       <PageHeader
         title={test.name}
-        subtitle={`${boardName(test.board)} ${test.class} · ${test.batch_id && bmap.get(test.batch_id) ? batchShort(bmap.get(test.batch_id)!) : "Whole class"} · ${dayLabel(test.date)}${max !== null ? ` · Max ${max}` : ""}`}
+        subtitle={`${boardName(test.board)} ${test.class} · ${test.batch_id && bmap.get(test.batch_id) ? batchShort(bmap.get(test.batch_id)!) : t("academics.wholeClass")} · ${dayLabel(test.date)}${max !== null ? ` · ${t("academics.max", { n: max })}` : ""}`}
         back="/timetable"
         right={
           can(viewer, "ranks.view") ? (
             <Link href={`/ranks?test=${test.id}`} className="btn btn-ghost py-1.5 text-[13px]">
-              <Trophy size={15} /> Ranks
+              <Trophy size={15} /> {t("academics.marks.ranks")}
             </Link>
           ) : null
         }
       />
       <Page>
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <Chip tone={test.tag === "School" ? "violet" : "primary"}>{test.tag}</Chip>
+          <Chip tone={test.tag === "School" ? "violet" : "primary"}>{t(test.tag === "School" ? "academics.tag.School" : "academics.tag.Coaching")}</Chip>
           {test.subject && <Chip>{test.subject}</Chip>}
           <Chip tone={entered === rows.length && rows.length ? "ok" : "warn"}>
-            {entered} of {rows.length} entered
+            {t("academics.marks.enteredOf", { n: entered, total: rows.length })}
           </Chip>
-          {summary.average !== null && <Chip tone="navy">Average {summary.average}%</Chip>}
+          {summary.average !== null && <Chip tone="navy">{t("academics.marks.average", { n: summary.average })}</Chip>}
         </div>
         {max === null && (
           <div className="mb-3">
             <Banner tone="warn" icon={Info}>
-              No max marks set for this test, so percentages and ranks by % can&apos;t be shown. Admin or Management can add it.
+              {t("academics.marks.noMax")}
             </Banner>
           </div>
         )}
         {viewer.user.role === "faculty" && !test.batch_id && (
           <div className="mb-3">
             <Banner tone="neutral" icon={Info}>
-              Whole-class test: you see and enter marks only for students of your own batches.
+              {t("academics.marks.facultyWhole")}
             </Banner>
           </div>
         )}
         {!canEnter && (
           <div className="mb-3">
             <Banner tone="neutral" icon={Info}>
-              View only.
+              {t("academics.marks.viewOnly")}
             </Banner>
           </div>
         )}
-        {rows.length === 0 ? <Empty>No active students for this test.</Empty> : <MarksForm testId={test.id} max={max} rows={rows} readOnly={!canEnter} />}
+        {rows.length === 0 ? <Empty>{t("academics.marks.noStudents")}</Empty> : <MarksForm testId={test.id} max={max} rows={rows} readOnly={!canEnter} />}
       </Page>
     </>
   );

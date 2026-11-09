@@ -8,6 +8,7 @@ import { dayLabel, todayIst } from "@/lib/format";
 import { activeStudentsOfBatches } from "@/lib/academics";
 import { attendanceOn, countStatuses } from "@/lib/attendance";
 import { Card, Chip, Empty, Page, PageHeader, Section, SectionLink } from "@/components/ui";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "Attendance" };
 
@@ -15,6 +16,7 @@ export default async function AttendancePage() {
   const viewer = await requireStaff();
   if (!can(viewer, "attendance.mark") && !can(viewer, "students.view")) notFound();
   const canMark = can(viewer, "attendance.mark");
+  const { t } = await getT();
   const today = todayIst();
   const batches = await batchesFor(viewer);
   const students = await activeStudentsOfBatches(batches.map((b) => b.id));
@@ -27,7 +29,7 @@ export default async function AttendancePage() {
   // Board, then class, then batch.
   const groups = new Map<string, typeof batches>();
   for (const b of batches) {
-    const k = `${boardName(b.board)} · Class ${b.class}`;
+    const k = `${boardName(b.board)} · ${t("academics.class", { n: b.class })}`;
     groups.set(k, [...(groups.get(k) ?? []), b]);
   }
   const notMarked = batches.filter((b) => {
@@ -38,24 +40,24 @@ export default async function AttendancePage() {
   return (
     <>
       <PageHeader
-        title="Attendance"
-        subtitle={`Today · ${dayLabel(today)}${canMark ? "" : " · view only"}`}
+        title={t("academics.att.title")}
+        subtitle={`${t("academics.att.todaySub", { date: dayLabel(today) })}${canMark ? "" : t("academics.att.viewOnlySuffix")}`}
         right={
           <Link href="/attendance/low" className="btn btn-ghost py-1.5 text-[13px]">
-            <AlertTriangle size={15} /> Low attendance
+            <AlertTriangle size={15} /> {t("academics.att.lowBtn")}
           </Link>
         }
       />
       <Page>
         {batches.length === 0 ? (
           <Empty icon={ClipboardCheck}>
-            {viewer.user.role === "faculty" ? "No batches are assigned to you yet. Admin assigns batches in Batches & faculty." : "No batches yet. Admin adds them in Batches & faculty."}
+            {viewer.user.role === "faculty" ? t("academics.att.noBatchesFaculty") : t("academics.att.noBatches")}
           </Empty>
         ) : (
           <>
             {notMarked > 0 && (
               <p className="mb-1 text-sm font-semibold text-warn">
-                {notMarked} {notMarked === 1 ? "batch has" : "batches have"} not marked attendance today.
+                {t(notMarked === 1 ? "academics.att.notMarked1" : "academics.att.notMarkedN", { n: notMarked })}
               </p>
             )}
             {[...groups].map(([title, list]) => (
@@ -71,18 +73,18 @@ export default async function AttendancePage() {
                         <Card className="flex items-center gap-3 p-4 hover:ring-1 hover:ring-primary">
                           <div className="min-w-0 flex-1">
                             <p className="font-bold text-navy">{batchShort(b)}</p>
-                            <p className="text-xs text-muted">{mine.length} students</p>
+                            <p className="text-xs text-muted">{t("academics.students", { n: mine.length })}</p>
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               {done ? (
                                 <Chip tone="ok">
-                                  <CheckCircle2 size={12} /> Marked
+                                  <CheckCircle2 size={12} /> {t("academics.att.marked")}
                                 </Chip>
                               ) : marked ? (
                                 <Chip tone="warn">
-                                  <Clock size={12} /> {c.unmarked} left
+                                  <Clock size={12} /> {t("academics.att.left", { n: c.unmarked })}
                                 </Chip>
                               ) : (
-                                <Chip tone={mine.length ? "danger" : "neutral"}>Not marked</Chip>
+                                <Chip tone={mine.length ? "danger" : "neutral"}>{t("academics.att.notMarked")}</Chip>
                               )}
                               {marked && (
                                 <>
@@ -101,8 +103,8 @@ export default async function AttendancePage() {
                 </div>
               </Section>
             ))}
-            <Section title="Low attendance and absences" action={<SectionLink href="/attendance/low">Open list</SectionLink>}>
-              <p className="text-sm text-muted">Students below 75% in the last 30 days, and anyone absent 3 days in a row, with a ready message to the parent.</p>
+            <Section title={t("academics.att.lowSection")} action={<SectionLink href="/attendance/low">{t("academics.att.openList")}</SectionLink>}>
+              <p className="text-sm text-muted">{t("academics.att.lowSectionText")}</p>
             </Section>
           </>
         )}

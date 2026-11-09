@@ -3,10 +3,12 @@
 import { useActionState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { saveMarks, type MarksState } from "./actions";
+import { useT } from "@/components/I18nProvider";
 
 export type MarksRow = { id: string; name: string; code: string | null; batch: string; score: number | null; absent: boolean };
 
 export function MarksForm({ testId, max, rows, readOnly }: { testId: string; max: number | null; rows: MarksRow[]; readOnly: boolean }) {
+  const t = useT();
   const [state, action, pending] = useActionState<MarksState, FormData>(saveMarks, null);
   return (
     <form action={action} className="space-y-3">
@@ -31,13 +33,13 @@ export function MarksForm({ testId, max, rows, readOnly }: { testId: string; max
               max={max ?? undefined}
               defaultValue={r.score ?? ""}
               disabled={readOnly}
-              aria-label={`Marks of ${r.name}`}
+              aria-label={t("academics.marks.of", { name: r.name })}
               className="field w-20 py-2 text-center font-bold"
             />
             {max !== null && <span className="hidden w-10 text-xs text-muted sm:inline">/ {max}</span>}
             <label className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-muted">
               <input type="checkbox" name={`absent-${r.id}`} defaultChecked={r.absent} disabled={readOnly} className="h-4 w-4 accent-[var(--color-danger)]" />
-              Absent
+              {t("academics.absent")}
             </label>
           </li>
         ))}
@@ -47,7 +49,7 @@ export function MarksForm({ testId, max, rows, readOnly }: { testId: string; max
         <div className="sticky bottom-20 lg:bottom-4">
           <button className="btn btn-green w-full py-3 shadow-card" disabled={pending}>
             {pending && <LoaderCircle size={18} className="animate-spin" />}
-            Save marks
+            {t("academics.marks.save")}
           </button>
         </div>
       )}

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Bell, ChevronRight, LogOut } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 import { navFor } from "@/lib/nav";
-import { ROLE_LABEL } from "@/lib/permissions";
+import { getT } from "@/lib/i18n/server";
+import { LanguagePicker } from "@/components/LanguagePicker";
 import { unreadCount } from "@/lib/notifications";
 import { formatMobile } from "@/lib/ids";
 import { ICONS } from "@/components/nav-icons";
@@ -14,7 +15,7 @@ export const metadata = { title: "More" };
 export default async function MorePage() {
   const viewer = await requireStaff();
   const items = navFor(viewer.perms).filter((i) => i.href !== "/");
-  const unread = await unreadCount(viewer.user.id);
+  const [unread, { t }] = await Promise.all([unreadCount(viewer.user.id), getT()]);
   const row = (href: string, label: string, Icon: typeof Bell, badge?: number) => (
     <Link key={href} href={href} className="flex items-center gap-3 px-4 py-3 hover:bg-field">
       <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-soft text-primary">
@@ -27,33 +28,39 @@ export default async function MorePage() {
   );
   return (
     <>
-      <PageHeader title="More" />
+      <PageHeader title={t("core.more.title")} />
       <Page>
         <Card className="flex items-center gap-3 p-4">
           <div className="grid h-12 w-12 place-items-center rounded-full bg-navy text-lg font-extrabold text-white">{viewer.user.name.charAt(0)}</div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-bold">{viewer.user.name}</p>
             <p className="text-sm text-muted">
-              {viewer.user.staff_id} · {ROLE_LABEL[viewer.user.role]} · {formatMobile(viewer.user.mobile)}
+              {viewer.user.staff_id} · {t(`core.role.${viewer.user.role}`)} · {formatMobile(viewer.user.mobile)}
             </p>
           </div>
         </Card>
-        <Section title="Screens">
+        <Section title={t("core.language")}>
+          <Card className="p-4">
+            <LanguagePicker />
+            <p className="mt-2 text-xs text-muted">{t("core.more.languageHint")}</p>
+          </Card>
+        </Section>
+        <Section title={t("core.more.screens")}>
           <Card className="divide-y divide-line overflow-hidden">
-            {row("/notifications", "Notifications", Bell, unread)}
-            {items.filter((i) => i.section === "main").map((i) => row(i.href, i.label, ICONS[i.icon]))}
+            {row("/notifications", t("core.notifications"), Bell, unread)}
+            {items.filter((i) => i.section === "main").map((i) => row(i.href, t(i.label), ICONS[i.icon]))}
           </Card>
         </Section>
         {items.some((i) => i.section === "admin") && (
-          <Section title="Admin">
+          <Section title={t("core.nav.adminSection")}>
             <Card className="divide-y divide-line overflow-hidden">
-              {items.filter((i) => i.section === "admin").map((i) => row(i.href, i.label, ICONS[i.icon]))}
+              {items.filter((i) => i.section === "admin").map((i) => row(i.href, t(i.label), ICONS[i.icon]))}
             </Card>
           </Section>
         )}
         <form action="/api/auth/logout" method="post" className="pt-5">
           <button className="btn btn-danger w-full">
-            <LogOut size={17} /> Log out
+            <LogOut size={17} /> {t("core.logout")}
           </button>
         </form>
       </Page>

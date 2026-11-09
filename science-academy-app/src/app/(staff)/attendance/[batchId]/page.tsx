@@ -10,6 +10,7 @@ import { attendanceOn, canChangeRow, isIsoDate, isLocked } from "@/lib/attendanc
 import type { Batch } from "@/lib/types";
 import { Banner, Empty, Page, PageHeader } from "@/components/ui";
 import { AttendanceSheet, type SheetRow } from "./AttendanceSheet";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "Mark attendance" };
 
@@ -26,6 +27,7 @@ export default async function BatchAttendancePage({
   if (!can(viewer, "attendance.mark") && !can(viewer, "students.view")) notFound();
   if (!/^[0-9a-f-]{36}$/i.test(batchId) || !canSeeBatch(viewer, batchId)) notFound();
 
+  const { t } = await getT();
   const today = todayIst();
   const date = isIsoDate(dateParam) && dateParam <= today ? dateParam : today;
   const { data: batch } = await adminClient().from("batches").select("*").eq("id", batchId).maybeSingle<Batch>();
@@ -64,18 +66,18 @@ export default async function BatchAttendancePage({
 
   return (
     <>
-      <PageHeader title={batchLabel(batch)} subtitle={`${dayLabel(date)}${date === today ? " · Today" : ""} · ${students.length} students`} back="/attendance" />
+      <PageHeader title={batchLabel(batch)} subtitle={`${dayLabel(date)}${date === today ? ` · ${t("core.today")}` : ""} · ${t("academics.students", { n: students.length })}`} back="/attendance" />
       <Page>
         <div className="mb-3 flex items-center gap-2">
-          <Link href={`/attendance/${batch.id}?date=${prev}`} className="btn btn-ghost px-2.5" aria-label="Previous day">
+          <Link href={`/attendance/${batch.id}?date=${prev}`} className="btn btn-ghost px-2.5" aria-label={t("academics.att.prevDay")}>
             <ChevronLeft size={18} />
           </Link>
           <form className="flex flex-1 items-center gap-2">
-            <input type="date" name="date" defaultValue={date} max={today} className="field py-2" aria-label="Date" />
-            <button className="btn btn-soft">Go</button>
+            <input type="date" name="date" defaultValue={date} max={today} className="field py-2" aria-label={t("academics.att.date")} />
+            <button className="btn btn-soft">{t("academics.att.go")}</button>
           </form>
           {date < today ? (
-            <Link href={`/attendance/${batch.id}?date=${next}`} className="btn btn-ghost px-2.5" aria-label="Next day">
+            <Link href={`/attendance/${batch.id}?date=${next}`} className="btn btn-ghost px-2.5" aria-label={t("academics.att.nextDay")}>
               <ChevronRight size={18} />
             </Link>
           ) : (
@@ -89,19 +91,19 @@ export default async function BatchAttendancePage({
           {lockedCount > 0 && (
             <Banner tone={canCorrect ? "warn" : "neutral"} icon={Lock}>
               {canCorrect
-                ? "This day is locked (saved more than 24 hours ago). Any change you make is a correction and is written to the activity log."
-                : "This day is locked (saved more than 24 hours ago). Only Admin or Management can correct it."}
+                ? t("academics.att.lockedCorrect")
+                : t("academics.att.lockedOnly")}
             </Banner>
           )}
           {readOnly && !lockedCount && (
             <Banner tone="neutral" icon={Info}>
-              View only. Faculty mark attendance for their own batches.
+              {t("academics.att.viewOnlyFaculty")}
             </Banner>
           )}
         </div>
 
         {students.length === 0 ? (
-          <Empty>No active students in this batch.</Empty>
+          <Empty>{t("academics.att.noActive")}</Empty>
         ) : (
           <AttendanceSheet
             key={date}

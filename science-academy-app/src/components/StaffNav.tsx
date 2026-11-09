@@ -6,6 +6,8 @@ import { Bell, LogOut } from "lucide-react";
 import type { NavItem } from "@/lib/nav";
 import { Logo } from "./Logo";
 import { ICONS } from "./nav-icons";
+import { useT } from "./I18nProvider";
+import { LanguagePicker } from "./LanguagePicker";
 
 
 function isActive(href: string, path: string) {
@@ -25,6 +27,7 @@ export function Sidebar({
   unread: number;
 }) {
   const path = usePathname();
+  const t = useT();
   const main = items.filter((i) => i.section === "main");
   const admin = items.filter((i) => i.section === "admin");
   const link = (i: NavItem) => {
@@ -39,7 +42,7 @@ export function Sidebar({
           }`}
         >
           <Icon size={18} strokeWidth={active ? 2.3 : 1.9} />
-          {i.label}
+          {t(i.label)}
         </Link>
       </li>
     );
@@ -54,7 +57,7 @@ export function Sidebar({
         <ul className="space-y-0.5">{main.map(link)}</ul>
         {admin.length > 0 && (
           <>
-            <p className="mt-5 mb-1.5 px-3 text-[11px] font-bold tracking-wider text-faint uppercase">Admin</p>
+            <p className="mt-5 mb-1.5 px-3 text-[11px] font-bold tracking-wider text-faint uppercase">{t("core.nav.adminSection")}</p>
             <ul className="space-y-0.5">{admin.map(link)}</ul>
           </>
         )}
@@ -67,9 +70,12 @@ export function Sidebar({
           }`}
         >
           <Bell size={18} />
-          Notifications
+          {t("core.notifications")}
           {unread > 0 && <span className="ml-auto rounded-full bg-danger px-1.5 text-[11px] font-extrabold text-white">{unread > 99 ? "99+" : unread}</span>}
         </Link>
+        <div className="mb-2 px-1">
+          <LanguagePicker compact />
+        </div>
         <div className="flex items-center gap-2 rounded-field bg-field px-3 py-2">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-navy">{user.name}</p>
@@ -78,7 +84,7 @@ export function Sidebar({
             </p>
           </div>
           <form action="/api/auth/logout" method="post">
-            <button className="grid h-8 w-8 place-items-center rounded-full text-muted hover:bg-card hover:text-danger" title="Log out" aria-label="Log out">
+            <button className="grid h-8 w-8 place-items-center rounded-full text-muted hover:bg-card hover:text-danger" title={t("core.logout")} aria-label={t("core.logout")}>
               <LogOut size={17} />
             </button>
           </form>
@@ -91,8 +97,9 @@ export function Sidebar({
 /** Phone bottom menu: the role's four main screens + More. */
 export function BottomNav({ items }: { items: NavItem[] }) {
   const path = usePathname();
+  const t = useT();
   if (/^\/(groups|assistant)\/./.test(path) || path === "/assistant") return null;
-  const tabs = [...items, { href: "/more", label: "More", icon: "more" as const, anyOf: [], section: "main" as const }];
+  const tabs = [...items, { href: "/more", label: "core.nav.more" as const, icon: "more" as const, anyOf: [], section: "main" as const }];
   const onMain = items.some((i) => isActive(i.href, path));
   return (
     <nav className="safe-bottom no-print fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/95 backdrop-blur lg:hidden">
@@ -107,7 +114,7 @@ export function BottomNav({ items }: { items: NavItem[] }) {
                 className={`flex flex-col items-center gap-1 pt-2 pb-1.5 text-[10.5px] font-semibold ${active ? "text-primary" : "text-faint"}`}
               >
                 <Icon size={22} strokeWidth={active ? 2.3 : 1.8} />
-                {i.label === "Timetable & tests" ? "Timetable" : i.label}
+                {t(i.label === "core.nav.timetable" ? "core.nav.timetableShort" : i.label)}
               </Link>
             </li>
           );

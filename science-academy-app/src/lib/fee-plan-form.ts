@@ -1,6 +1,7 @@
 // Reads the "Fees & payment plan" part of the registration form (pure, tested).
 
-import { checkSchedule, dueDate, scheduleTotal, type FeePlan, type Installment } from "./fees";
+import { dueDate, scheduleTotal, type FeePlan, type Installment } from "./fees";
+import { translator, type DictKey, type Params, type TFn } from "./i18n";
 import { monthStart } from "./format";
 
 export type ParsedFeePlan = {
@@ -22,6 +23,7 @@ const PLANS: FeePlan[] = ["monthly", "one_time", "installments", "manual"];
 export function parseFeePlan(
   form: FormData,
   strict: boolean,
+  t: TFn = translator("en"),
 ): { ok: true; data: ParsedFeePlan } | { ok: false; errors: Record<string, string> } {
   const get = (k: string) => String(form.get(k) ?? "").trim();
   const plan = (PLANS as string[]).includes(get("fee_plan")) ? (get("fee_plan") as FeePlan) : "monthly";
@@ -30,9 +32,9 @@ export function parseFeePlan(
   if (plan === "monthly") {
     const fee = Number(get("monthly_fee") || "0");
     const day = Math.round(Number(get("fee_due_day") || "5"));
-    if (!Number.isFinite(fee) || fee < 0 || fee > 1_00_000) errors.monthly_fee = "Enter the monthly fee.";
-    else if (strict && fee <= 0) errors.monthly_fee = "Enter the monthly fee.";
-    if (!(day >= 1 && day <= 28)) errors.fee_due_day = "Choose a due day from 1 to 28.";
+    if (!Number.isFinite(fee) || fee < 0 || fee > 1_00_000) errors.monthly_fee = t("students.err.monthlyFee");
+    else if (strict && fee <= 0) errors.monthly_fee = t("students.err.monthlyFee");
+    if (!(day >= 1 && day <= 28)) errors.fee_due_day = t("students.err.dueDay");
     if (Object.keys(errors).length && strict) return { ok: false, errors };
     return {
       ok: true,
@@ -56,13 +58,31 @@ export function parseFeePlan(
     rows = [];
   }
   if (plan === "one_time" && rows.length) rows = [{ ...rows[0], label: "Full fee (one time)" }];
-  const problem = checkSchedule(rows);
+  const issue = scheduleProblem(rows);
+  const problem = issue ? t(issue.key, issue.params) : null;
   if (problem) errors.fee_schedule = problem;
   if (Object.keys(errors).length && strict) return { ok: false, errors };
   return {
     ok: true,
     data: { fee_plan: plan, monthly_fee: 0, fee_due_day: 5, total_fee: rows.length ? scheduleTotal(rows) : null, fee_schedule: problem ? rows.filter((r) => r.due_date && r.amount > 0) : rows },
   };
+}
+
+/**
+ * What is wrong with a payment schedule, as a dictionary key (same rules as
+ * checkSchedule in fees.ts: dates, amounts, one payment per month). Null when fine.
+ */
+export function scheduleProblem(rows: Installment[]): { key: DictKey; params?: Params } | null {
+  if (!rows.length) return { key: "students.err.schedEmpty" };
+  const months = new Set<string>();
+  for (const [i, r] of rows.entries()) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(r.due_date)) return { key: "students.err.schedDate", params: { n: i + 1 } };
+    if (!(Number(r.amount) > 0)) return { key: "students.err.schedAmount", params: { n: i + 1 } };
+    const m = r.due_date.slice(0, 7);
+    if (months.has(m)) return { key: "students.err.schedSameMonth" };
+    months.add(m);
+  }
+  return null;
 }
 
 export type NewLedgerRow = {

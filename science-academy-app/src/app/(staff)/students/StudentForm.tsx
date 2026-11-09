@@ -6,6 +6,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, FileText, LoaderCircle, ShieldCheck
 import { boardName, formatStudentId, sessionLabel } from "@/lib/ids";
 import type { AiCheck, GuardianRelation } from "@/lib/types";
 import { saveStudent, type SaveState } from "./actions";
+import { useT } from "@/components/I18nProvider";
 
 export type BatchOption = { id: string; board: string; class: number; label: string };
 
@@ -52,7 +53,6 @@ const STEP1_FIELDS = [
   "login_relation",
 ];
 
-const AI_LABEL: Record<AiCheck, string> = { pending: "Not checked", matched: "Matched", mismatch: "Mismatch", cant_read: "Can't read" };
 const AI_TONE: Record<AiCheck, string> = {
   pending: "bg-field text-muted",
   matched: "bg-ok-soft text-ok",
@@ -77,6 +77,7 @@ export function StudentForm({
   consentText: string;
   initial?: FormInitial;
 }) {
+  const t = useT();
   const [state, dispatch, pending] = useActionState<SaveState, FormData>(saveStudent, null);
   const registered = Boolean(initial && initial.status !== "draft");
   const [step, setStep] = useState<1 | 2>(1);
@@ -115,7 +116,7 @@ export function StudentForm({
   const yearDefault = (back: number) => {
     if (!cls || !Number.isFinite(sessionNum)) return "";
     const start = 2000 + sessionNum - back;
-    return `${start}-${String((start + 1) % 100).padStart(2, "0")} (Class ${Number(cls) - back})`;
+    return t("students.form.yearDefault", { range: `${start}-${String((start + 1) % 100).padStart(2, "0")}`, cls: Number(cls) - back });
   };
 
   const relRow = (rel: GuardianRelation, label: string, nameField?: React.ReactNode) => (
@@ -123,7 +124,7 @@ export function StudentForm({
       {nameField}
       <div className={nameField ? "" : "sm:col-span-2"}>
         <label className="label" htmlFor={`${rel}_mobile`}>
-          {label} mobile
+          {t("students.form.mobileOf", { who: label })}
         </label>
         <div className="flex items-center gap-2">
           <input
@@ -131,7 +132,7 @@ export function StudentForm({
             name={`${rel}_mobile`}
             className="field"
             inputMode="numeric"
-            placeholder="10 digit number"
+            placeholder={t("students.form.mobilePh")}
             value={mobiles[rel]}
             onChange={(e) => {
               const v = e.target.value;
@@ -153,7 +154,7 @@ export function StudentForm({
               disabled={!mobiles[rel].trim()}
               className="accent-[var(--color-primary)]"
             />
-            Login
+            {t("students.form.login")}
           </label>
         </div>
         <Err msg={errors[`${rel}_mobile`]} />
@@ -179,7 +180,7 @@ export function StudentForm({
         {[1, 2].map((n) => (
           <div key={n} className="flex flex-1 items-center gap-2">
             <span className={`grid h-6 w-6 place-items-center rounded-full text-xs font-extrabold ${step >= n ? "bg-primary text-white" : "bg-line text-muted"}`}>{n}</span>
-            <span className={`text-xs font-bold ${step === n ? "text-navy" : "text-muted"}`}>{n === 1 ? "Student & parents" : "Marksheets & consent"}</span>
+            <span className={`text-xs font-bold ${step === n ? "text-navy" : "text-muted"}`}>{n === 1 ? t("students.form.step1") : t("students.form.step2")}</span>
           </div>
         ))}
       </div>
@@ -193,18 +194,18 @@ export function StudentForm({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_380px]">
         <div className={`space-y-4 ${step === 1 ? "block" : "hidden"} lg:block`}>
           <section className="rounded-card bg-card p-4 shadow-card">
-            <h2 className="mb-3 text-[15px] font-bold text-navy">Student</h2>
+            <h2 className="mb-3 text-[15px] font-bold text-navy">{t("students.form.student")}</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className="label" htmlFor="name">
-                  Student name
+                  {t("students.form.name")}
                 </label>
                 <input id="name" name="name" className="field" defaultValue={initial?.name} autoComplete="off" />
                 <Err msg={errors.name} />
               </div>
               <div>
                 <label className="label" htmlFor="board">
-                  Board
+                  {t("students.board")}
                 </label>
                 <select
                   id="board"
@@ -216,7 +217,7 @@ export function StudentForm({
                     setBatchId("");
                   }}
                 >
-                  <option value="">Choose</option>
+                  <option value="">{t("students.choose")}</option>
                   <option value="CB">CBSE</option>
                   <option value="MP">MP Board</option>
                 </select>
@@ -224,7 +225,7 @@ export function StudentForm({
               </div>
               <div>
                 <label className="label" htmlFor="current_class">
-                  Class
+                  {t("students.class")}
                 </label>
                 <select
                   id="current_class"
@@ -236,10 +237,10 @@ export function StudentForm({
                     setBatchId("");
                   }}
                 >
-                  <option value="">Choose</option>
+                  <option value="">{t("students.choose")}</option>
                   {[6, 7, 8, 9, 10, 11, 12].map((c) => (
                     <option key={c} value={c}>
-                      Class {c}
+                      {t("students.classN", { n: c })}
                     </option>
                   ))}
                 </select>
@@ -247,16 +248,16 @@ export function StudentForm({
               </div>
               <div className="sm:col-span-2">
                 <label className="label" htmlFor="school">
-                  School name
+                  {t("students.form.school")}
                 </label>
                 <input id="school" name="school" className="field" defaultValue={initial?.school ?? ""} />
               </div>
               <div>
                 <label className="label" htmlFor="batch_id">
-                  Batch
+                  {t("students.batch")}
                 </label>
                 <select id="batch_id" name="batch_id" className="field" value={batchId} onChange={(e) => setBatchId(e.target.value)} disabled={!board || !cls}>
-                  <option value="">{!board || !cls ? "Choose board and class first" : batchChoices.length ? "Choose" : "No batch for this class yet"}</option>
+                  <option value="">{!board || !cls ? t("students.form.batchFirst") : batchChoices.length ? t("students.choose") : t("students.form.noBatchForClass")}</option>
                   {batchChoices.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.label}
@@ -267,7 +268,7 @@ export function StudentForm({
               </div>
               <div>
                 <label className="label" htmlFor="session_year">
-                  Session year
+                  {t("students.form.session")}
                 </label>
                 <select id="session_year" name="session_year" className="field" value={session} onChange={(e) => setSession(e.target.value)}>
                   {[defaultSession - 1, defaultSession, defaultSession + 1].map((s) => (
@@ -279,7 +280,7 @@ export function StudentForm({
               </div>
               <div>
                 <label className="label" htmlFor="email">
-                  Parent&apos;s email (login code, bills and PDFs go here)
+                  {t("students.form.email")}
                 </label>
                 <input id="email" name="email" type="email" className="field" defaultValue={initial?.email ?? ""} />
                 <Err msg={errors.email} />
@@ -290,45 +291,45 @@ export function StudentForm({
           <FeePlanFields initial={initial?.feePlan ?? null} errors={errors} locked={registered} studentId={initial?.id} />
 
           <section className="rounded-card bg-card p-4 shadow-card">
-            <h2 className="text-[15px] font-bold text-navy">Parents and contact numbers</h2>
-            <p className="mb-3 text-xs text-muted">Only one number can log in. Tap “Login” next to it. The others are for contact only.</p>
+            <h2 className="text-[15px] font-bold text-navy">{t("students.form.parents")}</h2>
+            <p className="mb-3 text-xs text-muted">{t("students.form.parentsHint")}</p>
             <div className="space-y-3">
               {relRow(
                 "father",
-                "Father's",
+                t("students.form.fathers"),
                 <div>
                   <label className="label" htmlFor="father_name">
-                    Father&apos;s name
+                    {t("students.form.fatherName")}
                   </label>
                   <input id="father_name" name="father_name" className="field" value={fatherName} onChange={(e) => setFatherName(e.target.value)} />
                 </div>,
               )}
               {relRow(
                 "mother",
-                "Mother's",
+                t("students.form.mothers"),
                 <div>
                   <label className="label" htmlFor="mother_name">
-                    Mother&apos;s name
+                    {t("students.form.motherName")}
                   </label>
                   <input id="mother_name" name="mother_name" className="field" value={motherName} onChange={(e) => setMotherName(e.target.value)} />
                 </div>,
               )}
               {relRow(
                 "guardian",
-                "Guardian's",
+                t("students.form.guardians"),
                 <div>
                   <label className="label" htmlFor="guardian_name">
-                    Guardian&apos;s name (optional)
+                    {t("students.form.guardianName")}
                   </label>
                   <input id="guardian_name" name="guardian_name" className="field" defaultValue={initial?.guardian_name ?? ""} />
                 </div>,
               )}
               {relRow(
                 "alternate",
-                "Alternate",
+                t("students.form.alternate"),
                 <div>
                   <label className="label" htmlFor="alternate_name">
-                    Alternate contact name (optional)
+                    {t("students.form.alternateName")}
                   </label>
                   <input id="alternate_name" name="alternate_name" className="field" defaultValue={initial?.mobiles.alternate?.name ?? ""} />
                 </div>,
@@ -339,30 +340,30 @@ export function StudentForm({
 
           <div className="flex justify-end lg:hidden">
             <button type="button" className="btn btn-primary" onClick={() => setStep(2)}>
-              Next: marksheets <ArrowRight size={16} />
+              {t("students.form.next")} <ArrowRight size={16} />
             </button>
           </div>
         </div>
 
         <div className={`space-y-4 ${step === 2 ? "block" : "hidden"} lg:block`}>
           <section className="rounded-card bg-navy p-4 text-white shadow-card">
-            <p className="text-xs font-semibold text-white/70">{registered ? "Student ID" : "Student ID (preview)"}</p>
-            <p className="mt-1 text-2xl font-extrabold tracking-tight">{idPreview ?? "Choose board and class"}</p>
+            <p className="text-xs font-semibold text-white/70">{registered ? t("students.form.idLabel") : t("students.form.idPreview")}</p>
+            <p className="mt-1 text-2xl font-extrabold tracking-tight">{idPreview ?? t("students.form.chooseBoardClass")}</p>
             <p className="mt-1 text-xs text-white/70">
               {registered
-                ? "The roll number never changes. The class and year in the ID change at promotion."
-                : "The roll number is given when you press Register (next free number for the whole academy)."}
+                ? t("students.form.rollNeverChanges")
+                : t("students.form.rollOnRegister")}
             </p>
             {board && cls && (
               <p className="mt-2 text-xs text-white/80">
-                {boardName(board)} · Class {cls} · Session {Number.isFinite(sessionNum) ? sessionLabel(sessionNum) : ""}
+                {t("students.form.idLine", { board: boardName(board), cls, session: Number.isFinite(sessionNum) ? sessionLabel(sessionNum) : "" })}
               </p>
             )}
           </section>
 
           <section className="rounded-card bg-card p-4 shadow-card">
-            <h2 className="text-[15px] font-bold text-navy">Marksheets (last two years)</h2>
-            <p className="mb-3 text-xs text-muted">Upload a clear photo or PDF and type the percentage. The AI check compares the name and percentage. It never guesses.</p>
+            <h2 className="text-[15px] font-bold text-navy">{t("students.form.marksheets")}</h2>
+            <p className="mb-3 text-xs text-muted">{t("students.form.marksheetsHint")}</p>
             <div className="space-y-4">
               {[0, 1].map((i) => {
                 const ms = initial?.marksheets[i];
@@ -372,20 +373,20 @@ export function StudentForm({
                     <div className="grid grid-cols-[1fr_96px] gap-2">
                       <div>
                         <label className="label" htmlFor={`ms${i}_year`}>
-                          Year
+                          {t("students.form.year")}
                         </label>
                         <input
                           id={`ms${i}_year`}
                           name={`ms${i}_year`}
                           className="field"
                           defaultValue={ms?.year_label ?? ""}
-                          placeholder={yearDefault(i + 1) || `Year ${i + 1}`}
+                          placeholder={yearDefault(i + 1) || t("students.form.yearN", { n: i + 1 })}
                           key={ms ? ms.id : `y-${cls}-${session}`}
                         />
                       </div>
                       <div>
                         <label className="label" htmlFor={`ms${i}_pct`}>
-                          Percentage
+                          {t("students.form.percentage")}
                         </label>
                         <input
                           id={`ms${i}_pct`}
@@ -401,13 +402,13 @@ export function StudentForm({
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                         <FileText size={14} className="text-muted" />
                         <span className="max-w-[160px] truncate font-semibold">{ms.file_name}</span>
-                        <span className={`rounded-full px-2 py-0.5 font-bold ${AI_TONE[ms.ai]}`}>{AI_LABEL[ms.ai]}</span>
+                        <span className={`rounded-full px-2 py-0.5 font-bold ${AI_TONE[ms.ai]}`}>{t(`students.ai.${ms.ai}`)}</span>
                         {ms.note && <span className="w-full text-muted">{ms.note}</span>}
                       </div>
                     )}
                     <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-field border border-dashed border-line px-3 py-2.5 text-sm font-semibold text-primary hover:border-primary">
                       <Upload size={16} />
-                      <span>{ms?.file_name ? "Replace file" : "Upload photo or PDF"}</span>
+                      <span>{ms?.file_name ? t("students.form.replaceFile") : t("students.form.upload")}</span>
                       <input
                         type="file"
                         name={`ms${i}_file`}
@@ -424,10 +425,10 @@ export function StudentForm({
 
           <section className="rounded-card bg-card p-4 shadow-card">
             <h2 className="mb-2 flex items-center gap-2 text-[15px] font-bold text-navy">
-              <ShieldCheck size={17} className="text-green" /> Consent
+              <ShieldCheck size={17} className="text-green" /> {t("students.form.consent")}
             </h2>
             {initial?.consentGiven ? (
-              <p className="text-sm text-ok">Consent is on record.</p>
+              <p className="text-sm text-ok">{t("students.form.consentOnRecord")}</p>
             ) : (
               <>
                 <label className="flex items-start gap-2.5 text-[13px]">
@@ -437,7 +438,7 @@ export function StudentForm({
                 <Err msg={errors.consent} />
                 <div className="mt-3">
                   <label className="label" htmlFor="consent_by">
-                    Consent given by (parent or guardian name)
+                    {t("students.form.consentBy")}
                   </label>
                   <input id="consent_by" name="consent_by" className="field" key={fatherName || motherName} defaultValue={fatherName || motherName} />
                   <Err msg={errors.consent_by} />
@@ -446,24 +447,24 @@ export function StudentForm({
             )}
             {initial?.consentGiven && <input type="hidden" name="consent" value="true" />}
             {initial?.consentGiven && <input type="hidden" name="consent_by" value="on record" />}
-            <p className="mt-3 text-xs text-muted">No student photo is collected.</p>
+            <p className="mt-3 text-xs text-muted">{t("students.form.noPhoto")}</p>
           </section>
 
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button type="button" className="btn btn-ghost mr-auto lg:hidden" onClick={() => setStep(1)}>
-              <ArrowLeft size={16} /> Back
+              <ArrowLeft size={16} /> {t("core.back")}
             </button>
             {!registered && (
               <button type="submit" name="intent" value="draft" className="btn btn-ghost" disabled={pending}>
-                Save as draft
+                {t("students.form.saveDraft")}
               </button>
             )}
             <button type="submit" name="intent" value="register" className="btn btn-primary" disabled={pending}>
               {pending && <LoaderCircle size={16} className="animate-spin" />}
-              {registered ? "Save changes" : "Register"}
+              {registered ? t("students.form.saveChanges") : t("students.form.registerBtn")}
             </button>
           </div>
-          {pending && <p className="text-right text-xs text-muted">Saving and checking marksheets… this can take a few seconds.</p>}
+          {pending && <p className="text-right text-xs text-muted">{t("students.form.saving")}</p>}
         </div>
       </div>
     </form>

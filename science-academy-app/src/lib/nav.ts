@@ -2,6 +2,7 @@
 // Icons are named here and mapped to lucide icons in the nav components.
 
 import type { PermissionKey, Role } from "./permissions";
+import type { DictKey } from "./i18n";
 
 export type NavIcon =
   | "home"
@@ -25,7 +26,8 @@ export type NavIcon =
 
 export type NavItem = {
   href: string;
-  label: string;
+  /** Dictionary key of the screen name (shown in the reader's language). */
+  label: DictKey;
   icon: NavIcon;
   /** Any one of these opens it. Empty = every staff member. */
   anyOf: PermissionKey[];
@@ -33,22 +35,22 @@ export type NavItem = {
 };
 
 export const NAV: NavItem[] = [
-  { href: "/", label: "Home", icon: "home", anyOf: [], section: "main" },
-  { href: "/students", label: "Students", icon: "students", anyOf: ["students.view"], section: "main" },
-  { href: "/students/new", label: "Register student", icon: "register", anyOf: ["students.edit"], section: "main" },
-  { href: "/fees", label: "Fees", icon: "fees", anyOf: ["fees.view"], section: "main" },
-  { href: "/calls", label: "Call log", icon: "calls", anyOf: ["fees.view"], section: "main" },
-  { href: "/billing", label: "Billing", icon: "billing", anyOf: ["bills.create"], section: "main" },
-  { href: "/attendance", label: "Attendance", icon: "attendance", anyOf: ["attendance.mark", "students.view"], section: "main" },
-  { href: "/timetable", label: "Timetable & tests", icon: "timetable", anyOf: [], section: "main" },
-  { href: "/ranks", label: "Ranks", icon: "ranks", anyOf: ["ranks.view"], section: "main" },
-  { href: "/groups", label: "Groups", icon: "groups", anyOf: ["groups.staff_chat", "groups.post_batch"], section: "main" },
-  { href: "/assistant", label: "AI assistant", icon: "assistant", anyOf: ["ai.ask"], section: "main" },
-  { href: "/admin/access", label: "Access control", icon: "access", anyOf: ["admin.access"], section: "admin" },
-  { href: "/admin/batches", label: "Batches & faculty", icon: "batches", anyOf: ["admin.access"], section: "admin" },
-  { href: "/admin/activity", label: "Activity log", icon: "activity", anyOf: ["admin.activity"], section: "admin" },
-  { href: "/admin/promotion", label: "Year-end promotion", icon: "promotion", anyOf: ["admin.promotion"], section: "admin" },
-  { href: "/admin/backup", label: "Backup", icon: "backup", anyOf: ["admin.backup"], section: "admin" },
+  { href: "/", label: "core.nav.home", icon: "home", anyOf: [], section: "main" },
+  { href: "/students", label: "core.nav.students", icon: "students", anyOf: ["students.view"], section: "main" },
+  { href: "/students/new", label: "core.nav.register", icon: "register", anyOf: ["students.edit"], section: "main" },
+  { href: "/fees", label: "core.nav.fees", icon: "fees", anyOf: ["fees.view"], section: "main" },
+  { href: "/calls", label: "core.nav.calls", icon: "calls", anyOf: ["fees.view"], section: "main" },
+  { href: "/billing", label: "core.nav.billing", icon: "billing", anyOf: ["bills.create"], section: "main" },
+  { href: "/attendance", label: "core.nav.attendance", icon: "attendance", anyOf: ["attendance.mark", "students.view"], section: "main" },
+  { href: "/timetable", label: "core.nav.timetable", icon: "timetable", anyOf: [], section: "main" },
+  { href: "/ranks", label: "core.nav.ranks", icon: "ranks", anyOf: ["ranks.view"], section: "main" },
+  { href: "/groups", label: "core.nav.groups", icon: "groups", anyOf: ["groups.staff_chat", "groups.post_batch"], section: "main" },
+  { href: "/assistant", label: "core.nav.assistant", icon: "assistant", anyOf: ["ai.ask"], section: "main" },
+  { href: "/admin/access", label: "core.nav.access", icon: "access", anyOf: ["admin.access"], section: "admin" },
+  { href: "/admin/batches", label: "core.nav.batches", icon: "batches", anyOf: ["admin.access"], section: "admin" },
+  { href: "/admin/activity", label: "core.nav.activity", icon: "activity", anyOf: ["admin.activity"], section: "admin" },
+  { href: "/admin/promotion", label: "core.nav.promotion", icon: "promotion", anyOf: ["admin.promotion"], section: "admin" },
+  { href: "/admin/backup", label: "core.nav.backup", icon: "backup", anyOf: ["admin.backup"], section: "admin" },
 ];
 
 const BOTTOM: Record<Exclude<Role, "parent">, string[]> = {

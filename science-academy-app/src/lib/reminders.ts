@@ -1,4 +1,5 @@
 import "server-only";
+import { all, localize } from "./i18n";
 import { adminClient } from "./supabase/admin";
 import { addDays, todayIst, weekdayOf } from "./format";
 import { toIst } from "./ids";
@@ -33,8 +34,8 @@ export async function runDailyReminders(now: Date = new Date()): Promise<Record<
       items.push({
         userId: u.id,
         kind: "calls_due",
-        title: `${due.length} parent call${due.length === 1 ? "" : "s"} due today`,
-        body: `${rupees(total)} overdue${promised ? ` · ${promised} promised a date that is due` : ""}`,
+        title: due.length === 1 ? all("core.rem.callsDueOne") : all("core.rem.callsDue", { n: due.length }),
+        body: promised ? all("core.rem.overduePromised", { amount: rupees(total), n: promised }) : all("core.rem.overdue", { amount: rupees(total) }),
         link: "/calls",
         dedupeKey: `calls-due-${today}`,
       });
@@ -52,8 +53,8 @@ export async function runDailyReminders(now: Date = new Date()): Promise<Record<
         items.push({
           userId: a.id,
           kind: "escalation",
-          title: `Needs admin: ${s?.name ?? "a student"}${s?.code ? ` (${s.code})` : ""}`,
-          body: `${rupees(fees.owing.get(c.student_id)?.balance ?? 0)} pending${c.note ? ` · ${c.note.slice(0, 100)}` : ""}`,
+          title: localize((t) => t("core.rem.needsAdmin", { name: `${s?.name ?? t("core.rem.aStudent")}${s?.code ? ` (${s.code})` : ""}` })),
+          body: localize((t) => `${t("core.rem.pending", { amount: rupees(fees.owing.get(c.student_id)?.balance ?? 0) })}${c.note ? ` · ${c.note.slice(0, 100)}` : ""}`),
           link: `/calls?student=${c.student_id}`,
           dedupeKey: `escalation-${c.id}`,
         });
@@ -85,8 +86,8 @@ export async function runDailyReminders(now: Date = new Date()): Promise<Record<
       items.push({
         userId: l.user_id,
         kind: "attendance_missing",
-        title: `Attendance not marked: ${batchLabel(b)}`,
-        body: date === today ? "Today" : "Yesterday",
+        title: all("core.rem.attNotMarked", { batch: batchLabel(b) }),
+        body: date === today ? all("core.today") : all("core.yesterday"),
         link: `/attendance/${b.id}?date=${date}`,
         dedupeKey: `att-${b.id}-${date}`,
       });

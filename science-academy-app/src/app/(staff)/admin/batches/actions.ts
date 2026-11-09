@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getT } from "@/lib/i18n/server";
 import { z } from "zod";
 import { can, staffForApi } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
@@ -38,7 +39,8 @@ function tidyTime(text: string): string | null {
 
 export async function saveBatch(_prev: BatchState, formData: FormData): Promise<BatchState> {
   const viewer = await admin();
-  if (!viewer) return { ok: false, message: "Only Admin can change batches.", at: Date.now() };
+  const { t } = await getT();
+  if (!viewer) return { ok: false, message: t("admin.batches.msg.onlyAdmin"), at: Date.now() };
   const parsed = BatchForm.safeParse({
     id: formData.get("id") || undefined,
     board: formData.get("board"),
@@ -46,14 +48,14 @@ export async function saveBatch(_prev: BatchState, formData: FormData): Promise<
     name: formData.get("name"),
     start_time: formData.get("start_time") ?? "",
   });
-  if (!parsed.success) return { ok: false, message: "Fill board, class and a batch name.", at: Date.now() };
+  if (!parsed.success) return { ok: false, message: t("admin.batches.msg.fill"), at: Date.now() };
   const row = { board: parsed.data.board, class: parsed.data.class, name: parsed.data.name, start_time: tidyTime(parsed.data.start_time) };
   const db = adminClient();
   const q = parsed.data.id ? db.from("batches").update(row).eq("id", parsed.data.id) : db.from("batches").insert(row);
   const { data, error } = await q.select("id").single<{ id: string }>();
   if (error || !data) {
     const dup = error?.code === "23505";
-    return { ok: false, message: dup ? "This batch already exists." : "Could not save the batch.", at: Date.now() };
+    return { ok: false, message: dup ? t("admin.batches.msg.exists") : t("admin.batches.msg.failed"), at: Date.now() };
   }
   // Keep the parents' group name in step with the batch.
   if (parsed.data.id) {
@@ -62,7 +64,7 @@ export async function saveBatch(_prev: BatchState, formData: FormData): Promise<
   }
   await logActivity(viewer, "batch.save", { type: "batch", id: data.id }, { ...row, new: !parsed.data.id });
   revalidatePath("/admin/batches");
-  return { ok: true, message: parsed.data.id ? "Batch saved." : "Batch added. Its parents' group is ready.", at: Date.now() };
+  return { ok: true, message: parsed.data.id ? t("admin.batches.msg.saved") : t("admin.batches.msg.added"), at: Date.now() };
 }
 
 export async function setBatchActive(formData: FormData) {

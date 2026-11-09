@@ -7,7 +7,8 @@ import { adminClient } from "@/lib/supabase/admin";
 import { logActivity } from "@/lib/activity";
 import { activeUsersWithRole, notify } from "@/lib/notify";
 import { attemptsSince, outstandingFor } from "@/lib/fees-data";
-import { CALL_OUTCOME_LABEL } from "@/lib/fees";
+import { all } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 import { monthStart, rupees, todayIst } from "@/lib/format";
 import type { ActionResult } from "../fees/ActionForm";
 
@@ -22,17 +23,18 @@ const Input = z.object({
 /** "Call done": saves the outcome, counts the attempt, escalates "Needs admin". */
 export async function logCall(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const viewer = await staffForApi();
-  if (!viewer || !can(viewer, "fees.view")) return { ok: false, message: "No access." };
+  const { t } = await getT();
+  if (!viewer || !can(viewer, "fees.view")) return { ok: false, message: t("fees.msg.noAccess") };
   const parsed = Input.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, message: "Choose how the call went." };
+  if (!parsed.success) return { ok: false, message: t("fees.cd.err.outcome") };
   const { studentId, guardianId, outcome } = parsed.data;
   const note = parsed.data.note?.trim() || null;
   const today = todayIst();
   let followUp: string | null = null;
   if (outcome === "promised_date") {
     followUp = parsed.data.followUpDate ?? "";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(followUp)) return { ok: false, message: "Choose the date the parent promised." };
-    if (followUp < today) return { ok: false, message: "The promised date cannot be in the past." };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(followUp)) return { ok: false, message: t("fees.cd.err.date") };
+    if (followUp < today) return { ok: false, message: t("fees.cd.err.past") };
   }
 
   const db = adminClient();
@@ -40,8 +42,8 @@ export async function logCall(_prev: ActionResult, formData: FormData): Promise<
     db.from("students").select("id, name, code, batch_id").eq("id", studentId).maybeSingle(),
     db.from("guardians").select("name, relation, mobile").eq("id", guardianId).eq("student_id", studentId).maybeSingle(),
   ]);
-  if (!student || !canSeeBatch(viewer, student.batch_id)) return { ok: false, message: "Student not found." };
-  if (!guardian) return { ok: false, message: "Choose the number you called." };
+  if (!student || !canSeeBatch(viewer, student.batch_id)) return { ok: false, message: t("fees.msg.studentNotFound") };
+  if (!guardian) return { ok: false, message: t("fees.cd.err.number") };
 
   const due = await outstandingFor(studentId, today);
   const month = due.months[0] ?? monthStart(today);
@@ -58,7 +60,7 @@ export async function logCall(_prev: ActionResult, formData: FormData): Promise<
     note,
     attempt_no: attempt,
   });
-  if (error) return { ok: false, message: "Could not save the call. Please try again." };
+  if (error) return { ok: false, message: t("fees.cd.err.save") };
 
   const stages = [{ student_id: studentId, month, stage: "called", created_by: viewer.user.id }];
   if (outcome === "needs_admin") {
@@ -68,8 +70,8 @@ export async function logCall(_prev: ActionResult, formData: FormData): Promise<
       admins.map((a) => ({
         userId: a.id,
         kind: "escalation",
-        title: `Needs admin: ${student.name}`,
-        body: `${rupees(due.total)} pending. ${viewer.user.name} called (attempt ${attempt})${note ? `: ${note}` : "."}`,
+        title: all("fees.notify.escTitle", { name: student.name }),
+        body: all("fees.notify.escBody", { amount: rupees(due.total), staff: viewer.user.name, n: attempt, note: note ? `: ${note}` : "." }),
         link: `/calls?student=${studentId}`,
         dedupeKey: `escalation:${studentId}:${today}`,
       })),
@@ -85,5 +87,5 @@ export async function logCall(_prev: ActionResult, formData: FormData): Promise<
   await logActivity(viewer, "call.log", { type: "student", id: studentId }, { outcome, attempt, follow_up_date: followUp });
   revalidatePath("/calls");
   revalidatePath(`/fees/${studentId}`);
-  return { ok: true, message: `Saved: ${CALL_OUTCOME_LABEL[outcome]} (call attempt ${attempt}).` };
+  return { ok: true, message: t("fees.cd.saved", { outcome: t(`fees.call.${outcome}`), n: attempt }) };
 }

@@ -5,11 +5,13 @@ import { Page, PageHeader } from "@/components/ui";
 import { monthPayments } from "@/lib/fees-data";
 import type { MonthInfo, StudentHit } from "../actions";
 import { BillForm } from "./BillForm";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "New bill" };
 
 export default async function NewBillPage({ searchParams }: { searchParams: Promise<{ student?: string; month?: string }> }) {
   const viewer = await requirePermission("bills.create");
+  const { t } = await getT();
   const sp = await searchParams;
   const today = todayIst();
   let initial: StudentHit | null = null;
@@ -35,7 +37,7 @@ export default async function NewBillPage({ searchParams }: { searchParams: Prom
   }
   return (
     <>
-      <PageHeader title="New bill" subtitle="Fee receipt" back="/billing" />
+      <PageHeader title={t("fees.billing.newBill")} subtitle={t("fees.billing.feeReceipt")} back="/billing" />
       <Page wide>
         <BillForm initialStudent={initial} initialMonth={month} initialInfo={info} today={today} />
       </Page>

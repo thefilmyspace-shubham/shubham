@@ -6,6 +6,7 @@ import { normalizeMobile, parseStaffId } from "./ids";
 import { ensureParentUser } from "./notify";
 import type { Role } from "./permissions";
 import type { AppUser } from "./types";
+import { translator, type TFn } from "./i18n";
 
 import { MAX_ATTEMPTS, MAX_SENDS_PER_HOUR, OTP_TTL_MINUTES, RESEND_AFTER_SECONDS } from "./otp-rules";
 import { deliverLoginCode } from "./otp-delivery";
@@ -83,8 +84,9 @@ export type SendResult =
   | { ok: true; challenge: string; sentTo: string; channel: "email" | "sms"; devCode?: string }
   | { ok: false; error: string; retryAfter?: number };
 
-export async function sendLoginCode(user: AppUser, now = new Date()): Promise<SendResult> {
-  if (user.status !== "active") return { ok: false, error: "This login is suspended. Please contact the academy." };
+/** `t` is the language of the login screen (error messages). */
+export async function sendLoginCode(user: AppUser, t: TFn = translator("en"), now = new Date()): Promise<SendResult> {
+  if (user.status !== "active") return { ok: false, error: t("core.otp.suspended") };
   const db = adminClient();
   const hourAgo = new Date(now.getTime() - 3600_000).toISOString();
   const { data: recent } = await db
@@ -97,10 +99,10 @@ export async function sendLoginCode(user: AppUser, now = new Date()): Promise<Se
   if (sends.length) {
     const since = (now.getTime() - Date.parse(sends[0].created_at)) / 1000;
     if (since < RESEND_AFTER_SECONDS) {
-      return { ok: false, error: "Please wait before asking for a new code.", retryAfter: Math.ceil(RESEND_AFTER_SECONDS - since) };
+      return { ok: false, error: t("core.otp.wait"), retryAfter: Math.ceil(RESEND_AFTER_SECONDS - since) };
     }
   }
-  if (sends.length >= MAX_SENDS_PER_HOUR) return { ok: false, error: "Too many codes asked. Please try again in an hour." };
+  if (sends.length >= MAX_SENDS_PER_HOUR) return { ok: false, error: t("core.otp.tooManySends") };
 
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const { data: row, error } = await db
@@ -112,9 +114,9 @@ export async function sendLoginCode(user: AppUser, now = new Date()): Promise<Se
     })
     .select("id")
     .single<{ id: string }>();
-  if (error || !row) return { ok: false, error: "Could not make a code. Please try again." };
+  if (error || !row) return { ok: false, error: t("core.otp.makeFailed") };
 
-  const sent = await deliverLoginCode(user, code);
+  const sent = await deliverLoginCode(user, code, t);
   if (!sent.ok) {
     // Not delivered: drop the code so it does not hold up a retry.
     await db.from("otp_codes").delete().eq("id", row.id);
@@ -132,25 +134,25 @@ export async function sendLoginCode(user: AppUser, now = new Date()): Promise<Se
 export type VerifyResult = { ok: true; user: AppUser } | { ok: false; error: string };
 
 /** Checks a code against the challenge it was sent for. A code works once. */
-export async function verifyLoginCode(challenge: string, code: string, now = new Date()): Promise<VerifyResult> {
-  if (!/^\d{6}$/.test(code)) return { ok: false, error: "Enter the 6 digit code." };
-  if (!/^[0-9a-f-]{36}$/i.test(challenge)) return { ok: false, error: "Please ask for a new code." };
+export async function verifyLoginCode(challenge: string, code: string, t: TFn = translator("en"), now = new Date()): Promise<VerifyResult> {
+  if (!/^\d{6}$/.test(code)) return { ok: false, error: t("core.auth.enterCode") };
+  if (!/^[0-9a-f-]{36}$/i.test(challenge)) return { ok: false, error: t("core.otp.askNew") };
   const db = adminClient();
   const { data: row } = await db
     .from("otp_codes")
     .select("id, user_id, code_hash, expires_at, attempts, consumed_at")
     .eq("id", challenge)
     .maybeSingle<{ id: string; user_id: string; code_hash: string; expires_at: string; attempts: number; consumed_at: string | null }>();
-  if (!row || row.consumed_at) return { ok: false, error: "This code was already used. Please ask for a new one." };
-  if (Date.parse(row.expires_at) < now.getTime()) return { ok: false, error: "This code has expired. Please ask for a new one." };
-  if (row.attempts >= MAX_ATTEMPTS) return { ok: false, error: "Too many wrong tries. Please ask for a new code." };
+  if (!row || row.consumed_at) return { ok: false, error: t("core.otp.used") };
+  if (Date.parse(row.expires_at) < now.getTime()) return { ok: false, error: t("core.otp.expired") };
+  if (row.attempts >= MAX_ATTEMPTS) return { ok: false, error: t("core.otp.tooManyWrong") };
 
   const expected = Buffer.from(row.code_hash, "hex");
   const given = Buffer.from(hashCode(row.user_id, code), "hex");
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) {
     await db.from("otp_codes").update({ attempts: row.attempts + 1 }).eq("id", row.id);
     const left = MAX_ATTEMPTS - row.attempts - 1;
-    return { ok: false, error: left > 0 ? `Wrong code. ${left} ${left === 1 ? "try" : "tries"} left.` : "Too many wrong tries. Please ask for a new code." };
+    return { ok: false, error: left > 1 ? t("core.otp.wrongLeft", { n: left }) : left === 1 ? t("core.otp.wrongLeftOne") : t("core.otp.tooManyWrong") };
   }
   // Consume once (a second request with the same code loses the race).
   const { data: consumed } = await db
@@ -159,9 +161,9 @@ export async function verifyLoginCode(challenge: string, code: string, now = new
     .eq("id", row.id)
     .is("consumed_at", null)
     .select("id");
-  if (!consumed?.length) return { ok: false, error: "This code was already used. Please ask for a new one." };
+  if (!consumed?.length) return { ok: false, error: t("core.otp.used") };
 
   const { data: user } = await db.from("users").select("*").eq("id", row.user_id).maybeSingle<AppUser>();
-  if (!user || user.status !== "active") return { ok: false, error: "This login is suspended. Please contact the academy." };
+  if (!user || user.status !== "active") return { ok: false, error: t("core.otp.suspended") };
   return { ok: true, user };
 }

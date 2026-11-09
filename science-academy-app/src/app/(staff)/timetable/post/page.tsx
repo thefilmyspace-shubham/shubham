@@ -8,12 +8,16 @@ import { WEEKDAYS, clockLabel, dayLabel } from "@/lib/format";
 import { getTest, testCoversBatch, timetableOf } from "@/lib/academics";
 import { Banner, Card, Page, PageHeader } from "@/components/ui";
 import { postToGroups } from "../actions";
+import { getT } from "@/lib/i18n/server";
+import type { DictKey } from "@/lib/i18n";
+
+const DAY_KEYS: DictKey[] = ["academics.day.1", "academics.day.2", "academics.day.3", "academics.day.4", "academics.day.5", "academics.day.6", "academics.day.7"];
 
 export const metadata = { title: "Post to batch group" };
 
-const ERRORS: Record<string, string> = {
-  empty: "Write a message and pick at least one batch.",
-  fees: "This looks like a fee message. Fee messages are never posted in batch groups; reception sends fee reminders to each parent privately.",
+const ERRORS: Record<string, DictKey> = {
+  empty: "academics.tt.err.empty",
+  fees: "academics.post.err.fees",
 };
 
 /** The separate step after saving a test or timetable change: post it to the parents' batch group. */
@@ -21,6 +25,7 @@ export default async function PostPage({ searchParams }: { searchParams: Promise
   const viewer = await requireStaff();
   if (!can(viewer, "groups.post_batch")) notFound();
   const sp = await searchParams;
+  const { t } = await getT();
   const visible = await batchesFor(viewer);
   const kind = sp.kind === "test" ? "test" : "timetable";
 
@@ -32,11 +37,11 @@ export default async function PostPage({ searchParams }: { searchParams: Promise
     if (!test) notFound();
     targets = visible.filter((b) => testCoversBatch(test, b));
     body = [
-      `${test.tag === "School" ? "School exam" : "Test"}: ${test.name}`,
+      t(test.tag === "School" ? "academics.post.bodySchoolExam" : "academics.post.bodyTest", { name: test.name }),
       `${dayLabel(test.date)}${test.start_time ? `, ${clockLabel(test.start_time)}` : ""}`,
-      test.subject ? `Subject: ${test.subject}` : "",
-      test.max_marks ? `Max marks: ${Number(test.max_marks)}` : "",
-      test.tag === "Coaching" ? "Please make sure your child is on time and prepared." : "",
+      test.subject ? t("academics.post.bodySubject", { s: test.subject }) : "",
+      test.max_marks ? t("academics.post.bodyMax", { n: Number(test.max_marks) }) : "",
+      test.tag === "Coaching" ? t("academics.post.bodyOnTime") : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -48,25 +53,25 @@ export default async function PostPage({ searchParams }: { searchParams: Promise
     const entries = await timetableOf([batch.id]);
     const { data: names } = await adminClient().from("users").select("id, name").eq("role", "faculty");
     const fac = new Map(((names ?? []) as { id: string; name: string }[]).map((u) => [u.id, u.name]));
-    const lines = WEEKDAYS.map((d, i) => {
+    const lines = WEEKDAYS.map((_, i) => {
       const list = entries.filter((e) => e.weekday === i + 1);
-      return list.length ? `${d}: ${list.map((e) => `${clockLabel(e.start_time)} ${e.subject}${e.faculty_id && fac.get(e.faculty_id) ? ` (${fac.get(e.faculty_id)})` : ""}`).join(", ")}` : "";
+      return list.length ? `${t(DAY_KEYS[i])}: ${list.map((e) => `${clockLabel(e.start_time)} ${e.subject}${e.faculty_id && fac.get(e.faculty_id) ? ` (${fac.get(e.faculty_id)})` : ""}`).join(", ")}` : "";
     }).filter(Boolean);
-    body = [`Timetable updated for ${boardName(batch.board)} ${batch.class} · ${batch.name}`, ...lines].join("\n");
+    body = [t("academics.post.bodyTimetable", { board: boardName(batch.board), c: batch.class, name: batch.name }), ...lines].join("\n");
     back = `/timetable/post?kind=timetable&batch=${batch.id}`;
   }
 
   return (
     <>
-      <PageHeader title="Post to batch group" subtitle={kind === "test" ? "Test or exam" : "Timetable change"} back="/timetable" />
+      <PageHeader title={t("academics.post.title")} subtitle={kind === "test" ? t("academics.post.subTest") : t("academics.post.subTimetable")} back="/timetable" />
       <Page>
         <Card className="mx-auto max-w-xl space-y-3 p-5">
           <Banner tone="warn" icon={AlertTriangle}>
-            Every parent in the batch can read this. Never write a student&apos;s name with a fee amount. No fee messages here.
+            {t("academics.post.warning")}
           </Banner>
           {sp.error && ERRORS[sp.error] && (
             <Banner tone="danger" icon={AlertTriangle}>
-              {ERRORS[sp.error]}
+              {t(ERRORS[sp.error])}
             </Banner>
           )}
           <form action={postToGroups} className="space-y-3">
@@ -74,14 +79,14 @@ export default async function PostPage({ searchParams }: { searchParams: Promise
             <input type="hidden" name="back" value={back} />
             <div>
               <label className="label" htmlFor="body">
-                Message
+                {t("academics.post.message")}
               </label>
               <textarea id="body" name="body" rows={8} defaultValue={body} className="field" required />
             </div>
             <fieldset>
-              <legend className="label">Batch groups</legend>
+              <legend className="label">{t("academics.post.groups")}</legend>
               {targets.length === 0 ? (
-                <p className="text-sm text-muted">No batch of yours is covered by this.</p>
+                <p className="text-sm text-muted">{t("academics.post.noTargets")}</p>
               ) : (
                 <div className="space-y-1.5">
                   {targets.map((b) => (
@@ -94,7 +99,7 @@ export default async function PostPage({ searchParams }: { searchParams: Promise
               )}
             </fieldset>
             <button className="btn btn-primary w-full" disabled={targets.length === 0}>
-              <Megaphone size={16} /> Post as {kind === "test" ? "Test" : "Timetable"}
+              <Megaphone size={16} /> {kind === "test" ? t("academics.post.asTest") : t("academics.post.asTimetable")}
             </button>
           </form>
         </Card>

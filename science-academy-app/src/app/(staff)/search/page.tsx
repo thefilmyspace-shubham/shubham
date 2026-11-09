@@ -6,37 +6,35 @@ import { searchStudents } from "@/lib/search-db";
 import { boardName } from "@/lib/ids";
 import { HomeSearch } from "@/components/HomeSearch";
 import { Card, Chip, Empty, Page, PageHeader } from "@/components/ui";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "Search" };
-
-const MATCHED: Record<string, string> = {
-  id: "ID",
-  earlier_id: "Earlier ID",
-  name: "Name",
-  mobile: "Parent's mobile",
-  class: "Class",
-};
 
 /** Results of the Home search (the bar itself lives on Home). */
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams;
   const viewer = await requireStaff();
+  const { t } = await getT();
   if (!can(viewer, "students.view")) notFound();
   const result = q.trim() ? await searchStudents(viewer, q) : null;
 
   return (
     <>
-      <PageHeader title="Search" subtitle={viewer.user.role === "faculty" ? "Students of your batches" : "All students"} back="/" />
+      <PageHeader title={t("students.search.title")} subtitle={viewer.user.role === "faculty" ? t("students.search.yourBatches") : t("students.search.all")} back="/" />
       <Page>
         <HomeSearch defaultValue={q} showContacts={can(viewer, "students.contacts")} autoFocus={!q} />
         <div className="pt-4">
-          {result && !result.ok && <Empty icon={SearchX}>{result.error}</Empty>}
-          {result?.ok && result.hits.length === 0 && <Empty icon={SearchX}>No student found for “{q}”.</Empty>}
+          {result && !result.ok && <Empty icon={SearchX}>{t(result.error)}</Empty>}
+          {result?.ok && result.hits.length === 0 && <Empty icon={SearchX}>{t("students.search.none", { q })}</Empty>}
           {result?.ok && result.hits.length > 0 && (
             <>
               <p className="mb-2 text-xs font-semibold text-muted">
-                {result.hits.length}
-                {result.truncated ? "+" : ""} student{result.hits.length === 1 ? "" : "s"} · matched by {MATCHED[result.hits[0].matchedBy].toLowerCase()}
+                {result.hits.length === 1
+                  ? t("students.search.countOne", { by: t(`students.search.by.${result.hits[0].matchedBy}`) })
+                  : t("students.search.count", {
+                      n: `${result.hits.length}${result.truncated ? "+" : ""}`,
+                      by: t(`students.search.by.${result.hits[0].matchedBy}`),
+                    })}
               </p>
               <Card className="divide-y divide-line overflow-hidden">
                 {result.hits.map((h) => (
@@ -47,9 +45,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-1.5">
                         <span className="text-[15px] font-bold">{h.student.name}</span>
-                        {h.student.status !== "active" && <Chip tone="warn">{h.student.status === "left" ? "Left" : "Passed out"}</Chip>}
-                        {h.matchedBy === "earlier_id" && <Chip tone="violet">Earlier ID matched</Chip>}
-                        {h.matchedBy === "mobile" && <Chip tone="primary">Parent&apos;s mobile matched</Chip>}
+                        {h.student.status !== "active" && <Chip tone="warn">{h.student.status === "left" ? t("students.left") : t("students.passedOut")}</Chip>}
+                        {h.matchedBy === "earlier_id" && <Chip tone="violet">{t("students.search.earlierMatched")}</Chip>}
+                        {h.matchedBy === "mobile" && <Chip tone="primary">{t("students.search.mobileMatched")}</Chip>}
                       </span>
                       <span className="block text-[12.5px] text-muted">
                         <span className="font-bold text-navy">{h.student.code}</span> · {boardName(h.student.board)} {h.student.current_class}
@@ -58,7 +56,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                       {h.earlierIds.length > 0 && (
                         <span className="mt-1 flex flex-wrap gap-1">
                           {h.earlierIds.map((c) => (
-                            <Chip key={c}>Earlier ID {c}</Chip>
+                            <Chip key={c}>{t("students.search.earlierChip", { code: c })}</Chip>
                           ))}
                         </span>
                       )}

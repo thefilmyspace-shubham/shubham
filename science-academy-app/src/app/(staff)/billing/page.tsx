@@ -3,10 +3,10 @@ import { Plus, ReceiptText, Search } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { normalizeInvoice } from "@/lib/fees-data";
-import { PAYMENT_MODE_LABEL } from "@/lib/fees";
 import { dateLabel, monthLabel, rupees } from "@/lib/format";
 import { Card, Chip, Empty, FilterChips, Page, PageHeader, Table, Td } from "@/components/ui";
 import type { Invoice } from "@/lib/types";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "Billing" };
 
@@ -14,6 +14,7 @@ const PAGE = 100;
 
 export default async function BillingPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; month?: string; page?: string }> }) {
   await requirePermission("bills.create");
+  const { t } = await getT();
   const sp = await searchParams;
   const q = (sp.q ?? "").trim().replace(/[%,()*]/g, " ").trim();
   const status = sp.status === "issued" || sp.status === "cancelled" ? sp.status : null;
@@ -39,8 +40,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader
-        title="Billing"
-        subtitle="Every bill in one running series. Bills are never deleted."
+        title={t("fees.billing.title")}
+        subtitle={t("fees.billing.subtitle")}
         right={
           <Link href="/billing/new" className="btn btn-primary">
             <Plus size={16} /> New bill
@@ -51,33 +52,33 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <FilterChips
             items={[
-              { href: href({ status: null, page: null }), label: "All", active: !status },
-              { href: href({ status: "issued", page: null }), label: "Issued", active: status === "issued" },
-              { href: href({ status: "cancelled", page: null }), label: "Cancelled", active: status === "cancelled" },
+              { href: href({ status: null, page: null }), label: t("core.all"), active: !status },
+              { href: href({ status: "issued", page: null }), label: t("fees.billing.issued"), active: status === "issued" },
+              { href: href({ status: "cancelled", page: null }), label: t("fees.cancelled"), active: status === "cancelled" },
             ]}
           />
           <form action="/billing" className="flex flex-wrap items-center gap-2">
             {status && <input type="hidden" name="status" value={status} />}
-            <input type="month" name="month" defaultValue={month ?? ""} className="field w-auto py-2" aria-label="Fee month" />
+            <input type="month" name="month" defaultValue={month ?? ""} className="field w-auto py-2" aria-label={t("fees.billing.feeMonth")} />
             <div className="relative flex-1 lg:w-64">
               <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-faint" />
-              <input name="q" defaultValue={q} placeholder="Bill no., name or ID" className="field pl-9" />
+              <input name="q" defaultValue={q} placeholder={t("fees.billing.searchPh")} className="field pl-9" />
             </div>
-            <button className="btn btn-ghost">Search</button>
+            <button className="btn btn-ghost">{t("core.search")}</button>
           </form>
         </div>
         <p className="mt-3 text-sm text-muted">
-          {count ?? 0} bill{count === 1 ? "" : "s"}
-          {bills.length ? ` · received on this page ${rupees(total)}` : ""}
+          {t("fees.billing.count", { n: count ?? 0 })}
+          {bills.length ? ` · ${t("fees.billing.receivedPage", { amount: rupees(total) })}` : ""}
         </p>
 
         <div className="mt-3">
           {bills.length === 0 ? (
-            <Empty icon={ReceiptText}>No bills found.</Empty>
+            <Empty icon={ReceiptText}>{t("fees.billing.none")}</Empty>
           ) : (
             <>
               <div className="hidden lg:block">
-                <Table head={["Bill no.", "Student", "Month", "Paid on", "Mode", "Received", "Status"]}>
+                <Table head={[t("fees.billing.col.no"), t("fees.col.student"), t("fees.billing.col.month"), t("fees.billing.col.paidOn"), t("fees.billing.col.mode"), t("fees.billing.col.received"), t("fees.col.status")]}>
                   {bills.map((b) => (
                     <tr key={b.id} className="hover:bg-field/60">
                       <Td>
@@ -91,18 +92,18 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                       </Td>
                       <Td className="whitespace-nowrap">{monthLabel(b.month)}</Td>
                       <Td className="whitespace-nowrap">{dateLabel(b.paid_on)}</Td>
-                      <Td>{b.modes.map((m) => PAYMENT_MODE_LABEL[m]).join(", ")}</Td>
+                      <Td>{b.modes.map((m) => t(`fees.mode.${m}`)).join(", ")}</Td>
                       <Td className={`font-bold ${b.status === "cancelled" ? "text-faint line-through" : ""}`}>{rupees(b.received)}</Td>
                       <Td>
                         {b.status === "cancelled" ? (
                           <div>
-                            <Chip tone="danger">Cancelled</Chip>
+                            <Chip tone="danger">{t("fees.cancelled")}</Chip>
                             <p className="mt-0.5 max-w-48 truncate text-xs text-muted" title={b.cancelled_reason ?? ""}>
                               {b.cancelled_reason}
                             </p>
                           </div>
                         ) : (
-                          <Chip tone="ok">Issued</Chip>
+                          <Chip tone="ok">{t("fees.billing.issued")}</Chip>
                         )}
                       </Td>
                     </tr>
@@ -114,7 +115,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   <Link key={b.id} href={`/billing/${b.id}`} className="flex items-center gap-3 px-4 py-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-navy">
-                        {b.number} {b.status === "cancelled" && <Chip tone="danger">Cancelled</Chip>}
+                        {b.number} {b.status === "cancelled" && <Chip tone="danger">{t("fees.cancelled")}</Chip>}
                       </p>
                       <p className="truncate text-xs text-muted">
                         {b.student_name} · {b.student_code} · {monthLabel(b.month)}
@@ -133,14 +134,14 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
           <div className="mt-4 flex justify-between">
             {page > 0 ? (
               <Link href={href({ page: String(page - 1) })} className="btn btn-ghost">
-                Newer
+                {t("fees.billing.newer")}
               </Link>
             ) : (
               <span />
             )}
             {(page + 1) * PAGE < (count ?? 0) && (
               <Link href={href({ page: String(page + 1) })} className="btn btn-ghost">
-                Older
+                {t("fees.billing.older")}
               </Link>
             )}
           </div>

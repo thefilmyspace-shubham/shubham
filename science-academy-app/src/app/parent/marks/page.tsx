@@ -7,6 +7,7 @@ import { parentTestView, percentOf, testCoversBatch, type ParentTestView, type S
 import type { Test } from "@/lib/types";
 import { ChildStrip } from "@/components/ChildStrip";
 import { Card, Chip, Empty } from "@/components/ui";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "Marks & ranks" };
 
@@ -19,10 +20,11 @@ type TestRow = Pick<Test, "id" | "name" | "subject" | "date" | "tag" | "max_mark
  */
 export default async function ParentMarksPage() {
   const { children, child } = await parentContext();
+  const { t } = await getT();
   if (!child) {
     return (
       <div className="mx-auto max-w-lg px-4 pt-6">
-        <Empty>No student is linked to this login number. Please contact the academy.</Empty>
+        <Empty>{t("academics.noStudentLinked")}</Empty>
       </div>
     );
   }
@@ -70,8 +72,8 @@ export default async function ParentMarksPage() {
       <ChildStrip list={children} current={child} basePath="/parent/marks" />
       <div className="mx-auto max-w-lg px-4 pt-4">
         <div className="mb-3 flex items-baseline justify-between">
-          <h1 className="text-xl font-extrabold text-navy">Marks &amp; ranks</h1>
-          {avg !== null && <Chip tone="navy">Average {avg}%</Chip>}
+          <h1 className="text-xl font-extrabold text-navy">{t("academics.pm.title")}</h1>
+          {avg !== null && <Chip tone="navy">{t("academics.marks.average", { n: avg })}</Chip>}
         </div>
 
         {latest && latestView?.rank && (
@@ -80,20 +82,20 @@ export default async function ParentMarksPage() {
               <Medal size={26} />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-muted">Latest test · {latest.tests.name}</p>
+              <p className="text-xs font-semibold text-muted">{t("academics.pm.latestTest", { name: latest.tests.name })}</p>
               <p className="text-2xl font-extrabold text-navy">
-                Rank {latestView.rank} <span className="text-base font-semibold text-muted">of {latestView.outOf}</span>
+                {t("academics.pm.rank", { r: latestView.rank })} <span className="text-base font-semibold text-muted">{t("academics.pm.of", { n: latestView.outOf })}</span>
               </p>
               <p className="text-xs text-muted">
-                Class {child.current_class}
-                {latestView.classAverage !== null ? ` · class average ${latestView.classAverage}%` : ""}
+                {t("academics.class", { n: child.current_class })}
+                {latestView.classAverage !== null ? t("academics.pm.classAvg", { n: latestView.classAverage }) : ""}
               </p>
             </div>
           </Card>
         )}
 
         {rows.length === 0 ? (
-          <Empty icon={Trophy}>No marks yet. You get a notification when a result is added.</Empty>
+          <Empty icon={Trophy}>{t("academics.pm.noMarks")}</Empty>
         ) : (
           <Card className="divide-y divide-line overflow-hidden">
             {rows.map((r) => {
@@ -107,13 +109,13 @@ export default async function ParentMarksPage() {
                       <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
                         {dateLabel(r.tests.date)}
                         {r.tests.subject ? ` · ${r.tests.subject}` : ""}
-                        <Chip tone={r.tests.tag === "School" ? "violet" : "primary"}>{r.tests.tag}</Chip>
-                        {v?.rank ? <Chip tone="ok">Rank {v.rank} of {v.outOf}</Chip> : null}
+                        <Chip tone={r.tests.tag === "School" ? "violet" : "primary"}>{t(r.tests.tag === "School" ? "academics.tag.School" : "academics.tag.Coaching")}</Chip>
+                        {v?.rank ? <Chip tone="ok">{t("academics.pm.rankChip", { r: v.rank, n: v.outOf })}</Chip> : null}
                       </p>
                     </div>
                     <div className="text-right">
                       {r.absent ? (
-                        <Chip tone="danger">Absent</Chip>
+                        <Chip tone="danger">{t("academics.absent")}</Chip>
                       ) : (
                         <>
                           <p className="font-extrabold text-navy">
@@ -129,20 +131,20 @@ export default async function ParentMarksPage() {
                   {v && v.outOf > 0 && (
                     <div className="bg-field/60 px-4 pt-2 pb-3">
                       <p className="mb-1.5 text-[12px] font-semibold text-muted">
-                        {v.outOf} appeared
-                        {v.classAverage !== null ? ` · class average ${v.classAverage}%` : ""}
-                        {v.highest !== null ? ` · highest ${v.highest}%` : ""}
+                        {t("academics.pm.appeared", { n: v.outOf })}
+                        {v.classAverage !== null ? t("academics.pm.classAvg", { n: v.classAverage }) : ""}
+                        {v.highest !== null ? t("academics.pm.highest", { n: v.highest }) : ""}
                       </p>
-                      <p className="mb-1 text-[12px] font-bold text-navy">Top 5 in class</p>
+                      <p className="mb-1 text-[12px] font-bold text-navy">{t("academics.pm.top5")}</p>
                       <ol className="space-y-1">
-                        {v.top.map((t) => {
-                          const me = t.studentId === child.id;
+                        {v.top.map((x) => {
+                          const me = x.studentId === child.id;
                           return (
-                            <li key={t.studentId} className={`flex items-center gap-2 rounded-field px-2 py-1 text-[13px] ${me ? "bg-primary-soft font-bold text-primary" : ""}`}>
-                              <span className="w-5 text-center font-extrabold">{t.rank}</span>
-                              <span className="min-w-0 flex-1 truncate">{me ? `${names.get(t.studentId) ?? child.name} (your child)` : (names.get(t.studentId) ?? "Student")}</span>
+                            <li key={x.studentId} className={`flex items-center gap-2 rounded-field px-2 py-1 text-[13px] ${me ? "bg-primary-soft font-bold text-primary" : ""}`}>
+                              <span className="w-5 text-center font-extrabold">{x.rank}</span>
+                              <span className="min-w-0 flex-1 truncate">{me ? t("academics.pm.yourChild", { name: names.get(x.studentId) ?? child.name }) : (names.get(x.studentId) ?? t("academics.pm.student"))}</span>
                               <span className="font-semibold">
-                                {t.score}
+                                {x.score}
                                 {r.tests.max_marks ? `/${Number(r.tests.max_marks)}` : ""}
                               </span>
                             </li>
@@ -156,7 +158,7 @@ export default async function ParentMarksPage() {
             })}
           </Card>
         )}
-        <p className="mt-3 text-center text-[11.5px] text-muted">Tap a test to see the class average and the top 5.</p>
+        <p className="mt-3 text-center text-[11.5px] text-muted">{t("academics.pm.tapHint")}</p>
       </div>
     </>
   );

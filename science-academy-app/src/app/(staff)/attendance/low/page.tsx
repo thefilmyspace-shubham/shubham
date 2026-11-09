@@ -10,6 +10,7 @@ import { ABSENT_STREAK_FLAG, LOW_ATTENDANCE_PCT, attendanceBetween, flagsFor, wi
 import { Card, Chip, Empty, FilterChips, Page, PageHeader } from "@/components/ui";
 import { Meter } from "@/components/BarChart";
 import { AlertMessage } from "./AlertCard";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "Low attendance" };
 
@@ -17,6 +18,7 @@ export default async function LowAttendancePage({ searchParams }: { searchParams
   const viewer = await requireStaff();
   if (!can(viewer, "students.view")) notFound();
   const { show } = await searchParams;
+  const { t } = await getT();
   const today = todayIst();
   const from = windowStart(today, 30);
   const batches = await batchesFor(viewer);
@@ -36,28 +38,32 @@ export default async function LowAttendancePage({ searchParams }: { searchParams
   const streakCount = flagged.filter((x) => x.f.streak >= ABSENT_STREAK_FLAG).length;
   const list = flagged.filter((x) => (show === "low" ? x.f.low : show === "streak" ? x.f.streak >= ABSENT_STREAK_FLAG : true));
 
+  // The ready message to the parent, with its values (sent in the parent's language if not edited).
   const message = (name: string, code: string | null, pct: number | null, streak: number, streakDates: string[]) => {
+    const first = name.split(" ")[0];
     if (streak >= ABSENT_STREAK_FLAG) {
-      return `Dear parent, ${name} (${code}) has been absent from Science Academy ${streak} days in a row (${streakDates.map((d) => dateLabel(d).replace(/ \d{4}$/, "")).join(", ")}). Please let us know if everything is all right, and make sure ${name.split(" ")[0]} attends regularly. – Science Academy, Ratlam`;
+      const params = { name, code: code ?? "", n: streak, dates: streakDates.map((d) => dateLabel(d).replace(/ \d{4}$/, "")).join(", "), first };
+      return { kind: "streak" as const, params, text: t("academics.att.msgStreak", params) };
     }
-    return `Dear parent, ${name} (${code}) has ${pct}% attendance at Science Academy in the last 30 days (below ${LOW_ATTENDANCE_PCT}%). Regular attendance matters for good results. Please make sure ${name.split(" ")[0]} attends every class. – Science Academy, Ratlam`;
+    const params = { name, code: code ?? "", pct: pct ?? 0, min: LOW_ATTENDANCE_PCT, first };
+    return { kind: "low" as const, params, text: t("academics.att.msgLow", params) };
   };
 
   return (
     <>
-      <PageHeader title="Low attendance" subtitle={`Last 30 days · ${dateLabel(from)} to ${dateLabel(today)}`} back="/attendance" />
+      <PageHeader title={t("academics.att.lowTitle")} subtitle={t("academics.att.lowSub", { from: dateLabel(from), to: dateLabel(today) })} back="/attendance" />
       <Page>
         <FilterChips
           items={[
-            { href: "/attendance/low", label: "All flags", count: flagged.length, active: !show },
-            { href: "/attendance/low?show=low", label: `Below ${LOW_ATTENDANCE_PCT}%`, count: lowCount, active: show === "low" },
-            { href: "/attendance/low?show=streak", label: `Absent ${ABSENT_STREAK_FLAG}+ days in a row`, count: streakCount, active: show === "streak" },
+            { href: "/attendance/low", label: t("academics.att.allFlags"), count: flagged.length, active: !show },
+            { href: "/attendance/low?show=low", label: t("academics.att.below", { pct: LOW_ATTENDANCE_PCT }), count: lowCount, active: show === "low" },
+            { href: "/attendance/low?show=streak", label: t("academics.att.streakFilter", { n: ABSENT_STREAK_FLAG }), count: streakCount, active: show === "streak" },
           ]}
         />
         <div className="mt-3 grid gap-3 lg:grid-cols-2">
           {list.length === 0 ? (
             <div className="lg:col-span-2">
-              <Empty icon={TrendingDown}>No student is flagged. Good attendance all round.</Empty>
+              <Empty icon={TrendingDown}>{t("academics.att.noneFlagged")}</Empty>
             </div>
           ) : (
             list.map(({ s, f }) => {
@@ -75,19 +81,22 @@ export default async function LowAttendancePage({ searchParams }: { searchParams
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      {f.low && <Chip tone="danger">{f.pct}% attendance</Chip>}
+                      {f.low && <Chip tone="danger">{t("academics.att.pctAttendance", { pct: f.pct ?? 0 })}</Chip>}
                       {f.streak >= ABSENT_STREAK_FLAG && (
                         <Chip tone="warn">
-                          <CalendarX size={12} /> Absent {f.streak} days in a row
+                          <CalendarX size={12} /> {t("academics.att.absentRow", { n: f.streak })}
                         </Chip>
                       )}
                     </div>
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-xs text-muted">
                     <Meter value={f.pct ?? 0} tone={f.low ? "danger" : "ok"} />
-                    <span className="shrink-0">{f.days} days marked</span>
+                    <span className="shrink-0">{t("academics.att.daysMarked", { n: f.days })}</span>
                   </div>
-                  <AlertMessage studentId={s.id} message={message(s.name, s.code, f.pct, f.streak, f.streakDates)} />
+                  {(() => {
+                    const m = message(s.name, s.code, f.pct, f.streak, f.streakDates);
+                    return <AlertMessage studentId={s.id} message={m.text} kind={m.kind} params={m.params} />;
+                  })()}
                 </Card>
               );
             })

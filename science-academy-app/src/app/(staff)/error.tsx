@@ -1,12 +1,15 @@
 "use client";
 
+import { useT } from "@/components/I18nProvider";
+
 export default function Error({ reset }: { error: Error; reset: () => void }) {
+  const t = useT();
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-6 pt-24 text-center">
-      <h1 className="text-lg font-extrabold text-navy">Something went wrong</h1>
-      <p className="text-sm text-muted">Please try again. If it keeps happening, tell the admin.</p>
+      <h1 className="text-lg font-extrabold text-navy">{t("core.somethingWrong")}</h1>
+      <p className="text-sm text-muted">{t("core.error.text")}</p>
       <button onClick={reset} className="btn btn-primary mt-2">
-        Try again
+        {t("core.tryAgain")}
       </button>
     </div>
   );

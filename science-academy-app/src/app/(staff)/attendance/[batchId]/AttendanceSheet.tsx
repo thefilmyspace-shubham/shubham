@@ -3,6 +3,8 @@
 import { useActionState, useMemo, useState } from "react";
 import { CheckCheck, Lock, LoaderCircle } from "lucide-react";
 import { saveAttendance, type SaveState } from "../actions";
+import { useT } from "@/components/I18nProvider";
+import type { DictKey } from "@/lib/i18n";
 
 type Status = "P" | "A" | "L";
 
@@ -17,10 +19,10 @@ export type SheetRow = {
   editable: boolean;
 };
 
-const BTN: Record<Status, { on: string; label: string }> = {
-  P: { on: "bg-green text-white border-green", label: "Present" },
-  A: { on: "bg-danger text-white border-danger", label: "Absent" },
-  L: { on: "bg-warn text-white border-warn", label: "Late" },
+const BTN: Record<Status, { on: string; label: DictKey }> = {
+  P: { on: "bg-green text-white border-green", label: "academics.att.present" },
+  A: { on: "bg-danger text-white border-danger", label: "academics.absent" },
+  L: { on: "bg-warn text-white border-warn", label: "academics.att.late" },
 };
 
 export function AttendanceSheet({
@@ -38,6 +40,7 @@ export function AttendanceSheet({
   canEditNote: boolean;
   correcting: boolean;
 }) {
+  const t = useT();
   const [marks, setMarks] = useState<Record<string, Status | null>>(() => Object.fromEntries(rows.map((r) => [r.id, r.status])));
   const [state, action, pending] = useActionState<SaveState, FormData>(saveAttendance, null);
   const anyEditable = rows.some((r) => r.editable);
@@ -62,10 +65,10 @@ export function AttendanceSheet({
       <input type="hidden" name="entries" value={JSON.stringify(entries)} />
 
       <div className="sticky top-14 z-[5] -mx-4 grid grid-cols-4 gap-2 bg-bg/95 px-4 py-2 backdrop-blur lg:static lg:mx-0 lg:px-0">
-        <Count label="Present" value={counts.P} className="text-green" />
-        <Count label="Absent" value={counts.A} className="text-danger" />
-        <Count label="Late" value={counts.L} className="text-warn" />
-        <Count label="Not marked" value={counts.left} className="text-muted" />
+        <Count label={t("academics.att.present")} value={counts.P} className="text-green" />
+        <Count label={t("academics.absent")} value={counts.A} className="text-danger" />
+        <Count label={t("academics.att.late")} value={counts.L} className="text-warn" />
+        <Count label={t("academics.att.notMarked")} value={counts.left} className="text-muted" />
       </div>
 
       {anyEditable && (
@@ -81,7 +84,7 @@ export function AttendanceSheet({
               })
             }
           >
-            <CheckCheck size={15} /> All present (rest)
+            <CheckCheck size={15} /> {t("academics.att.allPresent")}
           </button>
         </div>
       )}
@@ -98,7 +101,7 @@ export function AttendanceSheet({
                   {r.code}
                   {r.locked && (
                     <span className="inline-flex items-center gap-0.5 text-faint">
-                      <Lock size={11} /> locked
+                      <Lock size={11} /> {t("academics.att.locked")}
                     </span>
                   )}
                 </p>
@@ -110,7 +113,7 @@ export function AttendanceSheet({
                     type="button"
                     disabled={!r.editable}
                     aria-pressed={current === s}
-                    aria-label={`${BTN[s].label}: ${r.name}`}
+                    aria-label={`${t(BTN[s].label)}: ${r.name}`}
                     onClick={() => setMarks((m) => ({ ...m, [r.id]: s }))}
                     className={`h-11 w-11 rounded-full border-2 text-[15px] font-extrabold transition-colors disabled:cursor-not-allowed ${
                       current === s ? BTN[s].on : "border-line bg-card text-muted"
@@ -127,7 +130,7 @@ export function AttendanceSheet({
 
       <div>
         <label className="label" htmlFor="note">
-          Note for this day (optional)
+          {t("academics.att.noteLabel")}
         </label>
         <textarea
           id="note"
@@ -135,7 +138,7 @@ export function AttendanceSheet({
           rows={2}
           defaultValue={note}
           disabled={!canEditNote}
-          placeholder="For example: test period, 2 students left early"
+          placeholder={t("academics.att.notePlaceholder")}
           className="field"
         />
       </div>
@@ -146,7 +149,7 @@ export function AttendanceSheet({
         <div className="sticky bottom-20 lg:bottom-4">
           <button className={`btn w-full py-3 shadow-card ${correcting ? "btn-primary" : "btn-green"}`} disabled={pending}>
             {pending && <LoaderCircle size={18} className="animate-spin" />}
-            {correcting ? `Save correction${changed.length ? ` (${changed.length})` : ""}` : "Save attendance"}
+            {correcting ? `${t("academics.att.saveCorrection")}${changed.length ? ` (${changed.length})` : ""}` : t("academics.att.save")}
           </button>
         </div>
       )}

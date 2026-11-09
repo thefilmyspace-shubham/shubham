@@ -3,6 +3,7 @@ import { getViewer, homeFor } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/ui";
 import { otpChannel } from "@/lib/env";
+import { getT } from "@/lib/i18n/server";
 import { LoginForm } from "./LoginForm";
 
 export const metadata = { title: "Log in" };
@@ -10,6 +11,7 @@ export const metadata = { title: "Log in" };
 export default async function LoginPage() {
   const viewer = await getViewer().catch(() => null);
   if (viewer) redirect(homeFor(viewer));
+  const { t } = await getT();
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
       <div className="relative hidden flex-1 flex-col justify-between overflow-hidden border-r border-line bg-card p-10 lg:flex">
@@ -18,18 +20,17 @@ export default async function LoginPage() {
         <div className="max-w-lg">
           <p className="text-sm font-bold tracking-widest text-green uppercase">We believe in quality</p>
           <h1 className="mt-3 text-4xl leading-tight font-extrabold tracking-tight text-navy">
-            Strong basics today,
+            {t("core.login.heroLine1")}
             <br />
-            bright results tomorrow.
+            {t("core.login.heroLine2")}
           </h1>
           <p className="mt-4 text-[15px] leading-relaxed text-muted">
-            Science Academy, Ratlam guides students of classes 6 to 12, CBSE and MP Board, with clear concepts, regular tests and
-            personal attention, so every child learns with confidence and every parent stays informed.
+            {t("core.login.heroText")}
           </p>
           <ul className="mt-6 flex flex-wrap gap-2 text-[13px] font-semibold">
-            {["Classes 6 to 12", "CBSE & MP Board", "Regular tests & ranks", "Parents stay updated"].map((t) => (
-              <li key={t} className="rounded-full bg-primary-soft px-3 py-1.5 text-primary">
-                {t}
+            {[t("core.login.chipClasses"), t("core.login.chipBoards"), t("core.login.chipTests"), t("core.login.chipParents")].map((chip) => (
+              <li key={chip} className="rounded-full bg-primary-soft px-3 py-1.5 text-primary">
+                {chip}
               </li>
             ))}
           </ul>
@@ -41,8 +42,8 @@ export default async function LoginPage() {
           <div className="mb-8 lg:hidden">
             <Logo size={44} />
           </div>
-          <h2 className="text-2xl font-extrabold tracking-tight text-navy">Log in</h2>
-          <p className="mb-6 text-sm text-muted">One time code by {otpChannel() === "email" ? "email" : "SMS"}. No password.</p>
+          <h2 className="text-2xl font-extrabold tracking-tight text-navy">{t("core.login.title")}</h2>
+          <p className="mb-6 text-sm text-muted">{otpChannel() === "email" ? t("core.login.subtitleEmail") : t("core.login.subtitleSms")}</p>
           <LoginForm channel={otpChannel()} />
         </div>
         <div className="lg:hidden">

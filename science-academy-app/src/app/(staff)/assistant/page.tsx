@@ -8,11 +8,17 @@ import { rupees, timeLabel } from "@/lib/format";
 import { Banner, Card, Chip, Empty, PageHeader } from "@/components/ui";
 import { Composer } from "./Composer";
 import { cancelAiAction, clearConversation, confirmAiAction } from "./actions";
+import { getT } from "@/lib/i18n/server";
+import type { TFn } from "@/lib/i18n";
 
-export const metadata = { title: "AI assistant" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("admin.ai.title") };
+}
 
 export default async function AssistantPage() {
   const viewer = await requirePermission("ai.ask");
+  const { t } = await getT();
   const ready = assistantClient() !== null;
   const messages = await conversation(viewer.user.id);
   const actionIds = messages.flatMap((m) => (m.attachment?.kind === "action" ? [m.attachment.id] : []));
@@ -21,19 +27,19 @@ export default async function AssistantPage() {
     : { data: [] };
   const actions = new Map(((actionRows ?? []) as AiActionRow[]).map((a) => [a.id, a]));
   const canAct = can(viewer, "ai.act");
-  const caps = capabilitiesFor(viewer.perms);
+  const caps = capabilitiesFor(viewer.perms, t);
 
   return (
     <div className="flex min-h-dvh flex-col">
       <PageHeader
-        title="AI assistant"
-        subtitle={canAct ? "Answers questions · can prepare actions you confirm" : "Read only · answers questions"}
+        title={t("admin.ai.title")}
+        subtitle={canAct ? t("admin.ai.subAct") : t("admin.ai.subRead")}
         back="/"
         right={
           messages.length > 0 ? (
             <form action={clearConversation}>
-              <button className="btn btn-ghost px-2.5 py-1.5 text-[13px]" title="Clear conversation">
-                <Trash2 size={15} /> <span className="hidden sm:inline">Clear</span>
+              <button className="btn btn-ghost px-2.5 py-1.5 text-[13px]" title={t("admin.ai.clearTitle")}>
+                <Trash2 size={15} /> <span className="hidden sm:inline">{t("admin.ai.clear")}</span>
               </button>
             </form>
           ) : null
@@ -42,7 +48,7 @@ export default async function AssistantPage() {
       <div className="mx-auto w-full max-w-3xl flex-1 space-y-3 px-4 pt-3 pb-4 lg:px-8">
         {!ready && (
           <Banner tone="warn" icon={Info}>
-            AI is not set up yet. Add the Claude API key (ANTHROPIC_API_KEY) to the app settings to switch it on.
+            {t("admin.ai.notSetUp")}
           </Banner>
         )}
         <Card className="p-4">
@@ -50,7 +56,7 @@ export default async function AssistantPage() {
             <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-soft text-primary">
               <Bot size={19} />
             </span>
-            <p className="font-bold text-navy">What it can do</p>
+            <p className="font-bold text-navy">{t("admin.ai.canDo")}</p>
           </div>
           <ul className="mt-2 space-y-1 text-[13.5px] text-muted">
             {caps.map((c) => (
@@ -62,23 +68,23 @@ export default async function AssistantPage() {
           </ul>
           <p className="mt-2 flex items-start gap-1.5 text-[12px] text-faint">
             <ShieldCheck size={14} className="mt-0.5 shrink-0" />
-            It follows the same access as your screens, answers only what you ask, and says when it cannot find something.
-            {canAct ? " It never sends anything without your confirmation." : ""}
+            {t("admin.ai.rules")}
+            {canAct ? ` ${t("admin.ai.neverSends")}` : ""}
           </p>
         </Card>
 
-        {messages.length === 0 && ready && <Empty icon={Bot}>Ask a question, or tap a suggestion below.</Empty>}
+        {messages.length === 0 && ready && <Empty icon={Bot}>{t("admin.ai.askHint")}</Empty>}
 
         {messages.map((m) => (
-          <Bubble key={m.id} message={m} action={m.attachment?.kind === "action" ? actions.get(m.attachment.id) : undefined} canAct={canAct} />
+          <Bubble key={m.id} message={m} action={m.attachment?.kind === "action" ? actions.get(m.attachment.id) : undefined} canAct={canAct} t={t} />
         ))}
       </div>
-      {ready && <Composer suggestions={messages.length === 0 ? suggestionsFor(viewer.perms) : suggestionsFor(viewer.perms).slice(0, 3)} />}
+      {ready && <Composer suggestions={messages.length === 0 ? suggestionsFor(viewer.perms, t) : suggestionsFor(viewer.perms, t).slice(0, 3)} />}
     </div>
   );
 }
 
-function Bubble({ message, action, canAct }: { message: AiMessage; action?: AiActionRow; canAct: boolean }) {
+function Bubble({ message, action, canAct, t }: { message: AiMessage; action?: AiActionRow; canAct: boolean; t: TFn }) {
   const mine = message.role === "user";
   const att = message.attachment;
   return (
@@ -122,24 +128,26 @@ function Bubble({ message, action, canAct }: { message: AiMessage; action?: AiAc
             </div>
           </Card>
         )}
-        {att?.kind === "action" && action && <ActionCard action={action} canAct={canAct} />}
+        {att?.kind === "action" && action && <ActionCard action={action} canAct={canAct} t={t} />}
       </div>
     </div>
   );
 }
 
-function ActionCard({ action, canAct }: { action: AiActionRow; canAct: boolean }) {
+function ActionCard({ action, canAct, t }: { action: AiActionRow; canAct: boolean; t: TFn }) {
   const count = action.payload.students.length;
   return (
     <Card className="border border-warn/30 p-3.5">
-      <p className="text-[12px] font-bold tracking-wide text-warn uppercase">Confirm before sending</p>
+      <p className="text-[12px] font-bold tracking-wide text-warn uppercase">{t("admin.ai.confirmBefore")}</p>
       <p className="mt-0.5 text-[15px] font-extrabold text-navy">
-        {count} {count === 1 ? "parent" : "parents"}, {rupees(action.payload.total)}
+        {t("admin.ai.parentsTotal", { n: count, amount: rupees(action.payload.total) })}
       </p>
-      <p className="text-[12.5px] text-muted">{action.summary}. Each parent gets a private reminder in their own login. Nothing is posted in groups.</p>
+      <p className="text-[12.5px] text-muted">
+        {action.summary}. {t("admin.ai.privateNote")}
+      </p>
       <details className="mt-2">
         <summary className="flex cursor-pointer items-center gap-1 text-[12.5px] font-bold text-primary">
-          <Eye size={14} /> See the list
+          <Eye size={14} /> {t("admin.ai.seeList")}
         </summary>
         <ul className="mt-1.5 max-h-48 space-y-0.5 overflow-y-auto text-[12.5px]">
           {action.payload.students.map((s) => (
@@ -157,13 +165,13 @@ function ActionCard({ action, canAct }: { action: AiActionRow; canAct: boolean }
           <form action={confirmAiAction} className="flex-1">
             <input type="hidden" name="id" value={action.id} />
             <button className="btn btn-green w-full">
-              <CheckCircle2 size={16} /> Confirm and send
+              <CheckCircle2 size={16} /> {t("admin.ai.confirmSend")}
             </button>
           </form>
           <form action={cancelAiAction}>
             <input type="hidden" name="id" value={action.id} />
             <button className="btn btn-ghost">
-              <XCircle size={16} /> Cancel
+              <XCircle size={16} /> {t("core.cancel")}
             </button>
           </form>
         </div>
@@ -171,14 +179,14 @@ function ActionCard({ action, canAct }: { action: AiActionRow; canAct: boolean }
         <div className="mt-2">
           {action.status === "done" && (
             <Chip tone="ok">
-              Sent to {action.result?.sent ?? 0}
-              {action.result?.skippedPaid ? ` · ${action.result.skippedPaid} paid since` : ""}
-              {action.result?.noLogin ? ` · ${action.result.noLogin} without login` : ""}
+              {t("admin.ai.sentTo", { n: action.result?.sent ?? 0 })}
+              {action.result?.skippedPaid ? ` · ${t("admin.ai.paidSince", { n: action.result.skippedPaid })}` : ""}
+              {action.result?.noLogin ? ` · ${t("admin.ai.noLogin", { n: action.result.noLogin })}` : ""}
             </Chip>
           )}
-          {action.status === "cancelled" && <Chip>Cancelled</Chip>}
-          {action.status === "confirmed" && <Chip tone="primary">Sending…</Chip>}
-          {action.status === "failed" && <Chip tone="danger">Failed</Chip>}
+          {action.status === "cancelled" && <Chip>{t("admin.ai.cancelled")}</Chip>}
+          {action.status === "confirmed" && <Chip tone="primary">{t("admin.ai.sending")}</Chip>}
+          {action.status === "failed" && <Chip tone="danger">{t("admin.ai.failed")}</Chip>}
         </div>
       )}
     </Card>

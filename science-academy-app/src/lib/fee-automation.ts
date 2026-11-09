@@ -3,6 +3,7 @@ import { adminClient } from "./supabase/admin";
 import { activeUsersWithRole, notify, parentUserOf, type NewNotification } from "./notify";
 import { addDays, dateLabel, rupees, todayIst } from "./format";
 import { sendFeeTemplate } from "./whatsapp";
+import { all, localize, type TFn } from "./i18n";
 
 type Due = { id: string; student_id: string; month: string; amount: number; paid: number; due_date: string; label: string | null };
 type StudentLite = { id: string; name: string; code: string | null; status: string };
@@ -23,9 +24,9 @@ async function dueOn(date: string): Promise<{ row: Due; student: StudentLite }[]
 
 const balance = (r: Due) => Math.round((Number(r.amount) - Number(r.paid)) * 100) / 100;
 
-function names(list: { student: StudentLite }[]): string {
+function names(list: { student: StudentLite }[], t: TFn): string {
   const first = list.slice(0, 4).map((x) => x.student.name).join(", ");
-  return list.length > 4 ? `${first} and ${list.length - 4} more` : first;
+  return list.length > 4 ? t("core.rem.andMore", { names: first, n: list.length - 4 }) : first;
 }
 
 /**
@@ -54,8 +55,8 @@ export async function runFeeAutomation(now: Date = new Date()): Promise<Record<s
     items.push({
       userId: parent.id,
       kind: "fee_reminder",
-      title: `Fee due tomorrow: ${amount}`,
-      body: `${student.name}'s ${row.label ?? "fee"} of ${amount} is due on ${when}. Please pay on time.`,
+      title: all("core.rem.feeDueTomorrowTitle", { amount }),
+      body: localize((t) => t("core.rem.feeDueTomorrowBody", { student: student.name, what: row.label ?? t("core.rem.feeWord"), amount, date: when })),
       link: "/parent/fees",
       dedupeKey: `fee-due-tomorrow-${row.id}`,
     });
@@ -102,8 +103,8 @@ export async function runFeeAutomation(now: Date = new Date()): Promise<Record<s
       items.push({
         userId: u.id,
         kind: "fees_due_today",
-        title: `${dueToday.length} fee${dueToday.length === 1 ? "" : "s"} due today (${rupees(total)})`,
-        body: `If not paid today, call them tomorrow: ${names(dueToday)}.`,
+        title: dueToday.length === 1 ? all("core.rem.dueTodayOne", { amount: rupees(total) }) : all("core.rem.dueToday", { n: dueToday.length, amount: rupees(total) }),
+        body: localize((t) => t("core.rem.dueTodayBody", { names: names(dueToday, t) })),
         link: "/fees",
         dedupeKey: `fees-due-today-${today}`,
       });
@@ -125,8 +126,8 @@ export async function runFeeAutomation(now: Date = new Date()): Promise<Record<s
       items.push({
         userId: u.id,
         kind: "call_tasks",
-        title: `${late.length} call${late.length === 1 ? "" : "s"} to make today`,
-        body: `Fee was due yesterday and is not paid: ${names(late)}.`,
+        title: late.length === 1 ? all("core.rem.callTasksOne") : all("core.rem.callTasks", { n: late.length }),
+        body: localize((t) => t("core.rem.callTasksBody", { names: names(late, t) })),
         link: "/calls",
         dedupeKey: `call-tasks-${today}`,
       });

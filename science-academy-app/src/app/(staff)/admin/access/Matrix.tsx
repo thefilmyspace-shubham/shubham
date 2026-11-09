@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Lock, RotateCcw, Save } from "lucide-react";
 import type { Role } from "@/lib/permissions";
 import { resetRoleMatrix, saveRoleMatrix } from "./actions";
+import { useT } from "@/components/I18nProvider";
 
 export type MatrixRow = {
   key: string;
@@ -13,15 +14,11 @@ export type MatrixRow = {
   cells: { role: Role; value: boolean; locked: boolean; isDefault: boolean }[];
 };
 
-const COLS: { role: Role; label: string }[] = [
-  { role: "admin", label: "Admin" },
-  { role: "management", label: "Management" },
-  { role: "reception", label: "Reception" },
-  { role: "faculty", label: "Faculty" },
-];
+const COLS: Role[] = ["admin", "management", "reception", "faculty"];
 
 /** Role × permission switches. Unsaved changes are highlighted until saved. */
 export function Matrix({ rows }: { rows: MatrixRow[] }) {
+  const t = useT();
   const initial = useMemo(() => Object.fromEntries(rows.flatMap((r) => r.cells.map((c) => [`${c.role}:${r.key}`, c.value]))), [rows]);
   const [values, setValues] = useState<Record<string, boolean>>(initial);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -39,7 +36,7 @@ export function Matrix({ rows }: { rows: MatrixRow[] }) {
     });
 
   const reset = () => {
-    if (!confirm("Put every role back to the default access? Per-person changes stay.")) return;
+    if (!confirm(t("admin.access.resetConfirm"))) return;
     start(async () => {
       const r = await resetRoleMatrix();
       setMessage({ ok: r.ok, text: r.message ?? "" });
@@ -52,13 +49,13 @@ export function Matrix({ rows }: { rows: MatrixRow[] }) {
         <table className="w-full min-w-[720px] text-left text-[13.5px]">
           <thead>
             <tr className="border-b border-line text-xs text-muted">
-              <th className="px-4 py-2.5 font-semibold">What</th>
+              <th className="px-4 py-2.5 font-semibold">{t("admin.access.what")}</th>
               {COLS.map((c) => (
-                <th key={c.role} className="px-2 py-2.5 text-center font-semibold">
-                  {c.label}
+                <th key={c} className="px-2 py-2.5 text-center font-semibold">
+                  {t(`core.role.${c}`)}
                 </th>
               ))}
-              <th className="px-3 py-2.5 font-semibold">Parent</th>
+              <th className="px-3 py-2.5 font-semibold">{t("admin.access.parent")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -75,22 +72,22 @@ export function Matrix({ rows }: { rows: MatrixRow[] }) {
                   return (
                     <td key={c.role} className={`px-2 py-2 text-center ${dirty ? "bg-warn-soft" : ""}`}>
                       {c.locked ? (
-                        <span className="inline-flex items-center gap-1 text-[12px] font-bold text-faint" title="Locked">
-                          <Lock size={12} /> {on ? "Yes" : "No"}
+                        <span className="inline-flex items-center gap-1 text-[12px] font-bold text-faint" title={t("admin.access.locked")}>
+                          <Lock size={12} /> {on ? t("core.yes") : t("core.no")}
                         </span>
                       ) : (
                         <button
                           type="button"
                           role="switch"
                           aria-checked={on}
-                          aria-label={`${r.label} for ${c.role}`}
+                          aria-label={t("admin.access.switchFor", { what: r.label, role: t(`core.role.${c.role}`) })}
                           onClick={() => setValues((v) => ({ ...v, [id]: !v[id] }))}
                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${on ? "bg-green" : "bg-line"}`}
                         >
                           <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-5.5" : "translate-x-0.5"}`} />
                         </button>
                       )}
-                      {!c.locked && !c.isDefault && !dirty && <span className="mt-0.5 block text-[10px] font-bold text-violet">changed</span>}
+                      {!c.locked && !c.isDefault && !dirty && <span className="mt-0.5 block text-[10px] font-bold text-violet">{t("admin.access.changed")}</span>}
                     </td>
                   );
                 })}
@@ -102,18 +99,19 @@ export function Matrix({ rows }: { rows: MatrixRow[] }) {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button className="btn btn-primary" disabled={pending || changed.length === 0} onClick={save}>
-          <Save size={16} /> Save{changed.length ? ` (${changed.length})` : ""}
+          <Save size={16} /> {t("admin.access.save")}
+          {changed.length ? ` (${changed.length})` : ""}
         </button>
         {changed.length > 0 && (
           <button className="btn btn-ghost" disabled={pending} onClick={() => setValues(initial)}>
-            Undo changes
+            {t("admin.access.undo")}
           </button>
         )}
         <button className="btn btn-danger ml-auto" disabled={pending} onClick={reset}>
-          <RotateCcw size={16} /> Reset to defaults
+          <RotateCcw size={16} /> {t("admin.access.reset")}
         </button>
       </div>
-      {changed.length > 0 && <p className="text-[12.5px] font-semibold text-warn">Highlighted switches are not saved yet.</p>}
+      {changed.length > 0 && <p className="text-[12.5px] font-semibold text-warn">{t("admin.access.unsaved")}</p>}
       {message && <p className={`text-[13px] font-semibold ${message.ok ? "text-ok" : "text-danger"}`}>{message.text}</p>}
     </div>
   );

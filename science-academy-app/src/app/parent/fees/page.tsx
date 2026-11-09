@@ -4,7 +4,8 @@ import { adminClient } from "@/lib/supabase/admin";
 import { normalizeInvoice, qrDataUrl } from "@/lib/fees-data";
 import { upiLink } from "@/lib/billing-calc";
 import { academyDetails, upiIsPlaceholder } from "@/lib/env";
-import { balanceOf, feeStatus, FEE_PLAN_LABEL, FEE_STATUS_LABEL, rowDue, type FeePlan } from "@/lib/fees";
+import { balanceOf, feeStatus, rowDue, type FeePlan } from "@/lib/fees";
+import { getT } from "@/lib/i18n/server";
 import { dateLabel, monthLabel, monthStart, rupees, todayIst } from "@/lib/format";
 import { ChildStrip } from "@/components/ChildStrip";
 import { Card, Empty, Section } from "@/components/ui";
@@ -16,11 +17,12 @@ export const metadata = { title: "Fees" };
 /** Parent Fees tab: own child only. */
 export default async function ParentFeesPage({ searchParams }: { searchParams: Promise<{ child?: string }> }) {
   const { child: childParam } = await searchParams;
+  const { t } = await getT();
   const { children, child } = await parentContext(childParam);
   if (!child) {
     return (
       <div className="mx-auto max-w-lg px-4 pt-6">
-        <Empty icon={IndianRupee}>No student is linked to this login number. Please contact the academy.</Empty>
+        <Empty icon={IndianRupee}>{t("fees.p.noStudent")}</Empty>
       </div>
     );
   }
@@ -62,34 +64,34 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
         {thisRow && status ? (
           <Card className="mt-4 p-4">
             <div className="flex items-center justify-between">
-              <p className="font-bold text-navy">{plan === "monthly" ? monthLabel(thisRow.month) : (thisRow.label ?? "Next payment")}</p>
+              <p className="font-bold text-navy">{plan === "monthly" ? monthLabel(thisRow.month) : (thisRow.label ?? t("fees.p.nextPayment"))}</p>
               <FeeStatusChip status={status} />
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-field bg-field p-2">
-                <p className="text-[11px] font-semibold text-muted">Fee</p>
+                <p className="text-[11px] font-semibold text-muted">{t("fees.col.fee")}</p>
                 <p className="font-extrabold">{rupees(thisRow.amount)}</p>
               </div>
               <div className="rounded-field bg-ok-soft p-2">
-                <p className="text-[11px] font-semibold text-muted">Paid</p>
+                <p className="text-[11px] font-semibold text-muted">{t("fees.col.paid")}</p>
                 <p className="font-extrabold text-ok">{rupees(thisRow.paid)}</p>
               </div>
               <div className={`rounded-field p-2 ${balanceOf(thisRow) > 0 ? "bg-warn-soft" : "bg-field"}`}>
-                <p className="text-[11px] font-semibold text-muted">Balance</p>
+                <p className="text-[11px] font-semibold text-muted">{t("fees.col.balance")}</p>
                 <p className={`font-extrabold ${balanceOf(thisRow) > 0 ? "text-warn" : ""}`}>{rupees(balanceOf(thisRow))}</p>
               </div>
             </div>
             <p className="mt-3 text-sm text-muted">
-              Due date: <span className="font-semibold text-fg">{dateLabel(rowDue(thisRow))}</span>
-              {status === "overdue" && <span className="font-semibold text-danger"> · {FEE_STATUS_LABEL.overdue}</span>}
+              {t("fees.p.dueDate")} <span className="font-semibold text-fg">{dateLabel(rowDue(thisRow))}</span>
+              {status === "overdue" && <span className="font-semibold text-danger"> · {t("fees.status.overdue")}</span>}
             </p>
           </Card>
         ) : (
-          <Card className="mt-4 p-4 text-sm text-muted">{plan === "monthly" ? "No fee is set for this month." : "All payments are done. Thank you!"}</Card>
+          <Card className="mt-4 p-4 text-sm text-muted">{plan === "monthly" ? t("fees.p.noFeeMonth") : t("fees.p.allDone")}</Card>
         )}
 
         {plan === "monthly" && earlier.length > 0 && (
-          <Section title={`Earlier months pending · ${rupees(earlierDue)}`}>
+          <Section title={t("fees.p.earlierPending", { amount: rupees(earlierDue) })}>
             <Card className="divide-y divide-line">
               {earlier.map((r) => (
                 <div key={r.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
@@ -102,7 +104,7 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
         )}
 
         {schedule.length > 0 && (
-          <Section title={`Payment plan · ${FEE_PLAN_LABEL[plan]}`}>
+          <Section title={`${t("fees.p.paymentPlan")} · ${t(`fees.plan.${plan}`)}`}>
             <Card className="divide-y divide-line">
               {schedule.map((r) => {
                 const st = feeStatus(r.amount, r.paid, r.month, today, r.due_date);
@@ -110,7 +112,7 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
                   <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                     <div className="min-w-0">
                       <p className="font-semibold">{r.label ?? monthLabel(r.month)}</p>
-                      <p className="text-xs text-muted">Due {dateLabel(rowDue(r))}</p>
+                      <p className="text-xs text-muted">{t("fees.bf.dueOn", { date: dateLabel(rowDue(r)) })}</p>
                     </div>
                     <div className="text-right">
                       <p className="font-bold">{rupees(r.amount)}</p>
@@ -123,9 +125,9 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
           </Section>
         )}
 
-        <Section title="Receipts">
+        <Section title={t("fees.p.receipts")}>
           {receipts.length === 0 ? (
-            <Empty icon={ReceiptText}>No receipts yet.</Empty>
+            <Empty icon={ReceiptText}>{t("fees.p.noReceipts")}</Empty>
           ) : (
             <Card className="divide-y divide-line overflow-hidden">
               {receipts.map((b) => (
@@ -133,18 +135,18 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-navy">{b.number}</p>
                     <p className="text-xs text-muted">
-                      {monthLabel(b.month)} · paid {dateLabel(b.paid_on)}
+                      {monthLabel(b.month)} · {t("fees.p.paidOn", { date: dateLabel(b.paid_on) })}
                     </p>
                   </div>
                   <span className="font-bold">{rupees(b.received)}</span>
-                  <Download size={17} className="text-primary" aria-label="Download PDF" />
+                  <Download size={17} className="text-primary" aria-label={t("fees.p.downloadPdf")} />
                 </a>
               ))}
             </Card>
           )}
         </Section>
 
-        <Section title="How to pay">
+        <Section title={t("fees.p.howToPay")}>
           <Card className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1 text-sm">
@@ -153,15 +155,15 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
                   <span className="font-bold">{academy.upiId}</span>
                 </p>
                 <p>
-                  <span className="text-muted">Bank: </span>
+                  <span className="text-muted">{t("fees.p.bank")}: </span>
                   <span className="font-semibold">{academy.bankName}</span>
                 </p>
                 <p>
-                  <span className="text-muted">Account name: </span>
+                  <span className="text-muted">{t("fees.p.accountName")}: </span>
                   <span className="font-semibold">{academy.accountName}</span>
                 </p>
                 <p>
-                  <span className="text-muted">Account no.: </span>
+                  <span className="text-muted">{t("fees.p.accountNo")}: </span>
                   <span className="font-semibold">{academy.accountNumber}</span>
                 </p>
                 <p>
@@ -171,13 +173,13 @@ export default async function ParentFeesPage({ searchParams }: { searchParams: P
               </div>
               {qr ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={qr} alt="UPI QR code" width={112} height={112} className="rounded-md border border-line p-1" />
+                <img src={qr} alt={t("fees.p.qrAlt")} width={112} height={112} className="rounded-md border border-line p-1" />
               ) : (
                 <div className="grid h-28 w-28 shrink-0 place-items-center rounded-md border-2 border-dashed border-faint text-center text-[11px] font-bold text-faint">[UPI QR CODE]</div>
               )}
             </div>
             <p className="mt-3 text-xs text-muted">
-              After paying, please tell the academy office (with the UPI / bank reference). The receipt appears here once the office makes the bill. You can also pay in cash at the office.
+              {t("fees.p.afterPaying")}
             </p>
           </Card>
         </Section>

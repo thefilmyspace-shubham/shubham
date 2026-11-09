@@ -3,6 +3,7 @@
 // reach data the same person could not open on the screens.
 
 import type { PermissionKey } from "../permissions";
+import type { TFn } from "../i18n";
 
 export const TOOL_REQUIREMENTS = {
   list_batches: [],
@@ -42,28 +43,28 @@ export function toolNamesFor(perms: Record<PermissionKey, boolean>): ToolName[] 
 export const ACTION_TOOLS: ToolName[] = ["propose_fee_reminders"];
 
 /** Short list for the "what it can do" box, by what this person may use. */
-export function capabilitiesFor(perms: Record<PermissionKey, boolean>): string[] {
+export function capabilitiesFor(perms: Record<PermissionKey, boolean>, t: TFn): string[] {
   const names = new Set(toolNamesFor(perms));
   const out: string[] = [];
-  if (names.has("find_student")) out.push("Find a student by name, ID (current or earlier) or class");
-  if (names.has("student_attendance")) out.push("Attendance of a student or a batch, low-attendance lists");
-  if (names.has("student_marks")) out.push("Test marks of a student");
-  if (names.has("compare_batches")) out.push("Compare test marks of batches, with a PDF download");
-  if (names.has("class_toppers")) out.push("Class toppers for a test");
-  if (names.has("fee_status")) out.push("Fee status, overdue lists by class");
-  if (names.has("student_contacts")) out.push("Parents' numbers of a student");
-  if (names.has("propose_fee_reminders")) out.push("Send fee reminders to parents (you confirm first)");
+  if (names.has("find_student")) out.push(t("admin.ai.cap.find"));
+  if (names.has("student_attendance")) out.push(t("admin.ai.cap.attendance"));
+  if (names.has("student_marks")) out.push(t("admin.ai.cap.marks"));
+  if (names.has("compare_batches")) out.push(t("admin.ai.cap.compare"));
+  if (names.has("class_toppers")) out.push(t("admin.ai.cap.toppers"));
+  if (names.has("fee_status")) out.push(t("admin.ai.cap.fees"));
+  if (names.has("student_contacts")) out.push(t("admin.ai.cap.contacts"));
+  if (names.has("propose_fee_reminders")) out.push(t("admin.ai.cap.remind"));
   return out;
 }
 
-export function suggestionsFor(perms: Record<PermissionKey, boolean>): string[] {
+export function suggestionsFor(perms: Record<PermissionKey, boolean>, t: TFn): string[] {
   const names = new Set(toolNamesFor(perms));
   const out: string[] = [];
-  if (names.has("student_attendance")) out.push("Attendance of CB12-087-26 this month");
-  if (names.has("compare_batches")) out.push("Compare the last test of both class 10 CBSE batches");
-  if (names.has("class_toppers")) out.push("Top 5 of class 9 MP Board in the latest test");
-  if (names.has("low_attendance")) out.push("Who is below 75% attendance this month?");
-  if (names.has("overdue_list")) out.push("Overdue fees in class 11");
-  if (names.has("propose_fee_reminders")) out.push("Send reminders to all overdue parents of class 12");
+  if (names.has("student_attendance")) out.push(t("admin.ai.sug.attendance"));
+  if (names.has("compare_batches")) out.push(t("admin.ai.sug.compare"));
+  if (names.has("class_toppers")) out.push(t("admin.ai.sug.toppers"));
+  if (names.has("low_attendance")) out.push(t("admin.ai.sug.low"));
+  if (names.has("overdue_list")) out.push(t("admin.ai.sug.overdue"));
+  if (names.has("propose_fee_reminders")) out.push(t("admin.ai.sug.remind"));
   return out;
 }

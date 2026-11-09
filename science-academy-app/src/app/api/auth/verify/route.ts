@@ -5,21 +5,22 @@ import { startSession } from "@/lib/session";
 import { logActivity } from "@/lib/activity";
 import { resolvePermissions } from "@/lib/permissions";
 import { adminClient } from "@/lib/supabase/admin";
-import { LANG_COOKIE, isLang } from "@/lib/i18n";
+import { LANG_COOKIE, asLang, isLang, translator } from "@/lib/i18n";
 
 const Body = z.object({ challenge: z.string(), code: z.string().trim() });
 
 /** Step 3 of login: check the code and sign in on this device (until Log out). */
 export async function POST(req: NextRequest) {
+  const t = translator(asLang(req.cookies.get(LANG_COOKIE)?.value));
   const parsed = Body.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Enter the 6 digit code." }, { status: 400 });
-  const result = await verifyLoginCode(parsed.data.challenge, parsed.data.code);
+  if (!parsed.success) return NextResponse.json({ error: t("core.auth.enterCode") }, { status: 400 });
+  const result = await verifyLoginCode(parsed.data.challenge, parsed.data.code, t);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
   try {
     await startSession(result.user, req.headers.get("user-agent"));
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Could not sign in. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t("core.auth.signInFailed") }, { status: 500 });
   }
   const user = result.user;
   // First login on a device where a language was chosen: keep it on the login too.

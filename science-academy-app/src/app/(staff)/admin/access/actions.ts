@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activity";
 import { revokeAllSessions } from "@/lib/session";
 import { normalizeMobile } from "@/lib/ids";
 import { otpChannel } from "@/lib/env";
+import { getT } from "@/lib/i18n/server";
 import { isLocked, isPermissionKey, PERMISSION_KEYS, roleDefault, STAFF_ROLES, type Role } from "@/lib/permissions";
 import type { AppUser } from "@/lib/types";
 
@@ -27,7 +28,8 @@ const failed = (message: string): ActionState => ({ ok: false, message, at: Date
  */
 export async function saveRoleMatrix(cells: { role: Role; key: string; allowed: boolean }[]): Promise<ActionState> {
   const viewer = await admin();
-  if (!viewer) return failed("Only Admin can change access.");
+  const { t } = await getT();
+  if (!viewer) return failed(t("admin.access.msg.onlyAdmin"));
   const db = adminClient();
   const { data: before } = await db.from("role_permissions").select("role, key, allowed");
   const old = new Map(((before ?? []) as { role: Role; key: string; allowed: boolean }[]).map((r) => [`${r.role}:${r.key}`, r.allowed]));
@@ -46,21 +48,22 @@ export async function saveRoleMatrix(cells: { role: Role; key: string; allowed: 
         .upsert({ role: c.role, key: c.key, allowed: c.allowed, updated_by: viewer.user.id, updated_at: new Date().toISOString() });
     }
   }
-  if (!changes.length) return done("Nothing changed.");
+  if (!changes.length) return done(t("admin.access.msg.nothing"));
   await logActivity(viewer, "access.role", { type: "permissions" }, { changes });
   revalidatePath("/", "layout");
-  return done(`Saved ${changes.length} ${changes.length === 1 ? "change" : "changes"}.`);
+  return done(t("admin.access.msg.saved", { n: changes.length }));
 }
 
 export async function resetRoleMatrix(): Promise<ActionState> {
   const viewer = await admin();
-  if (!viewer) return failed("Only Admin can change access.");
+  const { t } = await getT();
+  if (!viewer) return failed(t("admin.access.msg.onlyAdmin"));
   const db = adminClient();
   const { data } = await db.from("role_permissions").select("role, key, allowed");
   await db.from("role_permissions").delete().neq("key", "");
   await logActivity(viewer, "access.reset", { type: "permissions" }, { removed: data ?? [] });
   revalidatePath("/", "layout");
-  return done("All roles are back to the default access.");
+  return done(t("admin.access.msg.reset"));
 }
 
 /** Per-person access: each key is "default", "allow" or "deny". */
@@ -136,20 +139,21 @@ const NewStaff = z.object({
 
 export async function addStaff(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const viewer = await admin();
-  if (!viewer) return failed("Only Admin can add staff.");
+  const { t } = await getT();
+  if (!viewer) return failed(t("admin.access.msg.onlyAdminAdd"));
   const parsed = NewStaff.safeParse({
     role: formData.get("role"),
     name: formData.get("name"),
     mobile: String(formData.get("mobile") ?? ""),
     email: String(formData.get("email") ?? "").trim(),
   });
-  if (!parsed.success) return failed("Fill the role, a name and a valid email.");
-  if (otpChannel() === "email" && !parsed.data.email) return failed("Add their email: the login code is sent there.");
+  if (!parsed.success) return failed(t("admin.access.msg.fill"));
+  if (otpChannel() === "email" && !parsed.data.email) return failed(t("admin.access.msg.needEmail"));
   const mobile = normalizeMobile(parsed.data.mobile);
-  if (!mobile) return failed("Enter a 10 digit Indian mobile number.");
+  if (!mobile) return failed(t("admin.access.msg.mobile"));
   const db = adminClient();
   const { data: clash } = await db.from("users").select("staff_id").eq("mobile", mobile).neq("role", "parent").maybeSingle<{ staff_id: string }>();
-  if (clash) return failed(`This mobile already belongs to ${clash.staff_id}.`);
+  if (clash) return failed(t("admin.access.msg.mobileTaken", { id: clash.staff_id }));
   // Two admins adding at once could pick the same ID: try again once.
   for (let attempt = 0; attempt < 2; attempt++) {
     const { data: staffId } = await db.rpc("next_staff_id", { p_role: parsed.data.role });
@@ -161,10 +165,10 @@ export async function addStaff(_prev: ActionState, formData: FormData): Promise<
     if (!error && data) {
       await logActivity(viewer, "staff.add", { type: "user", id: data.id }, { staff_id: data.staff_id, name: parsed.data.name, role: parsed.data.role });
       revalidatePath("/admin/access");
-      return done(`Added ${data.staff_id} ${parsed.data.name}. They log in with ${data.staff_id} or their mobile; the code goes to ${otpChannel() === "email" ? "their email" : "their mobile"}.`);
+      return done(t(otpChannel() === "email" ? "admin.access.msg.addedEmail" : "admin.access.msg.addedSms", { id: data.staff_id, name: parsed.data.name }));
     }
   }
-  return failed("Could not add this person. Please try again.");
+  return failed(t("admin.access.msg.addFailed"));
 }
 
 const Contact = z.object({

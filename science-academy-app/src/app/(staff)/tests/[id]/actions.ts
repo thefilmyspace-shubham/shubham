@@ -7,6 +7,8 @@ import { logActivity } from "@/lib/activity";
 import { notify, parentUserOf, type NewNotification } from "@/lib/notify";
 import { getTest, marksOf, studentsForTest } from "@/lib/academics";
 import { visibleBatchIds } from "@/lib/auth";
+import { getT } from "@/lib/i18n/server";
+import { all } from "@/lib/i18n";
 
 export type MarksState = { ok: boolean; message: string } | null;
 
@@ -17,10 +19,11 @@ export type MarksState = { ok: boolean; message: string } | null;
  */
 export async function saveMarks(_prev: MarksState, form: FormData): Promise<MarksState> {
   const viewer = await staffForApi();
-  if (!viewer || !can(viewer, "marks.enter")) return { ok: false, message: "Your login cannot enter marks." };
+  const { t } = await getT();
+  if (!viewer || !can(viewer, "marks.enter")) return { ok: false, message: t("academics.marks.cannotEnter") };
   const test = await getTest(String(form.get("testId") ?? ""));
-  if (!test) return { ok: false, message: "Test not found." };
-  if (test.batch_id && !canSeeBatch(viewer, test.batch_id)) return { ok: false, message: "This test is not for your batch." };
+  if (!test) return { ok: false, message: t("academics.marks.testNotFound") };
+  if (test.batch_id && !canSeeBatch(viewer, test.batch_id)) return { ok: false, message: t("academics.marks.notYourBatch") };
   const max = test.max_marks === null ? null : Number(test.max_marks);
 
   const students = await studentsForTest(test, visibleBatchIds(viewer));
@@ -44,18 +47,18 @@ export async function saveMarks(_prev: MarksState, form: FormData): Promise<Mark
     }
     const score = Number(raw);
     if (!Number.isFinite(score) || score < 0 || (max !== null && score > max)) {
-      errors.push(`${s.name}: ${raw}${max !== null ? ` (max ${max})` : ""}`);
+      errors.push(`${s.name}: ${raw}${max !== null ? ` (${t("academics.max", { n: max })})` : ""}`);
       continue;
     }
     if (old && !old.absent && old.score === score) continue;
     upserts.push({ test_id: test.id, student_id: s.id, score, absent: false, entered_by: viewer.user.id, entered_at: now });
   }
-  if (errors.length) return { ok: false, message: `Check these marks: ${errors.slice(0, 5).join(", ")}${errors.length > 5 ? "…" : ""}. Nothing was saved.` };
+  if (errors.length) return { ok: false, message: t("academics.marks.check", { list: `${errors.slice(0, 5).join(", ")}${errors.length > 5 ? "…" : ""}` }) };
 
   const db = adminClient();
   if (upserts.length) {
     const { error } = await db.from("marks").upsert(upserts, { onConflict: "test_id,student_id" });
-    if (error) return { ok: false, message: "Could not save marks. Please try again." };
+    if (error) return { ok: false, message: t("academics.marks.couldNotSave") };
   }
   if (removes.length) await db.from("marks").delete().eq("test_id", test.id).in("student_id", removes);
 
@@ -73,8 +76,8 @@ export async function saveMarks(_prev: MarksState, form: FormData): Promise<Mark
     items.push({
       userId: parent.id,
       kind: "result",
-      title: `Result added: ${test.name}`,
-      body: u.absent ? `${s.name}: absent` : `${s.name}: ${u.score}${max !== null ? ` / ${max}` : ""}`,
+      title: all("academics.marks.resultTitle", { test: test.name }),
+      body: u.absent ? all("academics.marks.resultAbsent", { name: s.name }) : `${s.name}: ${u.score}${max !== null ? ` / ${max}` : ""}`,
       link: "/parent/marks",
       dedupeKey: `result-${test.id}-${s.id}`,
     });
@@ -84,5 +87,5 @@ export async function saveMarks(_prev: MarksState, form: FormData): Promise<Mark
   revalidatePath(`/tests/${test.id}`);
   revalidatePath("/ranks");
   const changed = upserts.length + removes.length;
-  return { ok: true, message: changed ? `Marks saved (${changed} changed).` : "Nothing changed." };
+  return { ok: true, message: changed ? t("academics.marks.saved", { n: changed }) : t("academics.nothingChanged") };
 }

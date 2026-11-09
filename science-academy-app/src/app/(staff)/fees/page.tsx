@@ -2,7 +2,8 @@ import Link from "next/link";
 import { BellRing, ChevronLeft, ChevronRight, IndianRupee, Plus, Search } from "lucide-react";
 import { can, canSeeBatch, requirePermission } from "@/lib/auth";
 import { ensureLedgerForMonth, feeListForMonth } from "@/lib/fees-data";
-import { FEE_STATUS_LABEL, type FeeStatus } from "@/lib/fees";
+import type { FeeStatus } from "@/lib/fees";
+import { getT } from "@/lib/i18n/server";
 import { addMonths, monthLabel, monthStart, rupees, todayIst } from "@/lib/format";
 import { boardName, parseStudentId } from "@/lib/ids";
 import { Card, Empty, FilterChips, Page, PageHeader, Section, Stat, Table, Td } from "@/components/ui";
@@ -17,6 +18,7 @@ const STATUSES: FeeStatus[] = ["paid", "partial", "pending", "overdue"];
 
 export default async function FeesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const viewer = await requirePermission("fees.view");
+  const { t } = await getT();
   const sp = await searchParams;
   const today = todayIst();
   const current = monthStart(today);
@@ -68,48 +70,48 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
   return (
     <>
       <PageHeader
-        title="Fees"
-        subtitle={`${monthLabel(month)} · each student's own due date`}
+        title={t("fees.title")}
+        subtitle={t("fees.eachOwnDue", { month: monthLabel(month) })}
         right={
           canBill ? (
             <Link href="/billing/new" className="btn btn-primary">
-              <Plus size={16} /> <span className="hidden sm:inline">Make bill</span>
+              <Plus size={16} /> <span className="hidden sm:inline">{t("fees.makeBill")}</span>
             </Link>
           ) : null
         }
       />
       <Page wide>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={href({ month: addMonths(month, -1).slice(0, 7) })} className="btn btn-ghost px-2.5" aria-label="Previous month">
+          <Link href={href({ month: addMonths(month, -1).slice(0, 7) })} className="btn btn-ghost px-2.5" aria-label={t("fees.prevMonth")}>
             <ChevronLeft size={17} />
           </Link>
           <form action="/fees" className="flex items-center gap-2">
             <input type="month" name="month" defaultValue={ym} className="field w-auto py-2" />
             {q && <input type="hidden" name="q" value={q} />}
-            <button className="btn btn-ghost">Go</button>
+            <button className="btn btn-ghost">{t("fees.go")}</button>
           </form>
-          <Link href={href({ month: addMonths(month, 1).slice(0, 7) })} className="btn btn-ghost px-2.5" aria-label="Next month">
+          <Link href={href({ month: addMonths(month, 1).slice(0, 7) })} className="btn btn-ghost px-2.5" aria-label={t("fees.nextMonth")}>
             <ChevronRight size={17} />
           </Link>
           {month !== current && (
             <Link href={href({ month: current.slice(0, 7) })} className="text-sm font-bold text-primary">
-              This month
+              {t("fees.thisMonth")}
             </Link>
           )}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Fee this month" value={rupees(expected)} hint={`${all.length} students`} />
-          <Stat label="Collected" value={rupees(collected)} tone="ok" hint={`${counts.paid} paid in full`} />
-          <Stat label="Pending" value={rupees(pending)} tone="warn" hint={`${counts.partial + counts.pending + counts.overdue} students`} />
-          <Stat label="Overdue" value={counts.overdue} tone="danger" hint="after the 5th" href={href({ status: "overdue" })} />
+          <Stat label={t("fees.feeThisMonth")} value={rupees(expected)} hint={t("fees.nStudents", { n: all.length })} />
+          <Stat label={t("fees.collected")} value={rupees(collected)} tone="ok" hint={t("fees.paidInFull", { n: counts.paid })} />
+          <Stat label={t("fees.pending")} value={rupees(pending)} tone="warn" hint={t("fees.nStudents", { n: counts.partial + counts.pending + counts.overdue })} />
+          <Stat label={t("fees.overdue")} value={counts.overdue} tone="danger" hint={t("fees.afterDue")} href={href({ status: "overdue" })} />
         </div>
 
         <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <FilterChips
             items={[
-              { href: href({ status: null }), label: "All", count: all.length, active: !status },
-              ...STATUSES.map((s) => ({ href: href({ status: s }), label: FEE_STATUS_LABEL[s], count: counts[s], active: status === s })),
+              { href: href({ status: null }), label: t("core.all"), count: all.length, active: !status },
+              ...STATUSES.map((s) => ({ href: href({ status: s }), label: t(`fees.status.${s}`), count: counts[s], active: status === s })),
             ]}
           />
           <form action="/fees" className="flex items-center gap-2">
@@ -117,7 +119,7 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
             {status && <input type="hidden" name="status" value={status} />}
             <div className="relative flex-1 lg:w-72">
               <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-faint" />
-              <input name="q" defaultValue={q} placeholder="Name or student ID" className="field pl-9" />
+              <input name="q" defaultValue={q} placeholder={t("fees.nameOrId")} className="field pl-9" />
             </div>
           </form>
         </div>
@@ -127,9 +129,9 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
             <ActionForm
               action={remindAllOverdue}
               fields={{}}
-              label={`Remind all overdue parents privately`}
+              label={t("fees.remindAllOverdue")}
               icon={<BellRing size={15} />}
-              confirm="Send a private fee reminder to every parent with an overdue fee? (Never posted in batch groups.)"
+              confirm={t("fees.remindAllConfirm")}
             />
           </div>
         )}
@@ -137,11 +139,11 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
         <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_300px]">
           <div>
             {rows.length === 0 ? (
-              <Empty icon={IndianRupee}>{all.length === 0 ? "No fee rows for this month." : "No students match."}</Empty>
+              <Empty icon={IndianRupee}>{all.length === 0 ? t("fees.noRowsMonth") : t("fees.noMatch")}</Empty>
             ) : (
               <>
                 <div className="hidden lg:block">
-                  <Table head={["Student", "Class", "Fee", "Paid", "Balance", "Status", ""]}>
+                  <Table head={[t("fees.col.student"), t("fees.col.class"), t("fees.col.fee"), t("fees.col.paid"), t("fees.col.balance"), t("fees.col.status"), ""]}>
                     {rows.map((r) => (
                       <tr key={r.ledger.id} className="hover:bg-field/60">
                         <Td>
@@ -163,11 +165,11 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
                           <div className="flex justify-end gap-2">
                             {canBill && r.balance > 0 && (
                               <Link href={`/billing/new?student=${r.student.id}&month=${ym}`} className="btn btn-soft px-3 py-1.5 text-[13px]">
-                                Bill
+                                {t("fees.bill")}
                               </Link>
                             )}
                             {r.balance > 0 && month === current && (
-                              <ActionForm action={sendFeeReminder} fields={{ studentId: r.student.id }} label="Remind" className="btn btn-ghost px-3 py-1.5 text-[13px]" />
+                              <ActionForm action={sendFeeReminder} fields={{ studentId: r.student.id }} label={t("fees.remind")} className="btn btn-ghost px-3 py-1.5 text-[13px]" />
                             )}
                           </div>
                         </Td>
@@ -181,7 +183,7 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-bold text-navy">{r.student.name}</p>
                         <p className="text-xs text-muted">
-                          {r.student.code} · Class {r.student.current_class}
+                          {r.student.code} · {t("fees.classN", { n: r.student.current_class })}
                         </p>
                       </div>
                       <div className="text-right">
@@ -196,9 +198,9 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
           </div>
 
           <div>
-            <Section title="Pending by class" className="pt-0">
+            <Section title={t("fees.pendingByClass")} className="pt-0">
               <Card className="space-y-3 p-4">
-                {classRows.length === 0 && <p className="text-sm text-muted">Nothing pending.</p>}
+                {classRows.length === 0 && <p className="text-sm text-muted">{t("fees.nothingPending")}</p>}
                 {classRows.map((c) => (
                   <div key={`${c.board}${c.cls}`}>
                     <div className="mb-1 flex items-baseline justify-between text-sm">
@@ -209,7 +211,7 @@ export default async function FeesPage({ searchParams }: { searchParams: Promise
                     </div>
                     <Meter value={c.amount} max={topClass} tone="warn" />
                     <p className="mt-0.5 text-[11.5px] text-muted">
-                      {c.students} student{c.students === 1 ? "" : "s"}
+                      {t("fees.studentsCount", { n: c.students })}
                     </p>
                   </div>
                 ))}

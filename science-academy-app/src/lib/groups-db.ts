@@ -4,6 +4,7 @@ import { childrenOf, type Viewer } from "./auth";
 import { allBatches, batchMap } from "./batches";
 import { ensureParentUser } from "./notify";
 import { canDeleteMessage, seenSummary, staffCanPost, staffCanRead, tickState } from "./groups";
+import { getT } from "./i18n/server";
 import type { AppUser, Batch, Group, Message } from "./types";
 
 export type GroupView = Group & { batch: Batch | null; canPost: boolean };
@@ -234,7 +235,8 @@ export async function messageReaders(
       const names = Array.isArray(l.students) ? l.students.map((x) => x.name) : [l.students.name];
       kids.set(l.mobile, [...(kids.get(l.mobile) ?? []), ...names]);
     }
-    for (const u of users.values()) detail.set(u.id, kids.get(u.mobile)?.length ? `Parent of ${kids.get(u.mobile)!.join(", ")}` : "Parent");
+    const { t } = await getT();
+    for (const u of users.values()) detail.set(u.id, kids.get(u.mobile)?.length ? t("groups.parentOf", { names: kids.get(u.mobile)!.join(", ") }) : t("core.role.parent"));
   } else {
     audience = await staffAudience(group.kind);
   }

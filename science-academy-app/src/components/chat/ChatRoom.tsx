@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, CheckCheck, Eye, FileText, Info, LoaderCircle, Lock, MoreVertical, Paperclip, Send, Trash2, X } from "lucide-react";
 import { browserClient } from "@/lib/supabase/browser";
 import { dateTimeLabel, dayLabel, timeLabel, todayIst } from "@/lib/format";
-import { MESSAGE_TYPE_LABEL, POST_TYPES, looksLikeFeeMessage, FEE_BLOCKED_ERROR } from "@/lib/groups";
+import { POST_TYPES, looksLikeFeeMessage } from "@/lib/groups";
+import { useT } from "@/components/I18nProvider";
 import type { ChatMessage, Reader } from "@/lib/groups-db";
 import type { MessageType } from "@/lib/types";
 import { deleteMessage, getSeenBy, markRead, sendMessage } from "./actions";
@@ -32,6 +33,7 @@ const TYPE_TONE: Record<MessageType, string> = {
 
 export function ChatRoom({ groupId, messages, composer, readOnlyText, showSenderTag = true, bottomBar = true, actions = true }: Props) {
   const router = useRouter();
+  const t = useT();
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
@@ -75,7 +77,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
     e.preventDefault();
     if (!composer || pending) return;
     if (feeWarning) {
-      setError(FEE_BLOCKED_ERROR);
+      setError(t("groups.feeBlocked"));
       return;
     }
     const fd = new FormData();
@@ -100,7 +102,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
   return (
     <div className={`flex flex-col ${bottomBar ? "min-h-[calc(100dvh-7.5rem)] lg:min-h-[calc(100dvh-9rem)]" : ""}`}>
       <div className="flex-1 space-y-1.5 bg-chat px-3 py-4 lg:rounded-card lg:px-6">
-        {messages.length === 0 && <p className="py-10 text-center text-sm text-muted">No messages yet.</p>}
+        {messages.length === 0 && <p className="py-10 text-center text-sm text-muted">{t("groups.noMessagesYet")}</p>}
         {messages.map((m, i) => {
           const day = days[i];
           const sep = i === 0 || day !== days[i - 1];
@@ -109,7 +111,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
               {sep && (
                 <div className="my-3 flex justify-center">
                   <span className="rounded-full bg-card/90 px-3 py-1 text-[11.5px] font-bold text-muted shadow-card">
-                    {day === todayIst() ? "Today" : dayLabel(day)}
+                    {day === todayIst() ? t("core.today") : dayLabel(day)}
                   </span>
                 </div>
               )}
@@ -137,7 +139,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
             {composer.warning}
           </p>
           {composer.kind === "batch" && (
-            <div className="mb-2 flex gap-1.5" role="radiogroup" aria-label="Post type">
+            <div className="mb-2 flex gap-1.5" role="radiogroup" aria-label={t("groups.postType")}>
               {POST_TYPES.map((p) => (
                 <button
                   key={p.type}
@@ -149,7 +151,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
                     type === p.type ? "border-primary bg-primary text-white" : "border-line bg-card text-fg"
                   }`}
                 >
-                  {p.label}
+                  {t(`groups.type.${p.type}`)}
                 </button>
               ))}
             </div>
@@ -160,7 +162,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
               <span className="min-w-0 flex-1 truncate">{file.name}</span>
               <button
                 type="button"
-                aria-label="Remove file"
+                aria-label={t("groups.removeFile")}
                 onClick={() => {
                   setFile(null);
                   if (fileRef.current) fileRef.current.value = "";
@@ -170,21 +172,21 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
               </button>
             </div>
           )}
-          {(error || feeWarning) && <p className="mb-2 text-[12.5px] font-semibold text-danger">{error ?? FEE_BLOCKED_ERROR}</p>}
+          {(error || feeWarning) && <p className="mb-2 text-[12.5px] font-semibold text-danger">{error ?? t("groups.feeBlocked")}</p>}
           <div className="flex items-end gap-2">
             <input ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted hover:bg-field"
-              aria-label="Attach a file"
+              aria-label={t("groups.attach")}
             >
               <Paperclip size={20} />
             </button>
             <textarea
               className="field max-h-40 min-h-11 flex-1 resize-none py-2.5"
               rows={1}
-              placeholder={composer.kind === "batch" ? `Write a ${MESSAGE_TYPE_LABEL[type].toLowerCase()} for parents…` : "Message"}
+              placeholder={composer.kind === "batch" ? t(`groups.placeholder.${type}`) : t("groups.placeholder.chat")}
               value={body}
               onChange={(e) => {
                 setBody(e.target.value);
@@ -200,7 +202,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
             <button
               className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-white disabled:opacity-50"
               disabled={pending || (!body.trim() && !file) || feeWarning}
-              aria-label="Send"
+              aria-label={t("groups.send")}
             >
               {pending ? <LoaderCircle size={19} className="animate-spin" /> : <Send size={19} />}
             </button>
@@ -208,7 +210,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
         </form>
       ) : !bottomBar ? null : (
         <div className="safe-bottom sticky bottom-0 z-10 flex items-center justify-center gap-2 border-t border-line bg-card px-4 py-3 text-[13px] font-semibold text-muted lg:rounded-b-card">
-          <Lock size={14} /> {readOnlyText ?? "Read only"}
+          <Lock size={14} /> {readOnlyText ?? t("groups.readOnly")}
         </div>
       )}
     </div>
@@ -216,6 +218,7 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
 }
 
 function Bubble({ m, showSenderTag, onOpen }: { m: ChatMessage; showSenderTag: boolean; onOpen?: () => void }) {
+  const t = useT();
   return (
     <div className={`group flex items-center gap-1 ${m.mine ? "justify-end" : "justify-start"}`}>
       {onOpen && m.mine && <MenuButton onOpen={onOpen} />}
@@ -241,7 +244,7 @@ function Bubble({ m, showSenderTag, onOpen }: { m: ChatMessage; showSenderTag: b
         )}
         {m.type !== "chat" && (
           <span className={`mt-0.5 mb-1 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-extrabold tracking-wide uppercase ${TYPE_TONE[m.type]}`}>
-            {MESSAGE_TYPE_LABEL[m.type]}
+            {t(`groups.type.${m.type}`)}
           </span>
         )}
         {m.body && <p className="text-[14.5px] leading-snug break-words whitespace-pre-wrap text-fg">{m.body}</p>}
@@ -253,19 +256,19 @@ function Bubble({ m, showSenderTag, onOpen }: { m: ChatMessage; showSenderTag: b
             className="mt-1.5 flex items-center gap-2 rounded-field bg-black/5 px-2.5 py-2 text-[13px] font-semibold text-primary"
           >
             <FileText size={16} className="shrink-0" />
-            <span className="truncate">{m.attachment_name ?? "File"}</span>
+            <span className="truncate">{m.attachment_name ?? t("groups.file")}</span>
           </a>
         )}
         <div className="mt-0.5 flex items-center justify-end gap-1.5 text-[10.5px] text-faint">
           {m.seen && (
             <span className="inline-flex items-center gap-1 font-semibold">
-              <Eye size={11} /> Seen by {m.seen.seen} of {m.seen.total} parents ·
+              <Eye size={11} /> {t("groups.seenByParents", { seen: m.seen.seen, total: m.seen.total })} ·
             </span>
           )}
           {timeLabel(m.created_at)}
-          {m.ticks === 1 && <Check size={13} aria-label="Sent" />}
-          {m.ticks === 2 && <CheckCheck size={13} aria-label="Seen by some" />}
-          {m.ticks === 3 && <CheckCheck size={13} className="text-seen" aria-label="Seen by everyone" />}
+          {m.ticks === 1 && <Check size={13} aria-label={t("groups.sent")} />}
+          {m.ticks === 2 && <CheckCheck size={13} aria-label={t("groups.seenSome")} />}
+          {m.ticks === 3 && <CheckCheck size={13} className="text-seen" aria-label={t("groups.seenAll")} />}
         </div>
       </div>
       {onOpen && !m.mine && <MenuButton onOpen={onOpen} />}
@@ -274,11 +277,12 @@ function Bubble({ m, showSenderTag, onOpen }: { m: ChatMessage; showSenderTag: b
 }
 
 function MenuButton({ onOpen }: { onOpen: () => void }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label="Message options: seen by, delete"
+      aria-label={t("groups.options")}
       className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-faint opacity-60 hover:bg-card hover:text-fg lg:opacity-0 lg:group-hover:opacity-100"
     >
       <MoreVertical size={16} />
@@ -295,6 +299,7 @@ function MessageSheet({ m, onClose, onDeleted }: { m: ChatMessage; onClose: () =
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const t = useT();
 
   useEffect(() => {
     let alive = true;
@@ -312,23 +317,22 @@ function MessageSheet({ m, onClose, onDeleted }: { m: ChatMessage; onClose: () =
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const who = data?.audience === "parents" ? "parents" : "people";
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/35 lg:items-center" onClick={onClose} role="presentation">
       <div
         role="dialog"
-        aria-label="Message details"
+        aria-label={t("groups.details")}
         onClick={(e) => e.stopPropagation()}
         className="safe-bottom flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-3xl bg-card shadow-sheet lg:rounded-3xl"
       >
         <div className="flex items-start gap-3 border-b border-line px-5 pt-4 pb-3">
           <div className="min-w-0 flex-1">
             <p className="text-[12px] font-bold text-muted">
-              {m.mine ? "You" : m.senderName} · {dateTimeLabel(m.created_at)}
+              {m.mine ? t("groups.you") : m.senderName} · {dateTimeLabel(m.created_at)}
             </p>
-            <p className="mt-0.5 line-clamp-2 text-[14px] text-fg">{m.body || m.attachment_name || "File"}</p>
+            <p className="mt-0.5 line-clamp-2 text-[14px] text-fg">{m.body || m.attachment_name || t("groups.file")}</p>
           </div>
-          <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-full hover:bg-field" aria-label="Close">
+          <button type="button" onClick={onClose} className="grid h-8 w-8 place-items-center rounded-full hover:bg-field" aria-label={t("core.close")}>
             <X size={18} />
           </button>
         </div>
@@ -336,14 +340,15 @@ function MessageSheet({ m, onClose, onDeleted }: { m: ChatMessage; onClose: () =
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {loading ? (
             <p className="flex items-center gap-2 py-6 text-sm text-muted">
-              <LoaderCircle size={16} className="animate-spin" /> Loading who has seen it…
+              <LoaderCircle size={16} className="animate-spin" /> {t("groups.loadingSeen")}
             </p>
           ) : !data ? (
-            <p className="py-6 text-sm text-muted">Seen details are not available.</p>
+            <p className="py-6 text-sm text-muted">{t("groups.seenNA")}</p>
           ) : (
             <>
               <p className="flex items-center gap-1.5 text-[13px] font-bold text-navy">
-                <CheckCheck size={15} className="text-seen" /> Seen by {data.seen.length} of {data.seen.length + data.notSeen.length} {who}
+                <CheckCheck size={15} className="text-seen" />{" "}
+                {t(data.audience === "parents" ? "groups.seenByParents" : "groups.seenByPeople", { seen: data.seen.length, total: data.seen.length + data.notSeen.length })}
               </p>
               <ul className="mt-2 divide-y divide-line">
                 {data.seen.map((r, i) => (
@@ -355,12 +360,12 @@ function MessageSheet({ m, onClose, onDeleted }: { m: ChatMessage; onClose: () =
                     {r.at && <span className="shrink-0 text-[11.5px] text-faint">{dateTimeLabel(r.at)}</span>}
                   </li>
                 ))}
-                {data.seen.length === 0 && <li className="py-2 text-[13px] text-muted">Nobody has seen it yet.</li>}
+                {data.seen.length === 0 && <li className="py-2 text-[13px] text-muted">{t("groups.nobodySeen")}</li>}
               </ul>
               {data.notSeen.length > 0 && (
                 <>
                   <p className="mt-4 flex items-center gap-1.5 text-[13px] font-bold text-muted">
-                    <Check size={15} /> Not seen yet ({data.notSeen.length})
+                    <Check size={15} /> {t("groups.notSeen", { n: data.notSeen.length })}
                   </p>
                   <ul className="mt-2 divide-y divide-line">
                     {data.notSeen.map((r, i) => (
@@ -381,14 +386,14 @@ function MessageSheet({ m, onClose, onDeleted }: { m: ChatMessage; onClose: () =
             {error && <p className="mb-2 text-[12.5px] font-semibold text-danger">{error}</p>}
             {!confirm ? (
               <button type="button" onClick={() => setConfirm(true)} className="btn btn-danger w-full">
-                <Trash2 size={16} /> Delete message
+                <Trash2 size={16} /> {t("groups.deleteMsg")}
               </button>
             ) : (
               <div className="space-y-2">
-                <p className="text-[13px] font-semibold text-fg">Delete this message for everyone? This cannot be undone.</p>
+                <p className="text-[13px] font-semibold text-fg">{t("groups.deleteConfirm")}</p>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setConfirm(false)} className="btn btn-ghost flex-1" disabled={pending}>
-                    Keep it
+                    {t("groups.keep")}
                   </button>
                   <button
                     type="button"
@@ -402,7 +407,7 @@ function MessageSheet({ m, onClose, onDeleted }: { m: ChatMessage; onClose: () =
                       })
                     }
                   >
-                    {pending ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />} Delete for everyone
+                    {pending ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />} {t("groups.deleteAll")}
                   </button>
                 </div>
               </div>

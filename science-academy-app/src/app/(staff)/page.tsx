@@ -2,24 +2,29 @@ import Link from "next/link";
 import { Bell } from "lucide-react";
 import { can, requireStaff } from "@/lib/auth";
 import { unreadCount } from "@/lib/notifications";
-import { ROLE_LABEL } from "@/lib/permissions";
 import { dayLabel, todayIst } from "@/lib/format";
 import { toIst } from "@/lib/ids";
 import { HomeSearch } from "@/components/HomeSearch";
 import { LogoMark } from "@/components/Logo";
 import { Page } from "@/components/ui";
 import { AdminHome, FacultyHome, ManagementHome, ReceptionHome } from "./_home/homes";
+import { getT } from "@/lib/i18n/server";
+import type { TFn } from "@/lib/i18n";
 
-export const metadata = { title: "Home" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("admin.home.title") };
+}
 
-function greeting(): string {
+function greeting(t: TFn): string {
   const h = toIst(new Date()).getUTCHours();
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+  return h < 12 ? t("admin.home.morning") : h < 17 ? t("admin.home.afternoon") : t("admin.home.evening");
 }
 
 /** Home: the one search bar, the bell, and the role's dashboard. */
 export default async function HomePage() {
   const viewer = await requireStaff();
+  const { t } = await getT();
   const unread = await unreadCount(viewer.user.id);
   const role = viewer.user.role;
   return (
@@ -31,16 +36,16 @@ export default async function HomePage() {
           </span>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[20px] font-extrabold tracking-tight text-navy lg:text-[28px]">
-              {greeting()}, {viewer.user.name.split(" ")[0]}
+              {greeting(t)}, {viewer.user.name.split(" ")[0]}
             </h1>
             <p className="truncate text-xs text-muted lg:text-sm">
-              {dayLabel(todayIst())} · {viewer.user.staff_id} · {ROLE_LABEL[role]}
+              {dayLabel(todayIst())} · {viewer.user.staff_id} · {t(`core.role.${role}`)}
             </p>
           </div>
           <Link
             href="/notifications"
             className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-card text-navy shadow-card hover:bg-field"
-            aria-label={`Notifications, ${unread} new`}
+            aria-label={t("admin.home.bellLabel", { n: unread })}
           >
             <Bell size={21} />
             {unread > 0 && (

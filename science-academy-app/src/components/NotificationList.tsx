@@ -2,17 +2,19 @@ import { Bell, CheckCheck } from "lucide-react";
 import { markAllRead, openNotification } from "@/app/actions/notifications";
 import { dateTimeLabel } from "@/lib/format";
 import type { Notification } from "@/lib/types";
+import { getT } from "@/lib/i18n/server";
 import { Card, Empty } from "./ui";
 
-export function NotificationList({ items }: { items: Notification[] }) {
-  if (!items.length) return <Empty icon={Bell}>No notifications yet.</Empty>;
+export async function NotificationList({ items }: { items: Notification[] }) {
+  const { t } = await getT();
+  if (!items.length) return <Empty icon={Bell}>{t("core.notif.empty")}</Empty>;
   const unread = items.filter((n) => !n.read_at).length;
   return (
     <div className="space-y-3">
       {unread > 0 && (
         <form action={markAllRead} className="flex justify-end">
           <button className="btn btn-ghost py-1.5 text-[13px]">
-            <CheckCheck size={15} /> Mark all read ({unread})
+            <CheckCheck size={15} /> {t("core.notif.markAll", { n: unread })}
           </button>
         </form>
       )}

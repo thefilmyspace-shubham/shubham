@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { boardName } from "@/lib/ids";
 import type { Student } from "@/lib/types";
+import { getT } from "@/lib/i18n/server";
 
 /** Name, class, board, ID of the child; a switcher when the login has two or more children. */
-export function ChildStrip({ list, current, basePath }: { list: Student[]; current: Student; basePath: string }) {
+export async function ChildStrip({ list, current, basePath }: { list: Student[]; current: Student; basePath: string }) {
+  const { t } = await getT();
   return (
     <div className="bg-navy px-4 pt-1 pb-3 text-white">
       <div className="mx-auto max-w-lg">
         <p className="text-[17px] font-extrabold">{current.name}</p>
         <p className="text-[12.5px] text-white/75">
-          Class {current.current_class} · {boardName(current.board)} · {current.code}
+          {t("core.child.class", { n: current.current_class })} · {boardName(current.board)} · {current.code}
         </p>
         {list.length > 1 && (
           <div className="mt-2 flex gap-2 overflow-x-auto">

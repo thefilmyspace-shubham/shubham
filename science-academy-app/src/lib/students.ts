@@ -4,6 +4,7 @@ import { adminClient } from "./supabase/admin";
 import { formatStudentId, normalizeMobile, parseStudentId, type Board } from "./ids";
 import { addMonths, monthStart, todayIst } from "./format";
 import type { AttendanceStatus, Guardian, GuardianRelation, Marksheet, Student } from "./types";
+import { translator, type DictKey, type TFn } from "./i18n";
 
 export const RELATIONS: GuardianRelation[] = ["father", "mother", "guardian", "alternate"];
 export const RELATION_LABEL: Record<GuardianRelation, string> = {
@@ -40,9 +41,9 @@ const optionalText = z
   .transform((s) => (s ? s : null));
 
 export const RegistrationSchema = z.object({
-  name: z.string().trim().min(2, "Enter the student's name.").max(120),
-  board: z.enum(["CB", "MP"], { message: "Choose the board." }),
-  current_class: z.coerce.number().int().min(6, "Choose the class.").max(12, "Choose the class."),
+  name: z.string().trim().min(2, "students.err.name").max(120),
+  board: z.enum(["CB", "MP"], { message: "students.err.board" }),
+  current_class: z.coerce.number().int().min(6, "students.err.class").max(12, "students.err.class"),
   session_year: z.coerce.number().int().min(0).max(99),
   school: optionalText,
   batch_id: z
@@ -57,8 +58,8 @@ export const RegistrationSchema = z.object({
     .trim()
     .max(160)
     .transform((s) => (s ? s.toLowerCase() : null))
-    .refine((s) => s === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s), "Email does not look right."),
-  monthly_fee: z.coerce.number().min(0, "Fee cannot be negative.").max(1_00_000, "Fee looks too high."),
+    .refine((s) => s === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s), "students.err.email"),
+  monthly_fee: z.coerce.number().min(0, "students.err.feeNegative").max(1_00_000, "students.err.feeHigh"),
 });
 
 export type RegistrationInput = z.infer<typeof RegistrationSchema>;
@@ -82,8 +83,9 @@ export type FieldErrors = Record<string, string>;
 export function parseRegistration(
   form: FormData,
   intent: "draft" | "register",
-  opts: { requireEmail?: boolean } = {},
+  opts: { requireEmail?: boolean; t?: TFn } = {},
 ): { ok: true; data: ParsedRegistration } | { ok: false; errors: FieldErrors } {
+  const tr = opts.t ?? translator("en");
   const get = (k: string) => String(form.get(k) ?? "");
   const errors: FieldErrors = {};
   const parsed = RegistrationSchema.safeParse({
@@ -119,11 +121,11 @@ export function parseRegistration(
     if (!raw) continue;
     const mobile = normalizeMobile(raw);
     if (!mobile) {
-      errors[`${rel}_mobile`] = "Enter a 10 digit mobile number.";
+      errors[`${rel}_mobile`] = "students.err.mobile";
       continue;
     }
     if (seen.has(mobile)) {
-      errors[`${rel}_mobile`] = "This number is already entered above.";
+      errors[`${rel}_mobile`] = "students.err.mobileRepeat";
       continue;
     }
     seen.add(mobile);
@@ -136,18 +138,22 @@ export function parseRegistration(
   const consentBy = get("consent_by").trim() || null;
 
   if (loginRelation && !guardians.some((g) => g.relation === loginRelation)) {
-    errors.login_relation = "The login number must be one of the numbers entered.";
+    errors.login_relation = "students.err.loginNotEntered";
   }
   if (intent === "register") {
-    if (!get("batch_id").trim()) errors.batch_id ??= "Choose the batch.";
-    if (!guardians.length) errors.father_mobile ??= "Enter at least one mobile number.";
-    else if (!loginRelation) errors.login_relation ??= "Choose which number is the login number.";
-    if (opts.requireEmail && !get("email").trim()) errors.email ??= "Add the parent's email: their login code is sent there.";
-    if (!consent) errors.consent = "The parent or guardian must agree before registering.";
-    else if (!consentBy) errors.consent_by = "Who gave the consent?";
+    if (!get("batch_id").trim()) errors.batch_id ??= "students.err.batch";
+    if (!guardians.length) errors.father_mobile ??= "students.err.oneMobile";
+    else if (!loginRelation) errors.login_relation ??= "students.err.chooseLogin";
+    if (opts.requireEmail && !get("email").trim()) errors.email ??= "students.err.emailNeeded";
+    if (!consent) errors.consent = "students.err.consent";
+    else if (!consentBy) errors.consent_by = "students.err.consentBy";
   }
 
-  if (Object.keys(errors).length || !parsed.success) return { ok: false, errors };
+  if (Object.keys(errors).length || !parsed.success) {
+    // Messages are dictionary keys until here; show them in the reader's language.
+    for (const [f, msg] of Object.entries(errors)) errors[f] = msg.startsWith("students.") ? tr(msg as DictKey) : msg;
+    return { ok: false, errors };
+  }
   return { ok: true, data: { student: parsed.data, guardians, loginRelation, consent, consentBy } };
 }
 

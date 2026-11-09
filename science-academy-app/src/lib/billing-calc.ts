@@ -11,6 +11,9 @@ export type BillPreview = {
   received: number;
   balanceAfter: number;
   error: string | null;
+  /** The same reason as a dictionary key (with values), for the reader's language. */
+  errorKey: "fees.bp.enterFee" | "fees.bp.feeBelowPaid" | "fees.bp.fullyPaid" | "fees.bp.enterReceived" | "fees.bp.moreThanBalance" | null;
+  errorParams: Record<string, number>;
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -22,12 +25,14 @@ export function billPreview(fee: number, paidBefore: number, received: number): 
   const r = round2(Number(received) || 0);
   const balanceBefore = Math.max(0, round2(f - p));
   let error: string | null = null;
-  if (f <= 0) error = "Enter the fee amount.";
-  else if (f < p) error = `Fee cannot be less than what is already paid (${p}).`;
-  else if (balanceBefore === 0) error = "This month is already fully paid.";
-  else if (r <= 0) error = "Enter the amount received now.";
-  else if (r > balanceBefore) error = `Amount received is more than the balance (${balanceBefore}).`;
-  return { fee: f, paidBefore: p, balanceBefore, received: r, balanceAfter: Math.max(0, round2(balanceBefore - r)), error };
+  let errorKey: BillPreview["errorKey"] = null;
+  let errorParams: Record<string, number> = {};
+  if (f <= 0) [error, errorKey] = ["Enter the fee amount.", "fees.bp.enterFee"];
+  else if (f < p) [error, errorKey, errorParams] = [`Fee cannot be less than what is already paid (${p}).`, "fees.bp.feeBelowPaid", { paid: p }];
+  else if (balanceBefore === 0) [error, errorKey] = ["This month is already fully paid.", "fees.bp.fullyPaid"];
+  else if (r <= 0) [error, errorKey] = ["Enter the amount received now.", "fees.bp.enterReceived"];
+  else if (r > balanceBefore) [error, errorKey, errorParams] = [`Amount received is more than the balance (${balanceBefore}).`, "fees.bp.moreThanBalance", { balance: balanceBefore }];
+  return { fee: f, paidBefore: p, balanceBefore, received: r, balanceAfter: Math.max(0, round2(balanceBefore - r)), error, errorKey, errorParams };
 }
 
 export type PaymentModeInput = "upi" | "bank" | "cash";

@@ -31,12 +31,12 @@ export function ActionForm({
       onSubmit={(e) => {
         if (confirm && !window.confirm(confirm)) e.preventDefault();
       }}
-      className="inline-flex flex-col items-start gap-1"
+      className="inline-flex max-w-full flex-col items-start gap-1"
     >
       {Object.entries(fields).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
       ))}
-      <button className={className} disabled={pending}>
+      <button className={`${className} max-w-full whitespace-normal text-left`} disabled={pending}>
         {pending ? <LoaderCircle size={15} className="animate-spin" /> : icon}
         {label}
       </button>

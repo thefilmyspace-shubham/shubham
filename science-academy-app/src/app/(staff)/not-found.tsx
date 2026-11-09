@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { ShieldOff } from "lucide-react";
+import { getT } from "@/lib/i18n/server";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const { t } = await getT();
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-6 pt-24 text-center">
       <ShieldOff size={36} className="text-faint" />
-      <h1 className="text-lg font-extrabold text-navy">Not available</h1>
-      <p className="text-sm text-muted">This page does not exist, or your login does not have access to it. Admin can change access.</p>
+      <h1 className="text-lg font-extrabold text-navy">{t("core.notFound.title")}</h1>
+      <p className="text-sm text-muted">{t("core.notFound.text")}</p>
       <Link href="/" className="btn btn-primary mt-2">
-        Go home
+        {t("core.notFound.home")}
       </Link>
     </div>
   );

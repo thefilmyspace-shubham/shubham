@@ -3,9 +3,11 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { LoaderCircle, SendHorizontal } from "lucide-react";
 import { ask, type AskState } from "./actions";
+import { useT } from "@/components/I18nProvider";
 
 /** Question box + suggestion chips. One question at a time. */
 export function Composer({ suggestions }: { suggestions: string[] }) {
+  const t = useT();
   const [state, action, pending] = useActionState<AskState, FormData>(ask, { error: null, at: 0 });
   const [text, setText] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
@@ -37,7 +39,7 @@ export function Composer({ suggestions }: { suggestions: string[] }) {
       )}
       {pending && (
         <p className="mb-2 flex items-center gap-2 text-[13px] text-muted">
-          <LoaderCircle size={15} className="animate-spin" /> Looking it up…
+          <LoaderCircle size={15} className="animate-spin" /> {t("admin.ai.lookingUp")}
         </p>
       )}
       {state.error && <p className="mb-2 text-[13px] font-semibold text-danger">{state.error}</p>}
@@ -53,7 +55,7 @@ export function Composer({ suggestions }: { suggestions: string[] }) {
           name="text"
           rows={1}
           className="field max-h-32 min-h-11 resize-none"
-          placeholder="Ask about attendance, marks, ranks…"
+          placeholder={t("admin.ai.placeholder")}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -64,7 +66,7 @@ export function Composer({ suggestions }: { suggestions: string[] }) {
           }}
           maxLength={2000}
         />
-        <button className="btn btn-primary h-11 w-11 shrink-0 p-0" disabled={pending || !text.trim()} aria-label="Send">
+        <button className="btn btn-primary h-11 w-11 shrink-0 p-0" disabled={pending || !text.trim()} aria-label={t("groups.send")}>
           <SendHorizontal size={18} />
         </button>
       </form>

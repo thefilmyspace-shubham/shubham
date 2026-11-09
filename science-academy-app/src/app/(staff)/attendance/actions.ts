@@ -8,6 +8,8 @@ import { logActivity } from "@/lib/activity";
 import { notify, parentUserOf } from "@/lib/notify";
 import { todayIst } from "@/lib/format";
 import { canChangeRow, isIsoDate } from "@/lib/attendance";
+import { getT } from "@/lib/i18n/server";
+import { all, type Params } from "@/lib/i18n";
 import type { AttendanceRow, AttendanceStatus, Student } from "@/lib/types";
 
 export type SaveState = { ok: boolean; message: string } | null;
@@ -21,21 +23,22 @@ const Entries = z.record(z.string().uuid(), z.enum(["P", "A", "L"]));
  */
 export async function saveAttendance(_prev: SaveState, form: FormData): Promise<SaveState> {
   const viewer = await staffForApi();
-  if (!viewer) return { ok: false, message: "Please log in again." };
+  const { t } = await getT();
+  if (!viewer) return { ok: false, message: t("academics.loginAgain") };
   const batchId = String(form.get("batchId") ?? "");
   const date = String(form.get("date") ?? "");
   const note = String(form.get("note") ?? "").trim().slice(0, 1000);
-  if (!isIsoDate(date) || date > todayIst()) return { ok: false, message: "Pick a valid date (not in the future)." };
-  if (!canSeeBatch(viewer, batchId)) return { ok: false, message: "This batch is not yours." };
+  if (!isIsoDate(date) || date > todayIst()) return { ok: false, message: t("academics.att.futureDate") };
+  if (!canSeeBatch(viewer, batchId)) return { ok: false, message: t("academics.att.notYourBatch") };
   const canMark = can(viewer, "attendance.mark");
   const canCorrect = can(viewer, "attendance.correct");
-  if (!canMark && !canCorrect) return { ok: false, message: "Your login cannot mark attendance." };
+  if (!canMark && !canCorrect) return { ok: false, message: t("academics.att.cannotMark") };
 
   let entries: Record<string, AttendanceStatus>;
   try {
     entries = Entries.parse(JSON.parse(String(form.get("entries") ?? "{}")));
   } catch {
-    return { ok: false, message: "Could not read the attendance. Please try again." };
+    return { ok: false, message: t("academics.att.cannotRead") };
   }
 
   const db = adminClient();
@@ -74,7 +77,7 @@ export async function saveAttendance(_prev: SaveState, form: FormData): Promise<
 
   if (inserts.length) {
     const { error } = await db.from("attendance").insert(inserts);
-    if (error) return { ok: false, message: "Could not save. Someone may have saved this day just now; please reload." };
+    if (error) return { ok: false, message: t("academics.att.saveConflict") };
   }
   for (const u of updates) {
     // Locked rows stay locked; marked_by keeps who first marked the day.
@@ -102,32 +105,47 @@ export async function saveAttendance(_prev: SaveState, form: FormData): Promise<
   revalidatePath(`/attendance/${batchId}`);
   const saved = inserts.length + updates.length;
   if (refused) {
-    return { ok: saved > 0, message: `${saved} saved. ${refused} locked ${refused === 1 ? "row was" : "rows were"} not changed (locked 24 hours after saving; only Admin or Management can correct).` };
+    return { ok: saved > 0, message: t("academics.att.savedWithLocked", { saved, refused }) };
   }
-  return { ok: true, message: saved ? `Attendance saved (${saved} ${saved === 1 ? "student" : "students"}).` : note ? "Note saved." : "Nothing changed." };
+  return {
+    ok: true,
+    message: saved ? t("academics.att.saved", { n: saved }) : note ? t("academics.att.noteSaved") : t("academics.nothingChanged"),
+  };
 }
 
 /** Sends the ready attendance message privately to the student's parent login. */
 export async function sendAttendanceAlert(_prev: SaveState, form: FormData): Promise<SaveState> {
   const viewer = await staffForApi();
-  if (!viewer || !can(viewer, "students.view")) return { ok: false, message: "Not allowed." };
+  const { t } = await getT();
+  if (!viewer || !can(viewer, "students.view")) return { ok: false, message: t("academics.att.notAllowed") };
   const studentId = String(form.get("studentId") ?? "");
   const message = String(form.get("message") ?? "").trim().slice(0, 600);
-  if (!message) return { ok: false, message: "The message is empty." };
+  if (!message) return { ok: false, message: t("academics.att.emptyMessage") };
   const { data: s } = await adminClient().from("students").select("id, batch_id, name").eq("id", studentId).maybeSingle<Pick<Student, "id" | "batch_id" | "name">>();
-  if (!s || !canSeeBatch(viewer, s.batch_id)) return { ok: false, message: "Student not found." };
+  if (!s || !canSeeBatch(viewer, s.batch_id)) return { ok: false, message: t("academics.att.studentNotFound") };
   const parent = await parentUserOf(s.id);
-  if (!parent) return { ok: false, message: "This student has no login number yet." };
+  // The ready message comes with its kind and values; if staff did not edit it, it is sent in the parent's language.
+  const kind = String(form.get("kind") ?? "");
+  const original = String(form.get("original") ?? "").trim();
+  let params: Params = {};
+  try {
+    params = JSON.parse(String(form.get("params") ?? "{}")) as Params;
+  } catch {
+    params = {};
+  }
+  const unedited = (kind === "streak" || kind === "low") && message === original.slice(0, 600);
+  if (!parent) return { ok: false, message: t("academics.att.noLogin") };
   await notify([
     {
       userId: parent.id,
       kind: "attendance",
-      title: `Attendance: ${s.name}`,
-      body: message,
+      title: all("academics.att.alertTitle", { name: s.name }),
+      // Unedited ready message: each parent reads it in their own language.
+      body: unedited ? all(kind === "streak" ? "academics.att.msgStreak" : "academics.att.msgLow", params) : message,
       link: "/parent/notifications",
       dedupeKey: `attendance-alert-${s.id}-${todayIst()}`,
     },
   ]);
   await logActivity(viewer, "attendance.alert", { type: "student", id: s.id }, {});
-  return { ok: true, message: "Sent to the parent's app." };
+  return { ok: true, message: t("academics.att.sentToParent") };
 }

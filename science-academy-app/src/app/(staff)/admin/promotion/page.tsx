@@ -6,6 +6,7 @@ import { boardName, formatStudentId, sessionLabel, type Board } from "@/lib/ids"
 import type { Student } from "@/lib/types";
 import { Banner, Card, Empty, Page, PageHeader, Section } from "@/components/ui";
 import { promoteClass } from "./actions";
+import { getT } from "@/lib/i18n/server";
 
 export const metadata = { title: "Year-end promotion" };
 
@@ -13,6 +14,7 @@ type Search = { board?: string; class?: string; batch?: string; session?: string
 
 export default async function PromotionPage({ searchParams }: { searchParams: Promise<Search> }) {
   await requirePermission("admin.promotion");
+  const { t } = await getT();
   const sp = await searchParams;
   const board = sp.board === "CB" || sp.board === "MP" ? (sp.board as Board) : null;
   const cls = sp.class && /^(6|7|8|9|10|11|12)$/.test(sp.class) ? Number(sp.class) : null;
@@ -37,48 +39,48 @@ export default async function PromotionPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader title="Year-end promotion" subtitle="Admin only · moves a whole class up and updates the IDs" />
+      <PageHeader title={t("students.promo.title")} subtitle={t("students.promo.subtitle")} />
       <Page>
         {sp.done !== undefined && (
           <Banner tone="ok" icon={CheckCircle2}>
-            Done: {sp.done} promoted{Number(sp.passed) ? `, ${sp.passed} passed out` : ""}. Old IDs still work in search and show as “Earlier ID”.
+            {t("students.promo.done", { n: sp.done, passed: Number(sp.passed) ? t("students.promo.passedCount", { n: sp.passed ?? "" }) : "" })}
           </Banner>
         )}
-        {sp.error === "confirm" && <Banner tone="danger">Tick the confirm box to run the promotion.</Banner>}
-        {sp.error === "batch" && <Banner tone="danger">The new batch must be in the next class of the same board.</Banner>}
+        {sp.error === "confirm" && <Banner tone="danger">{t("students.promo.errConfirm")}</Banner>}
+        {sp.error === "batch" && <Banner tone="danger">{t("students.promo.errBatch")}</Banner>}
 
-        <Section title="1. Choose the class">
+        <Section title={t("students.promo.step1")}>
           <Card className="p-4">
             <form className="grid grid-cols-1 gap-3 sm:grid-cols-4" method="get">
               <div>
                 <label className="label" htmlFor="board">
-                  Board
+                  {t("students.board")}
                 </label>
                 <select id="board" name="board" className="field" defaultValue={board ?? ""}>
-                  <option value="">Choose</option>
+                  <option value="">{t("students.choose")}</option>
                   <option value="CB">CBSE</option>
                   <option value="MP">MP Board</option>
                 </select>
               </div>
               <div>
                 <label className="label" htmlFor="class">
-                  Class
+                  {t("students.class")}
                 </label>
                 <select id="class" name="class" className="field" defaultValue={cls ?? ""}>
-                  <option value="">Choose</option>
+                  <option value="">{t("students.choose")}</option>
                   {[6, 7, 8, 9, 10, 11, 12].map((c) => (
                     <option key={c} value={c}>
-                      Class {c}
+                      {t("students.classN", { n: c })}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="label" htmlFor="batch">
-                  Batch (optional)
+                  {t("students.promo.batchOptional")}
                 </label>
                 <select id="batch" name="batch" className="field" defaultValue={batch ?? ""}>
-                  <option value="">Whole class</option>
+                  <option value="">{t("students.promo.wholeClass")}</option>
                   {classBatches.map((b) => (
                     <option key={b.id} value={b.id}>
                       {batchShort(b)}
@@ -87,12 +89,12 @@ export default async function PromotionPage({ searchParams }: { searchParams: Pr
                 </select>
               </div>
               <div className="flex items-end">
-                <button className="btn btn-soft w-full">Show students</button>
+                <button className="btn btn-soft w-full">{t("students.promo.show")}</button>
               </div>
             </form>
             {sessions.length > 1 && (
               <p className="mt-3 text-xs text-muted">
-                Students from more than one session are in this class. Showing session {fromSession !== null ? sessionLabel(fromSession) : ""}. Others:{" "}
+                {t("students.promo.manySessions", { session: fromSession !== null ? sessionLabel(fromSession) : "" })}{" "}
                 {sessions
                   .filter((s) => s !== fromSession)
                   .map((s) => (
@@ -102,31 +104,37 @@ export default async function PromotionPage({ searchParams }: { searchParams: Pr
                   ))}
               </p>
             )}
-            <p className="mt-3 text-xs text-muted">Tip: promote the highest class first (12, then 11, then 10 …).</p>
+            <p className="mt-3 text-xs text-muted">{t("students.promo.tip")}</p>
           </Card>
         </Section>
 
         {board && cls && (
-          <Section title={`2. Check: ${boardName(board)} Class ${cls}${cls < 12 ? ` → Class ${cls + 1}` : " → passed out"}`}>
+          <Section
+            title={t("students.promo.step2", {
+              board: boardName(board),
+              cls,
+              to: cls < 12 ? t("students.classN", { n: cls + 1 }) : t("students.passedOut"),
+            })}
+          >
             {!students.length ? (
-              <Empty icon={GraduationCap}>No active students to promote here.</Empty>
+              <Empty icon={GraduationCap}>{t("students.promo.none")}</Empty>
             ) : (
               <>
                 <Card className="max-h-[420px] divide-y divide-line overflow-y-auto">
                   {students.map((s) => (
                     <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
                       <span className="min-w-0 flex-1 font-semibold">{s.name}</span>
-                      <span className="text-xs text-muted">{s.batch_id ? batchName.get(s.batch_id) : "No batch"}</span>
+                      <span className="text-xs text-muted">{s.batch_id ? batchName.get(s.batch_id) : t("students.noBatch")}</span>
                       <span className="font-mono text-[12.5px]">{s.code}</span>
                       <ArrowRight size={14} className="text-faint" />
                       <span className="font-mono text-[12.5px] font-bold text-green">
-                        {cls < 12 ? formatStudentId(s.board, cls + 1, s.roll_number!, s.session_year + 1) : "Passed out"}
+                        {cls < 12 ? formatStudentId(s.board, cls + 1, s.roll_number!, s.session_year + 1)   : t("students.passedOut")}
                       </span>
                     </div>
                   ))}
                 </Card>
 
-                <Section title="3. Confirm">
+                <Section title={t("students.promo.step3")}>
                   <Card className="p-4">
                     <form action={promoteClass} className="space-y-3">
                       <input type="hidden" name="board" value={board} />
@@ -136,10 +144,10 @@ export default async function PromotionPage({ searchParams }: { searchParams: Pr
                       {cls < 12 && (
                         <div>
                           <label className="label" htmlFor="target_batch">
-                            New batch in Class {cls + 1}
+                            {t("students.promo.newBatch", { n: cls + 1 })}
                           </label>
                           <select id="target_batch" name="target_batch" className="field" defaultValue="">
-                            <option value="">No batch yet (set later)</option>
+                            <option value="">{t("students.promo.noBatchYet")}</option>
                             {nextBatches.map((b) => (
                               <option key={b.id} value={b.id}>
                                 {batchShort(b)}
@@ -150,14 +158,14 @@ export default async function PromotionPage({ searchParams }: { searchParams: Pr
                       )}
                       <Banner tone="warn" icon={TriangleAlert}>
                         {cls < 12
-                          ? `${students.length} students move to Class ${cls + 1}, session ${sessionLabel((fromSession ?? 0) + 1)}. Roll numbers stay. Old bills keep the old ID.`
-                          : `${students.length} students will be marked as passed out.`}
+                          ? t("students.promo.moveWarn", { n: students.length, to: cls + 1, session: sessionLabel((fromSession ?? 0) + 1) })
+                          : t("students.promo.passWarn", { n: students.length })}
                       </Banner>
                       <label className="flex items-center gap-2 text-sm font-semibold">
-                        <input type="checkbox" name="confirm" className="h-4 w-4 accent-[var(--color-primary)]" /> I have checked the list
+                        <input type="checkbox" name="confirm" className="h-4 w-4 accent-[var(--color-primary)]" /> {t("students.promo.checked")}
                       </label>
                       <button className="btn btn-primary w-full sm:w-auto">
-                        <GraduationCap size={16} /> Promote {students.length} students
+                        <GraduationCap size={16} /> {t("students.promo.button", { n: students.length })}
                       </button>
                     </form>
                   </Card>

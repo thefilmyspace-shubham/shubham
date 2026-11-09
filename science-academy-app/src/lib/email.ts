@@ -1,7 +1,8 @@
 import "server-only";
 import { mailIsSetUp, sendMail } from "./mailer";
 
-export type EmailResult = { ok: true } | { ok: false; error: string };
+/** `code` lets the screen show the reason in the reader's language. */
+export type EmailResult = { ok: true } | { ok: false; error: string; code: "bad_address" | "not_setup" | "failed" };
 
 /**
  * Sends one email with attachments: through the academy's Gmail when
@@ -14,16 +15,16 @@ export async function sendEmail(opts: {
   html: string;
   attachments?: { filename: string; content: Buffer }[];
 }): Promise<EmailResult> {
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(opts.to)) return { ok: false, error: "The email address on the student's profile does not look right." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(opts.to)) return { ok: false, error: "The email address on the student's profile does not look right.", code: "bad_address" };
   if (mailIsSetUp()) {
     const text = opts.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     const r = await sendMail({ to: opts.to, subject: opts.subject, html: opts.html, text, attachments: opts.attachments });
-    return r.ok ? { ok: true } : r;
+    return r.ok ? { ok: true } : { ok: false, error: r.error, code: "failed" };
   }
   const key = process.env.RESEND_API_KEY;
   const from = process.env.BILL_FROM_EMAIL;
-  if (!key || !from) return { ok: false, error: "Email is not set up yet (academy Gmail: SMTP_USER and SMTP_PASSWORD). Use Save PDF or Print for now." };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(opts.to)) return { ok: false, error: "The email address on the student's profile does not look right." };
+  if (!key || !from) return { ok: false, error: "Email is not set up yet (academy Gmail: SMTP_USER and SMTP_PASSWORD). Use Save PDF or Print for now.", code: "not_setup" };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(opts.to)) return { ok: false, error: "The email address on the student's profile does not look right.", code: "bad_address" };
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -38,12 +39,12 @@ export async function sendEmail(opts: {
     });
     if (!res.ok) {
       console.error("resend failed", res.status, await res.text().catch(() => ""));
-      return { ok: false, error: "The email could not be sent. Please try again." };
+      return { ok: false, error: "The email could not be sent. Please try again.", code: "failed" };
     }
     return { ok: true };
   } catch (err) {
     console.error("resend failed", err);
-    return { ok: false, error: "The email could not be sent. Please try again." };
+    return { ok: false, error: "The email could not be sent. Please try again.", code: "failed" };
   }
 }
 

@@ -19,7 +19,7 @@ import {
   timetableFor,
   upcomingTests,
 } from "@/lib/dashboard";
-import { CALL_OUTCOME_LABEL } from "@/lib/fees";
+import { getT } from "@/lib/i18n/server";
 import { Card, Chip, Empty, Section, SectionLink, Stat } from "@/components/ui";
 import {
   AttendanceTodayCard,
@@ -36,6 +36,7 @@ import {
 
 /** Admin: the whole academy at a glance (spec §7). */
 export async function AdminHome({ viewer }: { viewer: StaffViewer }) {
+  const { t } = await getT();
   const today = todayIst();
   const month = monthStart(today);
   const fees = can(viewer, "fees.view");
@@ -62,8 +63,8 @@ export async function AdminHome({ viewer }: { viewer: StaffViewer }) {
       items.push({
         key: `p-${d.studentId}`,
         icon: "promise",
-        title: `Promised to pay today: ${s?.name ?? ""}`,
-        detail: `${s?.code ?? ""} · ${rupees(d.owing.balance)} pending`,
+        title: t("admin.home.promisedToday", { name: s?.name ?? "" }),
+        detail: `${s?.code ?? ""} · ${t("admin.home.pendingAmount", { amount: rupees(d.owing.balance) })}`,
         href: `/fees/${d.studentId}`,
         tone: "primary",
       });
@@ -73,60 +74,69 @@ export async function AdminHome({ viewer }: { viewer: StaffViewer }) {
       items.push({
         key: `e-${c.id}`,
         icon: "escalation",
-        title: `Needs admin: ${s?.name ?? ""}`,
-        detail: `${rupees(feeData.owing.get(c.student_id)?.balance ?? 0)} pending${c.note ? ` · ${c.note}` : ""}`,
+        title: t("admin.home.needsAdmin", { name: s?.name ?? "" }),
+        detail: `${t("admin.home.pendingAmount", { amount: rupees(feeData.owing.get(c.student_id)?.balance ?? 0) })}${c.note ? ` · ${c.note}` : ""}`,
         href: `/fees/${c.student_id}`,
         tone: "danger",
       });
     }
     const overdueCalls = due.filter((x) => x.reason !== "promised_today").length;
     if (overdueCalls) {
-      items.push({ key: "calls", icon: "call", title: `${overdueCalls} parent calls due`, detail: "Longest overdue first", href: "/calls", tone: "warn" });
+      items.push({ key: "calls", icon: "call", title: t("admin.home.callsDueN", { n: overdueCalls }), detail: t("admin.home.longestFirst"), href: "/calls", tone: "warn" });
     }
   }
   for (const b of notMarked.slice(0, 6)) {
-    items.push({ key: `a-${b.id}`, icon: "attendance", title: `Attendance not marked: ${batchLabel(b)}`, detail: "Today", href: `/attendance/${b.id}`, tone: "warn" });
+    items.push({ key: `a-${b.id}`, icon: "attendance", title: t("admin.home.attNotMarked", { batch: batchLabel(b) }), detail: t("core.today"), href: `/attendance/${b.id}`, tone: "warn" });
   }
   const streaks = low.filter((l) => l.absentStreak >= 3);
   if (streaks.length) {
     items.push({
       key: "streak",
       icon: "low",
-      title: `${streaks.length} student${streaks.length === 1 ? "" : "s"} absent 3+ days in a row`,
+      title: t("admin.home.streakN", { n: streaks.length }),
       detail: streaks.slice(0, 3).map((l) => l.student.name).join(", "),
       href: "/attendance",
       tone: "danger",
     });
   }
   const below = low.filter((l) => l.pct < 75).length;
-  if (below) items.push({ key: "low", icon: "low", title: `${below} below 75% attendance`, detail: "Last 30 days", href: "/attendance", tone: "warn" });
+  if (below) items.push({ key: "low", icon: "low", title: t("admin.home.belowN", { n: below }), detail: t("admin.home.last30"), href: "/attendance", tone: "warn" });
 
   return (
     <>
       <div className="grid grid-cols-2 gap-3 pt-4 lg:grid-cols-4">
-        <Stat label="Total students" value={students.length} hint={`${batches.length} batches`} href="/students" />
-        {feeData && <Stat label="Collected this month" value={rupeesShort(collectedMonth)} tone="ok" hint={rupees(collectedMonth)} href="/fees" />}
-        {feeData && <Stat label="Pending amount" value={rupeesShort(feeData.pendingTotal)} tone="danger" hint={`${feeData.owing.size} students`} href="/fees?status=pending" />}
-        <Stat label="Attendance today" value={att.total ? `${att.pct}%` : "—"} tone="primary" hint={att.total ? `${att.present + att.late} of ${att.total} present` : "Not marked yet"} href="/attendance" />
+        <Stat label={t("admin.home.totalStudents")} value={students.length} hint={t("admin.home.nBatches", { n: batches.length })} href="/students" />
+        {feeData && <Stat label={t("admin.home.collectedMonth")} value={rupeesShort(collectedMonth)} tone="ok" hint={rupees(collectedMonth)} href="/fees" />}
+        {feeData && (
+          <Stat label={t("admin.home.pending")} value={rupeesShort(feeData.pendingTotal)} tone="danger" hint={t("admin.home.nStudents", { n: feeData.owing.size })} href="/fees?status=pending" />
+        )}
+        <Stat
+          label={t("admin.home.attToday")}
+          value={att.total ? `${att.pct}%` : "—"}
+          tone="primary"
+          hint={att.total ? t("admin.home.presentOf", { n: att.present + att.late, total: att.total }) : t("admin.home.notMarkedYet")}
+          href="/attendance"
+        />
       </div>
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <div>
-          <NeedsAttention items={items} />
-          {feeData && <ReminderChainCard chain={chain} overdueStudents={[...feeData.owing.values()].filter((o) => o.overdue > 0).length} />}
+          <NeedsAttention items={items} t={t} />
+          {feeData && <ReminderChainCard chain={chain} overdueStudents={[...feeData.owing.values()].filter((o) => o.overdue > 0).length} t={t} />}
         </div>
         <div>
-          {feeData && <CollectionChart data={chart} />}
-          {feeData && <PendingByClass fees={feeData} />}
+          {feeData && <CollectionChart data={chart} t={t} />}
+          {feeData && <PendingByClass fees={feeData} t={t} />}
         </div>
       </div>
-      {can(viewer, "ranks.view") && <ClassToppers tops={tops} />}
-      {!feeData && <LowAttendanceList list={low} batches={bm} />}
+      {can(viewer, "ranks.view") && <ClassToppers tops={tops} t={t} />}
+      {!feeData && <LowAttendanceList list={low} batches={bm} t={t} />}
     </>
   );
 }
 
 /** Reception: calls to make, money in today, quick actions. */
 export async function ReceptionHome({ viewer }: { viewer: StaffViewer }) {
+  const { t } = await getT();
   const today = todayIst();
   const month = monthStart(today);
   const fees = can(viewer, "fees.view");
@@ -147,34 +157,36 @@ export async function ReceptionHome({ viewer }: { viewer: StaffViewer }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 pt-4 lg:grid-cols-4">
-        {feeData && <Stat label="Calls due" value={due.length} tone="danger" hint="Longest overdue first" href="/calls" />}
-        {feeData && <Stat label="Collected today" value={rupees(today$)} tone="ok" href="/billing" />}
-        {feeData && <Stat label="Collected this month" value={rupeesShort(month$)} tone="ok" hint={rupees(month$)} />}
-        {feeData && <Stat label="Pending amount" value={rupeesShort(feeData.pendingTotal)} tone="danger" hint={`${feeData.owing.size} students`} href="/fees" />}
-        {!feeData && <Stat label="Students" value={students.length} href="/students" />}
+        {feeData && <Stat label={t("admin.home.callsDue")} value={due.length} tone="danger" hint={t("admin.home.longestFirst")} href="/calls" />}
+        {feeData && <Stat label={t("admin.home.collectedToday")} value={rupees(today$)} tone="ok" href="/billing" />}
+        {feeData && <Stat label={t("admin.home.collectedMonth")} value={rupeesShort(month$)} tone="ok" hint={rupees(month$)} />}
+        {feeData && (
+          <Stat label={t("admin.home.pending")} value={rupeesShort(feeData.pendingTotal)} tone="danger" hint={t("admin.home.nStudents", { n: feeData.owing.size })} href="/fees" />
+        )}
+        {!feeData && <Stat label={t("admin.home.students")} value={students.length} href="/students" />}
       </div>
       <div className="flex flex-wrap gap-2 pt-4">
         {can(viewer, "bills.create") && (
           <Link href="/billing" className="btn btn-primary">
-            <ReceiptText size={17} /> Make bill
+            <ReceiptText size={17} /> {t("admin.home.makeBill")}
           </Link>
         )}
         {can(viewer, "students.edit") && (
           <Link href="/students/new" className="btn btn-green">
-            <UserPlus size={17} /> Register student
+            <UserPlus size={17} /> {t("admin.home.register")}
           </Link>
         )}
         {feeData && (
           <Link href="/calls" className="btn btn-soft">
-            <PhoneCall size={17} /> Call log
+            <PhoneCall size={17} /> {t("admin.home.callLog")}
           </Link>
         )}
       </div>
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         {feeData && (
-          <Section title="Parents to call today" action={<SectionLink href="/calls">Open call log</SectionLink>}>
+          <Section title={t("admin.home.toCallToday")} action={<SectionLink href="/calls">{t("admin.home.openCallLog")}</SectionLink>}>
             {due.length === 0 ? (
-              <Empty>No calls due. All fees are on time.</Empty>
+              <Empty>{t("admin.home.noCalls")}</Empty>
             ) : (
               <Card className="divide-y divide-line overflow-hidden">
                 {due.slice(0, 7).map((d) => {
@@ -185,12 +197,14 @@ export async function ReceptionHome({ viewer }: { viewer: StaffViewer }) {
                         <p className="truncate text-[14px] font-bold">{s?.name}</p>
                         <p className="truncate text-[12.5px] text-muted">
                           {s?.code}
-                          {d.lastCall ? ` · last: ${CALL_OUTCOME_LABEL[d.lastCall.outcome]} (attempt ${d.lastCall.attempt_no})` : " · not called yet"}
+                          {d.lastCall
+                            ? ` · ${t("admin.home.lastCall", { outcome: t(`admin.home.outcome.${d.lastCall.outcome}`), n: d.lastCall.attempt_no })}`
+                            : ` · ${t("admin.home.notCalled")}`}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-[14px] font-extrabold text-danger">{rupees(d.owing.overdue)}</p>
-                        <p className="text-[11.5px] text-muted">{d.reason === "promised_today" ? "Promised today" : `${d.owing.daysLate} days late`}</p>
+                        <p className="text-[11.5px] text-muted">{d.reason === "promised_today" ? t("admin.home.promisedTodayShort") : t("admin.home.daysLate", { n: d.owing.daysLate })}</p>
                       </div>
                     </Link>
                   );
@@ -200,17 +214,18 @@ export async function ReceptionHome({ viewer }: { viewer: StaffViewer }) {
           </Section>
         )}
         <div>
-          {feeData && <ReminderChainCard chain={chain} overdueStudents={[...feeData.owing.values()].filter((o) => o.overdue > 0).length} />}
-          {can(viewer, "students.view") && <AttendanceTodayCard att={att} notMarked={[]} />}
+          {feeData && <ReminderChainCard chain={chain} overdueStudents={[...feeData.owing.values()].filter((o) => o.overdue > 0).length} t={t} />}
+          {can(viewer, "students.view") && <AttendanceTodayCard att={att} notMarked={[]} t={t} />}
         </div>
       </div>
-      {!feeData && <LowAttendanceList list={await lowAttendance(today, students)} batches={bm} />}
+      {!feeData && <LowAttendanceList list={await lowAttendance(today, students)} batches={bm} t={t} />}
     </>
   );
 }
 
 /** Management: academics and attendance (no fee data unless Admin gives access). */
 export async function ManagementHome({ viewer }: { viewer: StaffViewer }) {
+  const { t } = await getT();
   const today = todayIst();
   const [students, batches, entries, att] = await Promise.all([activeStudents(), allBatches(), timetableFor(null), attendanceOn(today)]);
   const [tests, low, tops, feeData] = await Promise.all([
@@ -225,26 +240,33 @@ export async function ManagementHome({ viewer }: { viewer: StaffViewer }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3 pt-4 lg:grid-cols-4">
-        <Stat label="Students" value={students.length} hint={`${batches.length} batches`} href="/students" />
-        <Stat label="Attendance today" value={att.total ? `${att.pct}%` : "—"} tone="primary" hint={att.total ? `${att.absent} absent` : "Not marked yet"} href="/attendance" />
-        <Stat label="Tests in 14 days" value={tests.length} tone="navy" href="/timetable" />
-        <Stat label="Low attendance" value={low.length} tone={low.length ? "warn" : "ok"} hint="Below 75% or 3 days absent" href="/attendance" />
-        {feeData && <Stat label="Pending amount" value={rupeesShort(feeData.pendingTotal)} tone="danger" href="/fees" />}
+        <Stat label={t("admin.home.students")} value={students.length} hint={t("admin.home.nBatches", { n: batches.length })} href="/students" />
+        <Stat
+          label={t("admin.home.attToday")}
+          value={att.total ? `${att.pct}%` : "—"}
+          tone="primary"
+          hint={att.total ? t("admin.home.absentN", { n: att.absent }) : t("admin.home.notMarkedYet")}
+          href="/attendance"
+        />
+        <Stat label={t("admin.home.tests14")} value={tests.length} tone="navy" href="/timetable" />
+        <Stat label={t("admin.home.lowAtt")} value={low.length} tone={low.length ? "warn" : "ok"} hint={t("admin.home.lowAttHint")} href="/attendance" />
+        {feeData && <Stat label={t("admin.home.pending")} value={rupeesShort(feeData.pendingTotal)} tone="danger" href="/fees" />}
       </div>
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <div>
-          <AttendanceTodayCard att={att} notMarked={notMarked} />
-          <LowAttendanceList list={low} batches={bm} />
+          <AttendanceTodayCard att={att} notMarked={notMarked} t={t} />
+          <LowAttendanceList list={low} batches={bm} t={t} />
         </div>
-        <UpcomingTests tests={tests} batches={bm} />
+        <UpcomingTests tests={tests} batches={bm} t={t} />
       </div>
-      {can(viewer, "ranks.view") && <ClassToppers tops={tops} />}
+      {can(viewer, "ranks.view") && <ClassToppers tops={tops} t={t} />}
     </>
   );
 }
 
 /** Faculty: own batches, attendance to mark, today's classes, tests. */
 export async function FacultyHome({ viewer }: { viewer: StaffViewer }) {
+  const { t } = await getT();
   const today = todayIst();
   const mine = await batchesFor(viewer);
   const ids = visibleBatchIds(viewer) ?? mine.map((b) => b.id);
@@ -264,9 +286,9 @@ export async function FacultyHome({ viewer }: { viewer: StaffViewer }) {
 
   return (
     <>
-      <Section title="My batches" action={can(viewer, "attendance.mark") ? <SectionLink href="/attendance">Attendance</SectionLink> : undefined}>
+      <Section title={t("admin.home.myBatches")} action={can(viewer, "attendance.mark") ? <SectionLink href="/attendance">{t("admin.home.attendance")}</SectionLink> : undefined}>
         {mine.length === 0 ? (
-          <Empty>No batches are assigned to you yet. Admin assigns batches in Batches & faculty.</Empty>
+          <Empty>{t("admin.home.noBatches")}</Empty>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {mine.map((b) => {
@@ -281,10 +303,10 @@ export async function FacultyHome({ viewer }: { viewer: StaffViewer }) {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[14.5px] font-bold">{batchLabel(b)}</p>
-                      <p className="text-[12.5px] text-muted">{counts.get(b.id) ?? 0} students</p>
-                      {missedYesterday && <p className="text-[12px] font-semibold text-danger">Yesterday not marked</p>}
+                      <p className="text-[12.5px] text-muted">{t("admin.home.nStudents", { n: counts.get(b.id) ?? 0 })}</p>
+                      {missedYesterday && <p className="text-[12px] font-semibold text-danger">{t("admin.home.yesterdayNotMarked")}</p>}
                     </div>
-                    {marked ? <Chip tone="ok">Marked</Chip> : meets ? <Chip tone="warn">Mark today</Chip> : <Chip>No class</Chip>}
+                    {marked ? <Chip tone="ok">{t("admin.home.marked")}</Chip> : meets ? <Chip tone="warn">{t("admin.home.markToday")}</Chip> : <Chip>{t("admin.home.noClass")}</Chip>}
                   </Card>
                 </Link>
               );
@@ -293,10 +315,10 @@ export async function FacultyHome({ viewer }: { viewer: StaffViewer }) {
         )}
       </Section>
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
-        <TodayClasses entries={todayEntries} batches={bm} />
-        <UpcomingTests tests={tests} batches={bm} title="Upcoming tests for my batches" />
+        <TodayClasses entries={todayEntries} batches={bm} t={t} />
+        <UpcomingTests tests={tests} batches={bm} title={t("admin.home.upcomingMine")} t={t} />
       </div>
-      {can(viewer, "students.view") && <LowAttendanceList list={low} batches={bm} />}
+      {can(viewer, "students.view") && <LowAttendanceList list={low} batches={bm} t={t} />}
     </>
   );
 }

@@ -14,7 +14,7 @@ export type SearchHit = {
 
 export type SearchResult =
   | { ok: true; query: SearchQuery; hits: SearchHit[]; truncated: boolean }
-  | { ok: false; error: string };
+  | { ok: false; /** Dictionary key, shown in the reader's language. */ error: "students.search.noAccess" | "students.search.typeSomething" | "students.search.noMobile" };
 
 const LIMIT = 60;
 const COLS = "id, name, code, board, current_class, status, batch_id, school";
@@ -25,11 +25,11 @@ const COLS = "id, name, code, board, current_class, status, batch_id, school";
  * permission, and the number itself is never shown in the results.
  */
 export async function searchStudents(viewer: Viewer, raw: string): Promise<SearchResult> {
-  if (!can(viewer, "students.view")) return { ok: false, error: "Your login cannot see student details." };
+  if (!can(viewer, "students.view")) return { ok: false, error: "students.search.noAccess" };
   const query = parseSearchQuery(raw);
-  if (!query) return { ok: false, error: "Type a student ID, a name, a parent's mobile number or a class." };
+  if (!query) return { ok: false, error: "students.search.typeSomething" };
   if (query.kind === "mobile" && !can(viewer, "students.contacts")) {
-    return { ok: false, error: "Your login cannot search by parents' numbers. Search by ID, name or class." };
+    return { ok: false, error: "students.search.noMobile" };
   }
 
   const db = adminClient();

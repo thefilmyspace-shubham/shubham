@@ -5,12 +5,13 @@ import { can, staffForApi } from "@/lib/auth";
 import { askAssistant } from "@/lib/assistant/chat";
 import { cancelAction, confirmAction } from "@/lib/assistant/actions";
 import { adminClient } from "@/lib/supabase/admin";
+import { getT } from "@/lib/i18n/server";
 
 export type AskState = { error: string | null; at: number };
 
 export async function ask(_prev: AskState, formData: FormData): Promise<AskState> {
   const viewer = await staffForApi();
-  if (!viewer || !can(viewer, "ai.ask")) return { error: "This login cannot use the AI assistant.", at: Date.now() };
+  if (!viewer || !can(viewer, "ai.ask")) return { error: (await getT()).t("admin.ai.cannotUse"), at: Date.now() };
   const result = await askAssistant(viewer, String(formData.get("text") ?? ""));
   revalidatePath("/assistant");
   return { error: result.ok ? null : result.error, at: Date.now() };

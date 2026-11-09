@@ -15,6 +15,8 @@ import { boardName, parseStudentId, sessionYearFor } from "@/lib/ids";
 import { dateLabel, monthLabel, rupees, todayIst } from "@/lib/format";
 import type { Invoice } from "@/lib/types";
 import type { ActionResult } from "../fees/ActionForm";
+import { all } from "@/lib/i18n";
+import { getT } from "@/lib/i18n/server";
 
 export type StudentHit = {
   id: string;
@@ -104,7 +106,8 @@ export type BillFormState = { error: string } | null;
 /** Makes the bill (next number in the series, no gaps) and opens it. */
 export async function createBill(_prev: BillFormState, formData: FormData): Promise<BillFormState> {
   const viewer = await staffForApi();
-  if (!viewer || !can(viewer, "bills.create")) return { error: "Your login cannot make bills." };
+  const { t } = await getT();
+  if (!viewer || !can(viewer, "bills.create")) return { error: t("fees.ba.cannotMake") };
   const parsed = BillInput.safeParse({
     studentId: formData.get("studentId"),
     month: formData.get("month"),
@@ -113,25 +116,25 @@ export async function createBill(_prev: BillFormState, formData: FormData): Prom
     paidOn: formData.get("paidOn"),
     reference: formData.get("reference") ?? undefined,
   });
-  if (!parsed.success) return { error: "Please fill the student, month, fee, amount received and date." };
+  if (!parsed.success) return { error: t("fees.ba.fillAll") };
   const modes = formData.getAll("modes").map(String);
-  if (!validModes(modes)) return { error: "Tick at least one payment mode: UPI, Bank transfer or Cash." };
+  if (!validModes(modes)) return { error: t("fees.ba.tickMode") };
   const { studentId, fee, received, paidOn } = parsed.data;
   const reference = parsed.data.reference?.trim() ?? "";
   if ((modes.includes("upi") || modes.includes("bank")) && !reference && !modes.includes("cash")) {
-    return { error: "Enter the transaction reference (UTR) for a UPI or bank payment." };
+    return { error: t("fees.ba.needRef") };
   }
   const today = todayIst();
-  if (paidOn > today) return { error: "The payment date cannot be in the future." };
+  if (paidOn > today) return { error: t("fees.ba.futureDate") };
   const month = `${parsed.data.month}-01`;
 
   const db = adminClient();
   const { data: student } = await db.from("students").select("id, name, status, batch_id").eq("id", studentId).maybeSingle();
-  if (!student || student.status === "draft" || !canSeeBatch(viewer, student.batch_id)) return { error: "Student not found." };
+  if (!student || student.status === "draft" || !canSeeBatch(viewer, student.batch_id)) return { error: t("fees.msg.studentNotFound") };
 
   const before = await monthPayments(studentId, month);
   const preview = billPreview(fee, before.paid, received);
-  if (preview.error) return { error: preview.error };
+  if (preview.error) return { error: preview.errorKey ? t(preview.errorKey, preview.errorParams) : preview.error };
 
   const { data, error } = await db.rpc("create_invoice", {
     p_student: studentId,
@@ -146,7 +149,7 @@ export async function createBill(_prev: BillFormState, formData: FormData): Prom
   });
   if (error || !data) {
     console.error("create_invoice failed", error);
-    return { error: "Could not make the bill. Please try again." };
+    return { error: t("fees.ba.couldNotMake") };
   }
   const inv = normalizeInvoice((Array.isArray(data) ? data[0] : data) as Invoice);
 
@@ -161,8 +164,8 @@ export async function createBill(_prev: BillFormState, formData: FormData): Prom
       {
         userId: parent.id,
         kind: "receipt",
-        title: `New receipt ${inv.number}`,
-        body: `${rupees(inv.received)} received for ${student.name}, ${monthLabel(month)}. Balance ${rupees(inv.balance_after)}.`,
+        title: all("fees.notify.receiptTitle", { number: inv.number }),
+        body: all("fees.notify.receiptBody", { amount: rupees(inv.received), name: student.name, month: monthLabel(month), balance: rupees(inv.balance_after) }),
         link: "/parent/fees",
         dedupeKey: `receipt:${inv.id}`,
       },
@@ -176,43 +179,48 @@ export async function createBill(_prev: BillFormState, formData: FormData): Prom
 /** Only Admin (bills.cancel). The number stays in the list, marked cancelled. */
 export async function cancelBill(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const viewer = await staffForApi();
-  if (!viewer || !can(viewer, "bills.cancel")) return { ok: false, message: "Only Admin can cancel a bill." };
+  const { t } = await getT();
+  if (!viewer || !can(viewer, "bills.cancel")) return { ok: false, message: t("fees.ba.onlyAdminCancel") };
   const id = String(formData.get("id") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
-  if (reason.length < 3) return { ok: false, message: "Write the reason for cancelling." };
+  if (reason.length < 3) return { ok: false, message: t("fees.ba.writeReason") };
   const inv = await getInvoice(id);
-  if (!inv) return { ok: false, message: "Bill not found." };
-  if (inv.status === "cancelled") return { ok: false, message: "This bill is already cancelled." };
+  if (!inv) return { ok: false, message: t("fees.ba.notFound") };
+  if (inv.status === "cancelled") return { ok: false, message: t("fees.ba.alreadyCancelled") };
   const { error } = await adminClient().rpc("cancel_invoice", { p_invoice: id, p_reason: reason.slice(0, 500), p_by: viewer.user.id });
-  if (error) return { ok: false, message: "Could not cancel the bill." };
+  if (error) return { ok: false, message: t("fees.ba.couldNotCancel") };
   await logActivity(viewer, "bill.cancel", { type: "invoice", id }, { number: inv.number, reason, received: inv.received });
   revalidatePath(`/billing/${id}`);
   revalidatePath("/billing");
   revalidatePath(`/fees/${inv.student_id}`);
-  return { ok: true, message: "Bill cancelled." };
+  return { ok: true, message: t("fees.ba.cancelled") };
 }
 
 /** Emails the parent copy PDF to the email on the student's profile. */
 export async function emailBill(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const viewer = await staffForApi();
-  if (!viewer || !can(viewer, "bills.create")) return { ok: false, message: "No access." };
+  const { t } = await getT();
+  if (!viewer || !can(viewer, "bills.create")) return { ok: false, message: t("fees.msg.noAccess") };
   const inv = await getInvoice(String(formData.get("id") ?? ""));
-  if (!inv) return { ok: false, message: "Bill not found." };
+  if (!inv) return { ok: false, message: t("fees.ba.notFound") };
   const { data: student } = await adminClient().from("students").select("email, batch_id").eq("id", inv.student_id).maybeSingle();
-  if (!student || !canSeeBatch(viewer, student.batch_id)) return { ok: false, message: "Bill not found." };
-  if (!student.email) return { ok: false, message: "No email on the student's profile. Add it on the profile first." };
+  if (!student || !canSeeBatch(viewer, student.batch_id)) return { ok: false, message: t("fees.ba.notFound") };
+  if (!student.email) return { ok: false, message: t("fees.ba.noEmail") };
   const pdf = await buildBillPdf(inv, { copies: ["Parent copy"] });
   const sent = await sendEmail({
     to: student.email,
     subject: `Fee receipt ${inv.number} · ${inv.student_name} · Science Academy`,
-    html: `<p>Dear Parent,</p><p>Please find attached the fee receipt <b>${escapeHtml(inv.number)}</b> for <b>${escapeHtml(inv.student_name)}</b> (${escapeHtml(inv.student_code)}, Class ${inv.class} ${boardName(inv.board)}), ${monthLabel(inv.month)}.</p><p>Received: <b>${escapeHtml(rupees(inv.received))}</b> on ${dateLabel(inv.paid_on)}. Balance: ${escapeHtml(rupees(inv.balance_after))}.</p><p>Thank you,<br/>Science Academy, Ratlam</p>`,
+    html: `<p>Dear Parent,</p><p>Please find attached the fee receipt <b>${escapeHtml(inv.number)}</b> for <b>${escapeHtml(inv.student_name)}</b> (${escapeHtml(inv.student_code)}, Class ${inv.class} ${boardName(inv.board)}), ${monthLabel(inv.month)}.</p><p>Received: <b>${escapeHtml(rupees(inv.received))}</b> on ${dateLabel(inv.paid_on)}. Balance: ${escapeHtml(rupees(inv.balance_after))}.</p><p>Thank you,<br/>Science Academy, Ratlam</p><p style="color:#5f6b7d">प्रिय अभिभावक, ${escapeHtml(inv.student_name)} की फीस रसीद ${escapeHtml(inv.number)} इस ईमेल के साथ संलग्न है। जमा राशि: ${escapeHtml(rupees(inv.received))}, बाकी: ${escapeHtml(rupees(inv.balance_after))}। धन्यवाद, साइंस अकादमी, रतलाम</p>`,
     attachments: [{ filename: billFileName(inv), content: pdf }],
   });
-  if (!sent.ok) return { ok: false, message: sent.error };
+  if (!sent.ok) {
+    const key = sent.code === "not_setup" ? "fees.ba.emailNotSetup" : sent.code === "bad_address" ? "fees.ba.emailBadAddress" : "fees.ba.emailFailed";
+    return { ok: false, message: t(key) };
+  }
   await adminClient().from("invoices").update({ emailed_at: new Date().toISOString() }).eq("id", inv.id);
   await logActivity(viewer, "bill.email", { type: "invoice", id: inv.id }, { number: inv.number, to: student.email });
   revalidatePath(`/billing/${inv.id}`);
-  return { ok: true, message: `Emailed to ${student.email}.` };
+  return { ok: true, message: t("fees.ba.emailed", { email: student.email }) };
 }
 
 /** Logged when the bill is printed (both copies). */

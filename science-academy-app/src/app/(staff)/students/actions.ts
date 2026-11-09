@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { otpChannel } from "@/lib/env";
+import { getT } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
 import { canSeeStudent, requirePermission, requireStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
@@ -29,19 +30,20 @@ const FILE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "appl
 /** Register (or save as draft, or save edits to) a student. */
 export async function saveStudent(_prev: SaveState, form: FormData): Promise<SaveState> {
   const viewer = await requirePermission("students.edit");
+  const { t } = await getT();
   const intent = form.get("intent") === "register" ? "register" : "draft";
   const existingId = String(form.get("student_id") ?? "");
   const existing = existingId ? await getStudent(existingId) : null;
-  if (existingId && !existing) return { message: "Student not found." };
+  if (existingId && !existing) return { message: t("students.msg.notFound") };
   const alreadyRegistered = existing !== null && existing.status !== "draft";
   // Editing a registered student is always strict.
-  const parsed = parseRegistration(form, alreadyRegistered ? "register" : intent, { requireEmail: otpChannel() === "email" });
+  const parsed = parseRegistration(form, alreadyRegistered ? "register" : intent, { requireEmail: otpChannel() === "email", t });
   // Fees & payment plan: set at registration; afterwards it is changed on the Fees page.
-  const feePlan = alreadyRegistered ? null : parseFeePlan(form, intent === "register");
+  const feePlan = alreadyRegistered ? null : parseFeePlan(form, intent === "register", t);
   if (!parsed.ok || (feePlan && !feePlan.ok)) {
     return {
       errors: { ...(parsed.ok ? {} : parsed.errors), ...(feePlan && !feePlan.ok ? feePlan.errors : {}) },
-      message: "Please fix the marked fields.",
+      message: t("students.msg.fixFields"),
     };
   }
   const data = parsed.data;
@@ -51,9 +53,9 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
   for (const i of [0, 1]) {
     const file = form.get(`ms${i}_file`);
     if (file instanceof File && file.size > 0) {
-      if (file.size > MAX_FILE) return { errors: { [`ms${i}_file`]: "File is larger than 10 MB." }, message: "Please fix the marked fields." };
+      if (file.size > MAX_FILE) return { errors: { [`ms${i}_file`]: t("students.msg.fileBig") }, message: t("students.msg.fixFields") };
       if (file.type && !FILE_TYPES.includes(file.type)) {
-        return { errors: { [`ms${i}_file`]: "Upload a photo (JPG, PNG) or a PDF." }, message: "Please fix the marked fields." };
+        return { errors: { [`ms${i}_file`]: t("students.msg.fileType") }, message: t("students.msg.fixFields") };
       }
     }
   }
@@ -62,7 +64,7 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
   if (data.student.batch_id) {
     const { data: batch } = await db.from("batches").select("*").eq("id", data.student.batch_id).maybeSingle<Batch>();
     if (!batch || batch.board !== data.student.board || batch.class !== data.student.current_class) {
-      return { errors: { batch_id: "This batch is not for the chosen board and class." }, message: "Please fix the marked fields." };
+      return { errors: { batch_id: t("students.msg.batchMismatch") }, message: t("students.msg.fixFields") };
     }
   }
 
@@ -77,7 +79,7 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
   let student: Student;
   if (existing) {
     const { data: row, error } = await db.from("students").update(fields).eq("id", existing.id).select("*").single<Student>();
-    if (error || !row) return { message: "Could not save. Please try again." };
+    if (error || !row) return { message: t("students.msg.saveFailed") };
     student = row;
   } else {
     const { data: row, error } = await db
@@ -85,7 +87,7 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
       .insert({ ...fields, status: "draft", created_by: viewer.user.id })
       .select("*")
       .single<Student>();
-    if (error || !row) return { message: "Could not save. Please try again." };
+    if (error || !row) return { message: t("students.msg.saveFailed") };
     student = row;
   }
 
@@ -111,14 +113,14 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
   // 5. Register: the roll number is made now, never before.
   if (!alreadyRegistered && intent === "register") {
     const { data: roll, error } = await db.rpc("allocate_roll");
-    if (error || typeof roll !== "number") return { message: "Could not create the roll number. Please try again." };
+    if (error || typeof roll !== "number") return { message: t("students.msg.rollFailed") };
     const { data: row, error: regError } = await db
       .from("students")
       .update({ roll_number: roll, status: "active", admission_session: student.session_year })
       .eq("id", student.id)
       .select("*")
       .single<Student>();
-    if (regError || !row) return { message: "Could not register. Please try again." };
+    if (regError || !row) return { message: t("students.msg.registerFailed") };
     student = row;
     await recordIdChange(student);
     await afterRegister(student, data, plan);

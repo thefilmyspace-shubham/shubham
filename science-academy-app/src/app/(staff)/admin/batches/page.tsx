@@ -7,11 +7,16 @@ import type { AppUser, Batch } from "@/lib/types";
 import { Card, Chip, Empty, Page, PageHeader, Section } from "@/components/ui";
 import { BatchForm } from "./BatchForm";
 import { assignFaculty, removeFaculty, setBatchActive } from "./actions";
+import { getT } from "@/lib/i18n/server";
 
-export const metadata = { title: "Batches & faculty" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("admin.batches.title") };
+}
 
 export default async function BatchesPage() {
   await requirePermission("admin.access");
+  const { t } = await getT();
   const db = adminClient();
   const [batches, { data: fb }, { data: faculty }, { data: students }] = await Promise.all([
     allBatches(true),
@@ -27,15 +32,15 @@ export default async function BatchesPage() {
 
   const groups = new Map<string, Batch[]>();
   for (const b of batches) {
-    const k = `${boardName(b.board)} · Class ${b.class}`;
+    const k = t("admin.batches.classGroup", { board: boardName(b.board), cls: b.class });
     groups.set(k, [...(groups.get(k) ?? []), b]);
   }
 
   return (
     <>
-      <PageHeader title="Batches & faculty" subtitle="Each batch gets its own parents' group automatically" back="/more" />
+      <PageHeader title={t("admin.batches.title")} subtitle={t("admin.batches.subtitle")} back="/more" />
       <Page>
-        <Section title="Add a batch">
+        <Section title={t("admin.batches.add")}>
           <Card className="p-4">
             <BatchForm />
           </Card>
@@ -43,7 +48,7 @@ export default async function BatchesPage() {
 
         {batches.length === 0 && (
           <div className="pt-5">
-            <Empty icon={Layers}>No batches yet. Add the first one above.</Empty>
+            <Empty icon={Layers}>{t("admin.batches.none")}</Empty>
           </div>
         )}
 
@@ -57,21 +62,21 @@ export default async function BatchesPage() {
                   <Card key={b.id} className={`p-4 ${b.active ? "" : "opacity-60"}`}>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="flex-1 font-bold text-navy">{batchShort(b)}</p>
-                      <Chip tone="navy">{n} students</Chip>
-                      {!b.active && <Chip tone="danger">Inactive</Chip>}
+                      <Chip tone="navy">{t("admin.batches.nStudents", { n })}</Chip>
+                      {!b.active && <Chip tone="danger">{t("admin.batches.inactive")}</Chip>}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {teachers.length === 0 && <span className="text-[12.5px] text-muted">No faculty assigned.</span>}
-                      {teachers.map((t) => {
-                        const p = people.get(t.user_id);
+                      {teachers.length === 0 && <span className="text-[12.5px] text-muted">{t("admin.batches.noFaculty")}</span>}
+                      {teachers.map((link) => {
+                        const p = people.get(link.user_id);
                         return (
-                          <form key={t.user_id} action={removeFaculty} className="inline-flex">
+                          <form key={link.user_id} action={removeFaculty} className="inline-flex">
                             <input type="hidden" name="batch_id" value={b.id} />
-                            <input type="hidden" name="user_id" value={t.user_id} />
+                            <input type="hidden" name="user_id" value={link.user_id} />
                             <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft py-0.5 pr-1 pl-2.5 text-[12px] font-bold text-primary">
-                              {p ? `${p.staff_id} ${p.name}` : "Former faculty"}
-                              {t.subject ? ` · ${t.subject}` : ""}
-                              <button className="grid h-5 w-5 place-items-center rounded-full hover:bg-white" aria-label="Remove">
+                              {p ? `${p.staff_id} ${p.name}` : t("admin.batches.formerFaculty")}
+                              {link.subject ? ` · ${link.subject}` : ""}
+                              <button className="grid h-5 w-5 place-items-center rounded-full hover:bg-white" aria-label={t("admin.batches.remove")}>
                                 <X size={12} />
                               </button>
                             </span>
@@ -81,7 +86,7 @@ export default async function BatchesPage() {
                     </div>
                     <details className="mt-3">
                       <summary className="inline-flex cursor-pointer items-center gap-1 text-[13px] font-bold text-primary">
-                        <Pencil size={13} /> Edit batch / assign faculty
+                        <Pencil size={13} /> {t("admin.batches.edit")}
                       </summary>
                       <div className="mt-3 space-y-4">
                         <BatchForm batch={{ id: b.id, board: b.board, class: b.class, name: b.name, start_time: b.start_time }} />
@@ -89,7 +94,7 @@ export default async function BatchesPage() {
                           <form action={assignFaculty} className="grid grid-cols-2 gap-3 md:grid-cols-5">
                             <input type="hidden" name="batch_id" value={b.id} />
                             <div className="col-span-2">
-                              <label className="label">Faculty</label>
+                              <label className="label">{t("admin.batches.faculty")}</label>
                               <select name="user_id" className="field" required>
                                 {facultyList.map((f) => (
                                   <option key={f.id} value={f.id}>
@@ -99,11 +104,11 @@ export default async function BatchesPage() {
                               </select>
                             </div>
                             <div className="col-span-2">
-                              <label className="label">Subject</label>
+                              <label className="label">{t("admin.batches.subject")}</label>
                               <input name="subject" className="field" placeholder="Physics" />
                             </div>
                             <div className="col-span-2 flex items-end md:col-span-1">
-                              <button className="btn btn-soft w-full">Assign</button>
+                              <button className="btn btn-soft w-full">{t("admin.batches.assign")}</button>
                             </div>
                           </form>
                         )}
@@ -112,12 +117,12 @@ export default async function BatchesPage() {
                           <input type="hidden" name="active" value={b.active ? "0" : "1"} />
                           {b.active ? (
                             n > 0 ? (
-                              <p className="text-[12.5px] text-muted">Move its {n} students to another batch before making it inactive.</p>
+                              <p className="text-[12.5px] text-muted">{t("admin.batches.moveFirst", { n })}</p>
                             ) : (
-                              <button className="btn btn-danger py-1.5 text-[13px]">Make inactive</button>
+                              <button className="btn btn-danger py-1.5 text-[13px]">{t("admin.batches.makeInactive")}</button>
                             )
                           ) : (
-                            <button className="btn btn-green py-1.5 text-[13px]">Make active again</button>
+                            <button className="btn btn-green py-1.5 text-[13px]">{t("admin.batches.makeActive")}</button>
                           )}
                         </form>
                       </div>

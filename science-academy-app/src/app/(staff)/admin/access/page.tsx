@@ -4,10 +4,8 @@ import { adminClient } from "@/lib/supabase/admin";
 import { formatMobile } from "@/lib/ids";
 import {
   isLocked,
-  overrideSummary,
   PERMISSION_KEYS,
   PERMISSIONS,
-  ROLE_LABEL,
   roleDefault,
   roleValue,
   STAFF_ROLES,
@@ -21,11 +19,49 @@ import { Matrix, type MatrixRow } from "./Matrix";
 import { AddStaff } from "./AddStaff";
 import { logoutEverywhere, savePersonAccess, setSuspended, updateStaffContact } from "./actions";
 import { otpChannel } from "@/lib/env";
+import { getT } from "@/lib/i18n/server";
+import type { DictKey, TFn } from "@/lib/i18n";
 
-export const metadata = { title: "Access control" };
+const HINT_KEY: Record<string, DictKey> = {
+  "Faculty: own batches only": "admin.hint.ownBatchesOnly",
+  "Faculty: own batches": "admin.hint.ownBatches",
+  "Every correction is logged": "admin.hint.correctionLogged",
+  "Off: only own batches": "admin.hint.offOwnBatches",
+};
+const PARENT_KEY: Record<string, DictKey> = {
+  "Own child": "admin.parentAccess.ownChild",
+  No: "admin.parentAccess.no",
+  "Own child (status, receipts)": "admin.parentAccess.ownChildFees",
+  "No (read only)": "admin.parentAccess.noReadOnly",
+};
+
+const permLabel = (t: TFn, key: PermissionKey) => t(`admin.perm.${key}`);
+
+/** "1 extra: see ranks of all batches" in the reader's language. */
+function summaryOf(t: TFn, role: Role, roleO: Overrides, mine: Overrides): string | null {
+  const extra: string[] = [];
+  const removed: string[] = [];
+  for (const key of PERMISSION_KEYS) {
+    const v = mine[key];
+    if (v === undefined || isLocked(role, key)) continue;
+    const base = roleValue(role, key, roleO);
+    if (v && !base) extra.push(permLabel(t, key));
+    if (!v && base) removed.push(permLabel(t, key));
+  }
+  const parts: string[] = [];
+  if (extra.length) parts.push(t("admin.access.extra", { n: extra.length, list: extra.join(", ") }));
+  if (removed.length) parts.push(t("admin.access.removed", { n: removed.length, list: removed.join(", ") }));
+  return parts.length ? parts.join(" · ") : null;
+}
+
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("admin.access.title") };
+}
 
 export default async function AccessPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
   const viewer = await requirePermission("admin.access");
+  const { t } = await getT();
   const { role: roleFilter } = await searchParams;
   const db = adminClient();
   const [{ data: roleRows }, { data: userRows }, { data: people }, { data: sessions }] = await Promise.all([
@@ -50,9 +86,9 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
     const def = PERMISSIONS[key] as { label: string; hint?: string; parent: string };
     return {
       key,
-      label: def.label,
-      hint: def.hint,
-      parent: def.parent,
+      label: permLabel(t, key),
+      hint: def.hint ? (HINT_KEY[def.hint] ? t(HINT_KEY[def.hint]) : def.hint) : undefined,
+      parent: PARENT_KEY[def.parent] ? t(PARENT_KEY[def.parent]) : def.parent,
       cells: STAFF_ROLES.map((role) => {
         const value = roleValue(role, key, roleOverrides[role]);
         return { role, value, locked: isLocked(role, key), isDefault: value === roleDefault(role, key) };
@@ -64,30 +100,29 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageHeader title="Access control" subtitle="Admin only · every change goes to the activity log" back="/more" />
+      <PageHeader title={t("admin.access.title")} subtitle={t("admin.access.subtitle")} back="/more" />
       <Page wide>
         <Banner tone="navy" icon={ShieldCheck}>
-          Switch access on or off for a whole role, or change it for one person below. Admin always has everything, and Admin-only controls
-          (AI actions, promotion, access control, activity log, backup) cannot be given to anyone else. Parents always see only their own child.
+          {t("admin.access.banner")}
         </Banner>
 
-        <Section title="Access by role">
+        <Section title={t("admin.access.byRole")}>
           <Matrix rows={rows} />
         </Section>
 
-        <Section title="Add a staff member">
+        <Section title={t("admin.access.addStaff")}>
           <Card className="p-4">
             <AddStaff emailRequired={otpChannel() === "email"} />
           </Card>
         </Section>
 
         <Section
-          title={`People (${staff.length})`}
+          title={t("admin.access.people", { n: staff.length })}
           action={
-            <div className="flex gap-1.5 text-[12.5px] font-bold">
+            <div className="flex flex-wrap gap-1.5 text-[12.5px] font-bold">
               {["", ...STAFF_ROLES].map((r) => (
                 <a key={r} href={r ? `?role=${r}` : "?"} className={`rounded-full px-2.5 py-1 ${(roleFilter ?? "") === r ? "bg-primary text-white" : "bg-card text-muted"}`}>
-                  {r ? ROLE_LABEL[r as Role] : "All"}
+                  {r ? t(`core.role.${r as Role}`) : t("core.all")}
                 </a>
               ))}
             </div>
@@ -96,7 +131,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
           <Card className="divide-y divide-line overflow-hidden">
             {staff.map((p) => {
               const mine = userOverrides.get(p.id) ?? {};
-              const summary = overrideSummary(p.role, roleOverrides[p.role], mine);
+              const summary = summaryOf(t, p.role, roleOverrides[p.role], mine);
               const self = p.id === viewer.user.id;
               return (
                 <details key={p.id} className="group">
@@ -104,15 +139,15 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                     <span className="w-14 font-mono text-[13px] font-bold text-navy">{p.staff_id}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold">
-                        {p.name} {self && <span className="text-xs text-muted">(you)</span>}
+                        {p.name} {self && <span className="text-xs text-muted">{t("admin.access.you")}</span>}
                       </span>
                       <span className="block text-[12px] text-muted">
-                        {ROLE_LABEL[p.role]} · {formatMobile(p.mobile)} · {p.email ?? <span className="font-semibold text-danger">no email</span>}
+                        {t(`core.role.${p.role}`)} · {formatMobile(p.mobile)} · {p.email ?? <span className="font-semibold text-danger">{t("admin.access.noEmail")}</span>}
                         {summary ? <span className="text-violet"> · {summary}</span> : null}
                       </span>
                     </span>
-                    {p.status === "active" ? <Chip tone="ok">Active</Chip> : <Chip tone="danger">Suspended</Chip>}
-                    <span className="text-[11.5px] text-faint">{activeSessions.get(p.id) ?? 0} signed in</span>
+                    {p.status === "active" ? <Chip tone="ok">{t("admin.access.active")}</Chip> : <Chip tone="danger">{t("admin.access.suspended")}</Chip>}
+                    <span className="text-[11.5px] text-faint">{t("admin.access.signedIn", { n: activeSessions.get(p.id) ?? 0 })}</span>
                   </summary>
                   <div className="space-y-4 bg-field/60 px-4 py-4">
                     <div className="flex flex-wrap gap-2">
@@ -122,11 +157,11 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                           <input type="hidden" name="suspend" value={p.status === "active" ? "1" : "0"} />
                           {p.status === "active" ? (
                             <button className="btn btn-danger py-1.5 text-[13px]">
-                              <UserX size={15} /> Suspend login
+                              <UserX size={15} /> {t("admin.access.suspend")}
                             </button>
                           ) : (
                             <button className="btn btn-green py-1.5 text-[13px]">
-                              <UserCheck size={15} /> Restore login
+                              <UserCheck size={15} /> {t("admin.access.restore")}
                             </button>
                           )}
                         </form>
@@ -134,49 +169,49 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                       <form action={logoutEverywhere}>
                         <input type="hidden" name="user_id" value={p.id} />
                         <button className="btn btn-ghost py-1.5 text-[13px]">
-                          <LogOut size={15} /> Log out everywhere
+                          <LogOut size={15} /> {t("admin.access.logoutAll")}
                         </button>
                       </form>
                     </div>
                     <form action={updateStaffContact} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_150px_1fr_auto]">
                       <input type="hidden" name="user_id" value={p.id} />
                       <div>
-                        <label className="label">Name</label>
+                        <label className="label">{t("admin.access.name")}</label>
                         <input name="name" defaultValue={p.name} className="field py-1.5 text-[14px]" required minLength={2} />
                       </div>
                       <div>
-                        <label className="label">Mobile</label>
+                        <label className="label">{t("admin.access.mobile")}</label>
                         <input name="mobile" defaultValue={p.mobile} className="field py-1.5 text-[14px]" inputMode="numeric" required />
                       </div>
                       <div>
-                        <label className="label">Email (login code goes here)</label>
+                        <label className="label">{t("admin.access.emailCode")}</label>
                         <input name="email" type="email" defaultValue={p.email ?? ""} className="field py-1.5 text-[14px]" />
                       </div>
-                      <button className="btn btn-ghost py-1.5 text-[13px]">Save details</button>
+                      <button className="btn btn-ghost py-1.5 text-[13px]">{t("admin.access.saveDetails")}</button>
                     </form>
                     {p.role === "admin" ? (
-                      <p className="text-[13px] text-muted">Admin has every permission. Nothing to change here.</p>
+                      <p className="text-[13px] text-muted">{t("admin.access.adminAll")}</p>
                     ) : (
                       <form action={savePersonAccess} className="space-y-2">
                         <input type="hidden" name="user_id" value={p.id} />
-                        <p className="text-[13px] font-bold text-navy">Access for {p.name} only</p>
+                        <p className="text-[13px] font-bold text-navy">{t("admin.access.forOnly", { name: p.name })}</p>
                         <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 md:grid-cols-2">
                           {PERMISSION_KEYS.filter((k) => !isLocked(p.role, k)).map((k) => {
                             const base = roleValue(p.role, k, roleOverrides[p.role]);
                             const cur = mine[k];
                             return (
                               <label key={k} className="flex items-center justify-between gap-3 text-[13px]">
-                                <span className={cur !== undefined ? "font-semibold text-violet" : ""}>{PERMISSIONS[k].label}</span>
+                                <span className={cur !== undefined ? "font-semibold text-violet" : ""}>{permLabel(t, k)}</span>
                                 <select name={k} defaultValue={cur === undefined ? "default" : cur ? "allow" : "deny"} className="field w-auto py-1 text-[13px]">
-                                  <option value="default">Role ({base ? "yes" : "no"})</option>
-                                  <option value="allow">Yes</option>
-                                  <option value="deny">No</option>
+                                  <option value="default">{t("admin.access.roleDefault", { value: base ? t("core.yes") : t("core.no") })}</option>
+                                  <option value="allow">{t("core.yes")}</option>
+                                  <option value="deny">{t("core.no")}</option>
                                 </select>
                               </label>
                             );
                           })}
                         </div>
-                        <button className="btn btn-primary py-1.5 text-[13px]">Save access for {p.name.split(" ")[0]}</button>
+                        <button className="btn btn-primary py-1.5 text-[13px]">{t("admin.access.saveFor", { name: p.name.split(" ")[0] })}</button>
                       </form>
                     )}
                   </div>
