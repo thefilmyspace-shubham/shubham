@@ -230,7 +230,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
                 ) : (
                   <Card className="divide-y divide-line">
                     {upcoming.map((x) => (
-                      <TestRow key={x.id} test={x} batchName={x.batch_id ? (bmap.get(x.batch_id) ? batchShort(bmap.get(x.batch_id)!) : t("academics.batch")) : t("academics.wholeClass")} clash={clashes.has(clashKey(x))} canEdit={canEdit} canPost={canPost} canMarks={false} selectable={canEdit} viewer={viewer} today={today} dutyName={x.faculty_id ? faculty.get(x.faculty_id) : undefined} att={attCounts.get(x.id)} t={t} />
+                      <TestRow key={x.id} test={x} batchName={x.batch_id ? (bmap.get(x.batch_id) ? batchShort(bmap.get(x.batch_id)!) : t("academics.batch")) : t("academics.wholeClass")} clash={clashes.has(clashKey(x))} canEdit={canEdit} canPost={canPost} canMarks={canMarks} selectable={canEdit} viewer={viewer} today={today} dutyName={x.faculty_id ? faculty.get(x.faculty_id) : undefined} att={attCounts.get(x.id)} t={t} />
                     ))}
                   </Card>
                 )}
@@ -337,7 +337,7 @@ function TestRow({
       )}
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] font-bold text-primary">
         {access.canRun && started && <Link href={`/tests/${x.id}/attendance`}>{t("academics.duty.attendance")}</Link>}
-        {canMarks && <Link href={`/tests/${x.id}`}>{t("academics.tt.marks")}</Link>}
+        {canMarks && (started || x.done_at) && <Link href={`/tests/${x.id}`}>{t("academics.tt.marks")}</Link>}
         {canEdit && <Link href={`/timetable/test?id=${x.id}`}>{t("core.edit")}</Link>}
         {canPost && <Link href={`/timetable/post?kind=test&id=${x.id}`}>{t("academics.tt.postToGroup")}</Link>}
         {access.canRun && started && (

@@ -33,7 +33,7 @@ export default async function TestMarksPage({ params }: { params: Promise<{ id: 
   const rows: MarksRow[] = students.map((s) => {
     const m = byStudent.get(s.id);
     const b = s.batch_id ? bmap.get(s.batch_id) : undefined;
-    return { id: s.id, name: s.name, code: s.code, batch: b ? batchShort(b) : "", score: m?.score ?? null, absent: m?.absent ?? came.get(s.id) === false };
+    return { id: s.id, name: s.name, code: s.code, batch: b ? batchShort(b) : "", score: m?.score ?? null, absent: m?.absent ?? came.get(s.id)?.status === "A" };
   });
   const entered = rows.filter((r) => r.score !== null || r.absent).length;
   const summary = classSummary(

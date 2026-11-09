@@ -33,9 +33,26 @@ export async function dutyTests(userId: string, fromDate: string): Promise<Test[
   return (data ?? []) as Test[];
 }
 
-export async function testAttendanceOf(testId: string): Promise<Map<string, boolean>> {
-  const { data } = await adminClient().from("test_attendance").select("student_id, present").eq("test_id", testId);
-  return new Map(((data ?? []) as { student_id: string; present: boolean }[]).map((r) => [r.student_id, r.present]));
+export type TestMark = { status: "P" | "A" | "L"; markedAt: string };
+
+/** Hours after which faculty can no longer change a test's attendance (Admin/Management still can). */
+export const TEST_ATT_LOCK_HOURS = 2;
+
+export function testMarkLocked(markedAt: string, now = Date.now()): boolean {
+  return now - new Date(markedAt).getTime() > TEST_ATT_LOCK_HOURS * 3600_000;
+}
+
+/** Each student's test attendance. Works before the "late" column exists too. */
+export async function testAttendanceOf(testId: string): Promise<Map<string, TestMark>> {
+  const db = adminClient();
+  const full = await db.from("test_attendance").select("student_id, present, late, marked_at").eq("test_id", testId);
+  const data: unknown[] | null = full.error ? (await db.from("test_attendance").select("student_id, present, marked_at").eq("test_id", testId)).data : full.data;
+  return new Map(
+    ((data ?? []) as { student_id: string; present: boolean; late?: boolean; marked_at: string }[]).map((r) => [
+      r.student_id,
+      { status: !r.present ? "A" : r.late ? "L" : "P", markedAt: r.marked_at },
+    ]),
+  );
 }
 
 /** How many students of each test have their attendance marked. */

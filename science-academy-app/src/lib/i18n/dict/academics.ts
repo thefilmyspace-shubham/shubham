@@ -236,11 +236,13 @@ export const en = {
   "academics.duty.pending": "Pending",
   "academics.duty.saveDone": "Save & test done",
   "academics.duty.saveOnly": "Save attendance",
-  "academics.duty.saved": "Saved: {present} came, {absent} absent.",
-  "academics.duty.savedDone": "Saved and test marked done: {present} came, {absent} absent.",
+  "academics.duty.saved": "Saved: {present} present, {late} late, {absent} absent.",
+  "academics.duty.savedDone": "Saved and test marked done: {present} present, {late} late, {absent} absent.",
   "academics.duty.undoDone": "Undo done",
   "academics.duty.yourDuty": "Your duty",
   "academics.test.err.duty": "Test saved, but the faculty on duty was not: the database update (SQL test_duty) has not been run yet.",
+  "academics.duty.lockedSkipped": "{n} could not be changed: locked after 2 hours (Admin/Management can correct).",
+  "academics.duty.lockedNote": "Attendance locks {h} hours after it is marked. After that only Admin and Management can correct it.",
 } satisfies Record<string, string>;
 
 export const hi: Record<keyof typeof en, string> = {
@@ -478,11 +480,13 @@ export const hi: Record<keyof typeof en, string> = {
   "academics.duty.pending": "बाकी",
   "academics.duty.saveDone": "सेव करें और टेस्ट पूरा",
   "academics.duty.saveOnly": "हाज़िरी सेव करें",
-  "academics.duty.saved": "सेव हुआ: {present} आए, {absent} अनुपस्थित।",
-  "academics.duty.savedDone": "सेव हुआ और टेस्ट पूरा: {present} आए, {absent} अनुपस्थित।",
+  "academics.duty.saved": "सेव हुआ: {present} उपस्थित, {late} देर से, {absent} अनुपस्थित।",
+  "academics.duty.savedDone": "सेव हुआ और टेस्ट पूरा: {present} उपस्थित, {late} देर से, {absent} अनुपस्थित।",
   "academics.duty.undoDone": "पूरा हटाएँ",
   "academics.duty.yourDuty": "आपकी ड्यूटी",
   "academics.test.err.duty": "टेस्ट सेव हुआ, पर ड्यूटी वाली फैकल्टी नहीं: डेटाबेस अपडेट (SQL test_duty) अभी नहीं चला है।",
+  "academics.duty.lockedSkipped": "{n} नहीं बदले: 2 घंटे बाद लॉक (एडमिन/मैनेजमेंट सुधार सकते हैं)।",
+  "academics.duty.lockedNote": "हाज़िरी लगाने के {h} घंटे बाद लॉक हो जाती है। उसके बाद सिर्फ एडमिन और मैनेजमेंट सुधार सकते हैं।",
 };
 
 export const hinglish: Record<keyof typeof en, string> = {
@@ -720,9 +724,11 @@ export const hinglish: Record<keyof typeof en, string> = {
   "academics.duty.pending": "Baaki",
   "academics.duty.saveDone": "Save karo aur test done",
   "academics.duty.saveOnly": "Attendance save karo",
-  "academics.duty.saved": "Save ho gaya: {present} aaye, {absent} absent.",
-  "academics.duty.savedDone": "Save ho gaya aur test done: {present} aaye, {absent} absent.",
+  "academics.duty.saved": "Save ho gaya: {present} present, {late} late, {absent} absent.",
+  "academics.duty.savedDone": "Save ho gaya aur test done: {present} present, {late} late, {absent} absent.",
   "academics.duty.undoDone": "Done hatao",
   "academics.duty.yourDuty": "Aapki duty",
   "academics.test.err.duty": "Test save ho gaya, par duty wali faculty nahi: database update (SQL test_duty) abhi nahi chala hai.",
+  "academics.duty.lockedSkipped": "{n} change nahi hue: 2 ghante baad lock (Admin/Management sudhar sakte hain).",
+  "academics.duty.lockedNote": "Attendance lagane ke {h} ghante baad lock ho jati hai. Uske baad sirf Admin aur Management sudhar sakte hain.",
 };

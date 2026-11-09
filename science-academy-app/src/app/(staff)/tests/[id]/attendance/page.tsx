@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
-import { CheckCircle2, Info, UserCheck } from "lucide-react";
+import { CheckCircle2, ClipboardList, Info, Lock, UserCheck } from "lucide-react";
 import { can, requireStaff } from "@/lib/auth";
 import { allBatches, batchMap, batchShort } from "@/lib/batches";
 import { boardName } from "@/lib/ids";
 import { clockLabel, dayLabel } from "@/lib/format";
 import { facultyNames, getTest, studentsForTest } from "@/lib/academics";
-import { testAccess, testAttendanceOf } from "@/lib/test-duty";
+import { TEST_ATT_LOCK_HOURS, testAccess, testAttendanceOf, testMarkLocked } from "@/lib/test-duty";
+import Link from "next/link";
 import { Banner, Chip, Empty, Page, PageHeader } from "@/components/ui";
 import { getT } from "@/lib/i18n/server";
 import { TestAttendanceSheet, type TestAttRow } from "./TestAttendanceSheet";
@@ -21,12 +22,20 @@ export default async function TestAttendancePage({ params }: { params: Promise<{
   if (!test) notFound();
   const access = testAccess(viewer, test);
   if (!access.see) notFound();
+  const canCorrect = can(viewer, "academics.edit");
   const [students, present, batches, faculty] = await Promise.all([studentsForTest(test, access.scope), testAttendanceOf(test.id), allBatches(true), facultyNames()]);
   const bmap = batchMap(batches);
   const rows: TestAttRow[] = students.map((s) => {
     const b = s.batch_id ? bmap.get(s.batch_id) : undefined;
-    const p = present.get(s.id);
-    return { id: s.id, name: s.name, code: s.code, batch: b ? batchShort(b) : "", status: p === undefined ? null : p ? "P" : "A" };
+    const m = present.get(s.id);
+    return {
+      id: s.id,
+      name: s.name,
+      code: s.code,
+      batch: b ? batchShort(b) : "",
+      status: m?.status ?? null,
+      locked: Boolean(m && !canCorrect && testMarkLocked(m.markedAt)),
+    };
   });
   const dutyName = test.faculty_id ? faculty.get(test.faculty_id) : null;
   const canMarks = can(viewer, "marks.enter") || can(viewer, "students.view");
@@ -51,6 +60,20 @@ export default async function TestAttendancePage({ params }: { params: Promise<{
             </Chip>
           )}
         </div>
+        {rows.some((r) => r.locked) && (
+          <div className="mb-3">
+            <Banner tone="neutral" icon={Lock}>
+              {t("academics.duty.lockedNote", { h: TEST_ATT_LOCK_HOURS })}
+            </Banner>
+          </div>
+        )}
+        {canMarks && (
+          <div className="mb-3 flex justify-end">
+            <Link href={`/tests/${test.id}`} className="btn btn-soft py-1.5 text-[13px]">
+              <ClipboardList size={15} /> {t("academics.duty.enterMarks")}
+            </Link>
+          </div>
+        )}
         {!access.scope ? null : (
           <div className="mb-3">
             <Banner tone="neutral" icon={Info}>
