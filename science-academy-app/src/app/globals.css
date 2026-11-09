@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/*
+ * Science Academy theme, built on the logo colours (navy, blue, green).
+ * Every colour, radius and shadow the screens use is a token here.
+ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --color-bg: #f3f5f9;
+  --color-card: #ffffff;
+  --color-fg: #131a2a;
+  --color-muted: #5f6b7d;
+  --color-faint: #98a2b3;
+  --color-line: #e4e8ef;
+  --color-field: #f3f5f9;
+
+  --color-navy: #13265c;
+  --color-navy-soft: #e8ecf6;
+  --color-primary: #1f63d6;
+  --color-primary-strong: #174fae;
+  --color-primary-soft: #e7effc;
+  --color-green: #2e9b4e;
+  --color-green-soft: #e4f4e9;
+  --color-ok: #1f7f45;
+  --color-ok-soft: #e3f4ea;
+  --color-danger: #c8322b;
+  --color-danger-soft: #fdecea;
+  --color-danger-line: #f2b8b3;
+  --color-warn: #a86400;
+  --color-warn-soft: #fff3df;
+  --color-violet: #6b4fa0;
+  --color-violet-soft: #efeaf8;
+
+  --color-chat: #e9eef6;
+  --color-bubble-in: #ffffff;
+  --color-bubble-out: #dfeafd;
+  --color-seen: #1f63d6;
+
+  --radius-card: 16px;
+  --radius-field: 12px;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.06), 0 2px 8px rgb(16 24 40 / 0.05);
+  --shadow-bar: 0 1px 4px rgb(0 0 0 / 0.06);
+  --shadow-sheet: 0 -8px 30px rgb(0 0 0 / 0.18);
+
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+
+  @keyframes shimmer {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Form fields share one look across the app. */
+.field {
+  width: 100%;
+  border-radius: var(--radius-field);
+  border: 1px solid var(--color-line);
+  background: var(--color-field);
+  padding: 0.65rem 0.85rem;
+  font-size: 15px;
+  color: var(--color-fg);
+  outline: none;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.field:focus {
+  border-color: var(--color-primary);
+  background: var(--color-card);
+}
+.field::placeholder {
+  color: var(--color-faint);
+}
+.field:disabled {
+  opacity: 0.6;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: var(--radius-field);
+  padding: 0.6rem 1rem;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-strong);
+}
+.btn-green {
+  background: var(--color-green);
+  color: white;
+}
+.btn-soft {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.btn-ghost {
+  background: var(--color-card);
+  color: var(--color-fg);
+  border: 1px solid var(--color-line);
+}
+.btn-danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Bills and reports print without the app around them. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  .print-page {
+    break-after: page;
+  }
+  .print-page:last-child {
+    break-after: auto;
+  }
+}

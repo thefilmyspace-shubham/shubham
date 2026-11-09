@@ -1,0 +1,131 @@
+import "server-only";
+import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
+import { adminClient } from "./supabase/admin";
+import { serviceRoleKey } from "./env";
+import { normalizeMobile, parseStaffId } from "./ids";
+import { ensureParentUser } from "./notify";
+import { sendOtpSms } from "./sms";
+import type { Role } from "./permissions";
+import type { AppUser } from "./types";
+
+export const OTP_TTL_MINUTES = 10;
+export const RESEND_AFTER_SECONDS = 30;
+export const MAX_ATTEMPTS = 5;
+export const MAX_SENDS_PER_HOUR = 6;
+
+function hashCode(userId: string, code: string): string {
+  return createHmac("sha256", serviceRoleKey()).update(`${userId}:${code}`).digest("hex");
+}
+
+/**
+ * Who is logging in. Staff type their ID (AD-01) or registered mobile;
+ * parents type the registered login number of their child.
+ */
+export async function findLoginUser(role: Role, identifier: string): Promise<AppUser | null> {
+  const db = adminClient();
+  if (role !== "parent") {
+    const staffId = parseStaffId(identifier);
+    const mobile = normalizeMobile(identifier);
+    if (!staffId && !mobile) return null;
+    let q = db.from("users").select("*").eq("role", role);
+    q = staffId ? q.eq("staff_id", staffId) : q.eq("mobile", mobile!);
+    const { data } = await q.maybeSingle<AppUser>();
+    return data ?? null;
+  }
+  const mobile = normalizeMobile(identifier);
+  if (!mobile) return null;
+  const { data } = await db.from("users").select("*").eq("role", "parent").eq("mobile", mobile).maybeSingle<AppUser>();
+  if (data) return data;
+  // A login number chosen at registration whose login row is missing: make it now.
+  const { data: link } = await db
+    .from("guardians")
+    .select("name, students!inner(status)")
+    .eq("mobile", mobile)
+    .eq("is_login_number", true)
+    .in("students.status", ["active", "passed_out"])
+    .limit(1)
+    .maybeSingle<{ name: string | null }>();
+  return link ? ensureParentUser(mobile, link.name ?? "Parent") : null;
+}
+
+export type SendResult =
+  | { ok: true; challenge: string; maskedMobile: string; devCode?: string }
+  | { ok: false; error: string; retryAfter?: number };
+
+export async function sendLoginCode(user: AppUser, now = new Date()): Promise<SendResult> {
+  if (user.status !== "active") return { ok: false, error: "This login is suspended. Please contact the academy." };
+  const db = adminClient();
+  const hourAgo = new Date(now.getTime() - 3600_000).toISOString();
+  const { data: recent } = await db
+    .from("otp_codes")
+    .select("created_at")
+    .eq("user_id", user.id)
+    .gte("created_at", hourAgo)
+    .order("created_at", { ascending: false });
+  const sends = (recent ?? []) as { created_at: string }[];
+  if (sends.length) {
+    const since = (now.getTime() - Date.parse(sends[0].created_at)) / 1000;
+    if (since < RESEND_AFTER_SECONDS) {
+      return { ok: false, error: "Please wait before asking for a new code.", retryAfter: Math.ceil(RESEND_AFTER_SECONDS - since) };
+    }
+  }
+  if (sends.length >= MAX_SENDS_PER_HOUR) return { ok: false, error: "Too many codes asked. Please try again in an hour." };
+
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const { data: row, error } = await db
+    .from("otp_codes")
+    .insert({
+      user_id: user.id,
+      code_hash: hashCode(user.id, code),
+      expires_at: new Date(now.getTime() + OTP_TTL_MINUTES * 60_000).toISOString(),
+    })
+    .select("id")
+    .single<{ id: string }>();
+  if (error || !row) return { ok: false, error: "Could not make a code. Please try again." };
+
+  const sms = await sendOtpSms(user.mobile, code);
+  if (!sms.ok) return { ok: false, error: sms.error };
+  return {
+    ok: true,
+    challenge: row.id,
+    maskedMobile: `+91 ${user.mobile.slice(0, 2)}•••••${user.mobile.slice(-3)}`,
+    ...(sms.dev ? { devCode: code } : {}),
+  };
+}
+
+export type VerifyResult = { ok: true; user: AppUser } | { ok: false; error: string };
+
+/** Checks a code against the challenge it was sent for. A code works once. */
+export async function verifyLoginCode(challenge: string, code: string, now = new Date()): Promise<VerifyResult> {
+  if (!/^\d{6}$/.test(code)) return { ok: false, error: "Enter the 6 digit code." };
+  if (!/^[0-9a-f-]{36}$/i.test(challenge)) return { ok: false, error: "Please ask for a new code." };
+  const db = adminClient();
+  const { data: row } = await db
+    .from("otp_codes")
+    .select("id, user_id, code_hash, expires_at, attempts, consumed_at")
+    .eq("id", challenge)
+    .maybeSingle<{ id: string; user_id: string; code_hash: string; expires_at: string; attempts: number; consumed_at: string | null }>();
+  if (!row || row.consumed_at) return { ok: false, error: "This code was already used. Please ask for a new one." };
+  if (Date.parse(row.expires_at) < now.getTime()) return { ok: false, error: "This code has expired. Please ask for a new one." };
+  if (row.attempts >= MAX_ATTEMPTS) return { ok: false, error: "Too many wrong tries. Please ask for a new code." };
+
+  const expected = Buffer.from(row.code_hash, "hex");
+  const given = Buffer.from(hashCode(row.user_id, code), "hex");
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) {
+    await db.from("otp_codes").update({ attempts: row.attempts + 1 }).eq("id", row.id);
+    const left = MAX_ATTEMPTS - row.attempts - 1;
+    return { ok: false, error: left > 0 ? `Wrong code. ${left} ${left === 1 ? "try" : "tries"} left.` : "Too many wrong tries. Please ask for a new code." };
+  }
+  // Consume once (a second request with the same code loses the race).
+  const { data: consumed } = await db
+    .from("otp_codes")
+    .update({ consumed_at: now.toISOString() })
+    .eq("id", row.id)
+    .is("consumed_at", null)
+    .select("id");
+  if (!consumed?.length) return { ok: false, error: "This code was already used. Please ask for a new one." };
+
+  const { data: user } = await db.from("users").select("*").eq("id", row.user_id).maybeSingle<AppUser>();
+  if (!user || user.status !== "active") return { ok: false, error: "This login is suspended. Please contact the academy." };
+  return { ok: true, user };
+}
