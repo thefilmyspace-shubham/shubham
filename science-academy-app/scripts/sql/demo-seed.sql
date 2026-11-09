@@ -16,6 +16,8 @@ insert into public.users (staff_id, role, name, mobile) values
   ('FC-02', 'faculty', 'Anita Verma', '9000000032'),
   ('FC-03', 'faculty', 'Imran Khan', '9000000033')
 on conflict do nothing;
+-- Login codes go by email: ad01@example.com, rc01@example.com ...
+update public.users set email = lower(replace(staff_id, '-', '')) || '@example.com' where staff_id is not null;
 
 -- Batches (each gets its parents' group from the trigger).
 insert into public.batches (board, class, name, start_time) values

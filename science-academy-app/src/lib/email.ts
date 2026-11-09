@@ -1,10 +1,12 @@
 import "server-only";
+import { mailIsSetUp, sendMail } from "./mailer";
 
 export type EmailResult = { ok: true } | { ok: false; error: string };
 
 /**
- * Sends one email with attachments through Resend (resend.com).
- * Needs RESEND_API_KEY and BILL_FROM_EMAIL (a sender on a verified domain).
+ * Sends one email with attachments: through the academy's Gmail when
+ * SMTP_USER / SMTP_PASSWORD are set (see mailer.ts), otherwise through Resend
+ * (RESEND_API_KEY and BILL_FROM_EMAIL).
  */
 export async function sendEmail(opts: {
   to: string;
@@ -12,9 +14,15 @@ export async function sendEmail(opts: {
   html: string;
   attachments?: { filename: string; content: Buffer }[];
 }): Promise<EmailResult> {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(opts.to)) return { ok: false, error: "The email address on the student's profile does not look right." };
+  if (mailIsSetUp()) {
+    const text = opts.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const r = await sendMail({ to: opts.to, subject: opts.subject, html: opts.html, text, attachments: opts.attachments });
+    return r.ok ? { ok: true } : r;
+  }
   const key = process.env.RESEND_API_KEY;
   const from = process.env.BILL_FROM_EMAIL;
-  if (!key || !from) return { ok: false, error: "Email is not set up yet (RESEND_API_KEY and BILL_FROM_EMAIL). Use Save PDF or Print for now." };
+  if (!key || !from) return { ok: false, error: "Email is not set up yet (academy Gmail: SMTP_USER and SMTP_PASSWORD). Use Save PDF or Print for now." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(opts.to)) return { ok: false, error: "The email address on the student's profile does not look right." };
   try {
     const res = await fetch("https://api.resend.com/emails", {

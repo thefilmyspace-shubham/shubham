@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { otpChannel } from "@/lib/env";
 import { redirect } from "next/navigation";
 import { canSeeStudent, requirePermission, requireStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
@@ -33,7 +34,7 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
   if (existingId && !existing) return { message: "Student not found." };
   const alreadyRegistered = existing !== null && existing.status !== "draft";
   // Editing a registered student is always strict.
-  const parsed = parseRegistration(form, alreadyRegistered ? "register" : intent);
+  const parsed = parseRegistration(form, alreadyRegistered ? "register" : intent, { requireEmail: otpChannel() === "email" });
   if (!parsed.ok) return { errors: parsed.errors, message: "Please fix the marked fields." };
   const data = parsed.data;
 

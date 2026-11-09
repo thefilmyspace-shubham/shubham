@@ -139,3 +139,24 @@ describe("search helpers", () => {
     ]);
   });
 });
+
+describe("email for login codes", () => {
+  const f = (o: Record<string, string>) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(o)) fd.set(k, v);
+    return fd;
+  };
+  const base = {
+    name: "Riya Jain", board: "MP", current_class: "9", session_year: "26", batch_id: "b1", monthly_fee: "2500",
+    father_mobile: "9876543210", login_relation: "father", consent: "on", consent_by: "Mr. Jain",
+  };
+  it("is needed to register when codes go by email", () => {
+    const r = parseRegistration(f(base), "register", { requireEmail: true });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.email).toMatch(/email/i);
+    expect(parseRegistration(f({ ...base, email: "riya@example.com" }), "register", { requireEmail: true }).ok).toBe(true);
+  });
+  it("is not needed for a draft", () => {
+    expect(parseRegistration(f(base), "draft", { requireEmail: true }).ok).toBe(true);
+  });
+});

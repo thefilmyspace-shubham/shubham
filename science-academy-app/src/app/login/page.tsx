@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getViewer, homeFor } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
 import { Footer } from "@/components/ui";
+import { otpChannel } from "@/lib/env";
 import { LoginForm } from "./LoginForm";
 
 export const metadata = { title: "Log in" };
@@ -27,8 +28,8 @@ export default async function LoginPage() {
             <Logo size={44} />
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight text-navy">Log in</h2>
-          <p className="mb-6 text-sm text-muted">One time code by SMS. No password.</p>
-          <LoginForm />
+          <p className="mb-6 text-sm text-muted">One time code by {otpChannel() === "email" ? "email" : "SMS"}. No password.</p>
+          <LoginForm channel={otpChannel()} />
         </div>
         <div className="lg:hidden">
           <Footer />

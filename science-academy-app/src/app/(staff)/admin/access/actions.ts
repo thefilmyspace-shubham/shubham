@@ -7,6 +7,7 @@ import { adminClient } from "@/lib/supabase/admin";
 import { logActivity } from "@/lib/activity";
 import { revokeAllSessions } from "@/lib/session";
 import { normalizeMobile } from "@/lib/ids";
+import { otpChannel } from "@/lib/env";
 import { isLocked, isPermissionKey, PERMISSION_KEYS, roleDefault, STAFF_ROLES, type Role } from "@/lib/permissions";
 import type { AppUser } from "@/lib/types";
 
@@ -142,7 +143,8 @@ export async function addStaff(_prev: ActionState, formData: FormData): Promise<
     mobile: String(formData.get("mobile") ?? ""),
     email: String(formData.get("email") ?? "").trim(),
   });
-  if (!parsed.success) return failed("Fill the role, a name and a valid email (or leave email empty).");
+  if (!parsed.success) return failed("Fill the role, a name and a valid email.");
+  if (otpChannel() === "email" && !parsed.data.email) return failed("Add their email: the login code is sent there.");
   const mobile = normalizeMobile(parsed.data.mobile);
   if (!mobile) return failed("Enter a 10 digit Indian mobile number.");
   const db = adminClient();
@@ -159,8 +161,44 @@ export async function addStaff(_prev: ActionState, formData: FormData): Promise<
     if (!error && data) {
       await logActivity(viewer, "staff.add", { type: "user", id: data.id }, { staff_id: data.staff_id, name: parsed.data.name, role: parsed.data.role });
       revalidatePath("/admin/access");
-      return done(`Added ${data.staff_id} ${parsed.data.name}. They can log in with ${data.staff_id} or their mobile.`);
+      return done(`Added ${data.staff_id} ${parsed.data.name}. They log in with ${data.staff_id} or their mobile; the code goes to ${otpChannel() === "email" ? "their email" : "their mobile"}.`);
     }
   }
   return failed("Could not add this person. Please try again.");
+}
+
+const Contact = z.object({
+  user_id: z.string().uuid(),
+  name: z.string().trim().min(2).max(80),
+  mobile: z.string(),
+  email: z.union([z.literal(""), z.string().trim().email()]),
+});
+
+/** Change a staff member's name, mobile or email (the login code goes to the email). */
+export async function updateStaffContact(formData: FormData) {
+  const viewer = await admin();
+  if (!viewer) return;
+  const parsed = Contact.safeParse({
+    user_id: formData.get("user_id"),
+    name: formData.get("name"),
+    mobile: String(formData.get("mobile") ?? ""),
+    email: String(formData.get("email") ?? "").trim().toLowerCase(),
+  });
+  if (!parsed.success) return;
+  const mobile = normalizeMobile(parsed.data.mobile);
+  if (!mobile) return;
+  const db = adminClient();
+  const { data: person } = await db.from("users").select("*").eq("id", parsed.data.user_id).maybeSingle<AppUser>();
+  if (!person || person.role === "parent") return;
+  const { data: clash } = await db.from("users").select("id").eq("mobile", mobile).neq("role", "parent").neq("id", person.id).maybeSingle();
+  if (clash) return;
+  const next = { name: parsed.data.name, mobile, email: parsed.data.email || null };
+  const changes = (Object.keys(next) as (keyof typeof next)[]).filter((k) => (person[k] ?? null) !== next[k]);
+  if (!changes.length) return;
+  await db.from("users").update(next).eq("id", person.id);
+  await logActivity(viewer, "staff.edit", { type: "user", id: person.id }, {
+    person: `${person.staff_id} ${person.name}`,
+    changes: changes.map((k) => `${k}: ${person[k] ?? "—"} → ${next[k] ?? "—"}`),
+  });
+  revalidatePath("/admin/access");
 }

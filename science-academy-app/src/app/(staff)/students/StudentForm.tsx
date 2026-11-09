@@ -282,7 +282,7 @@ export function StudentForm({
               </div>
               <div>
                 <label className="label" htmlFor="email">
-                  Email (bills and PDFs go here)
+                  Parent&apos;s email (login code, bills and PDFs go here)
                 </label>
                 <input id="email" name="email" type="email" className="field" defaultValue={initial?.email ?? ""} />
                 <Err msg={errors.email} />

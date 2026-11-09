@@ -1,6 +1,6 @@
 -- Starting data: the two staff groups and the first Admin login.
--- Change the Admin's name and mobile before the first login:
---   update public.users set name = 'Owner name', mobile = '98XXXXXXXX' where staff_id = 'AD-01';
+-- Change the Admin's name, mobile and email before the first login (the login code is emailed):
+--   update public.users set name = 'Owner name', mobile = '98XXXXXXXX', email = 'owner@gmail.com' where staff_id = 'AD-01';
 
 insert into public.groups (kind, name) values
   ('management', 'Management'),

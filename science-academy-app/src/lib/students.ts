@@ -82,6 +82,7 @@ export type FieldErrors = Record<string, string>;
 export function parseRegistration(
   form: FormData,
   intent: "draft" | "register",
+  opts: { requireEmail?: boolean } = {},
 ): { ok: true; data: ParsedRegistration } | { ok: false; errors: FieldErrors } {
   const get = (k: string) => String(form.get(k) ?? "");
   const errors: FieldErrors = {};
@@ -141,6 +142,7 @@ export function parseRegistration(
     if (!get("batch_id").trim()) errors.batch_id ??= "Choose the batch.";
     if (!guardians.length) errors.father_mobile ??= "Enter at least one mobile number.";
     else if (!loginRelation) errors.login_relation ??= "Choose which number is the login number.";
+    if (opts.requireEmail && !get("email").trim()) errors.email ??= "Add the parent's email: their login code is sent there.";
     if (!consent) errors.consent = "The parent or guardian must agree before registering.";
     else if (!consentBy) errors.consent_by = "Who gave the consent?";
   }

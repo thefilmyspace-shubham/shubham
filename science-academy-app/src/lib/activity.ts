@@ -53,6 +53,7 @@ export const ACTION_LABEL: Record<string, string> = {
   "access.reset": "Reset access to defaults",
   "access.person": "Changed a person's access",
   "staff.add": "Added a staff member",
+  "staff.edit": "Changed a staff member's details",
   "staff.suspend": "Suspended a login",
   "staff.restore": "Restored a login",
   "staff.logout_all": "Logged a person out everywhere",

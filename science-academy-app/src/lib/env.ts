@@ -49,3 +49,11 @@ export type AcademyDetails = ReturnType<typeof academyDetails>;
 export function upiIsPlaceholder(upiId: string): boolean {
   return !/^[\w.-]+@[\w.-]+$/.test(upiId);
 }
+
+/**
+ * Where login codes go: "email" (default, free, like the TFS app: Gmail SMTP)
+ * or "sms" (MSG91, needs DLT registration). Set OTP_CHANNEL to switch.
+ */
+export function otpChannel(): "email" | "sms" {
+  return process.env.OTP_CHANNEL === "sms" ? "sms" : "email";
+}

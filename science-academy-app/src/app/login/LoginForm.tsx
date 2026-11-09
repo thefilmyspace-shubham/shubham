@@ -16,7 +16,7 @@ const ROLES: { key: RoleKey; label: string; hint: string; icon: typeof Crown }[]
 
 const RESEND_SECONDS = 30;
 
-export function LoginForm() {
+export function LoginForm({ channel }: { channel: "email" | "sms" }) {
   const router = useRouter();
   const [step, setStep] = useState<"role" | "id" | "otp">("role");
   const [role, setRole] = useState<RoleKey | null>(null);
@@ -59,7 +59,7 @@ export function LoginForm() {
         return;
       }
       setChallenge(data.challenge);
-      setMasked(data.maskedMobile);
+      setMasked(data.sentTo);
       setDevCode(data.devCode ?? null);
       setCode("");
       setStep("otp");
@@ -152,7 +152,13 @@ export function LoginForm() {
               onChange={(e) => setIdentifier(e.target.value)}
             />
           </div>
-          {parent && <p className="mt-1.5 text-xs text-muted">Use the one number the academy chose as your login number at registration.</p>}
+          {parent && (
+            <p className="mt-1.5 text-xs text-muted">
+              Use the one number the academy chose as your login number at registration.
+              {channel === "email" ? " The code goes to the email you gave at registration." : ""}
+            </p>
+          )}
+          {!parent && channel === "email" && <p className="mt-1.5 text-xs text-muted">The code goes to your email saved with the academy.</p>}
         </div>
         {error && <p className="text-sm font-semibold text-danger">{error}</p>}
         <button className="btn btn-primary w-full py-3" disabled={busy || identifier.trim().length < 3 || wait > 0}>
@@ -173,7 +179,7 @@ export function LoginForm() {
     >
       <div>
         <p className="text-sm text-muted">
-          We sent a 6 digit code by SMS to <span className="font-bold text-fg">{masked}</span>
+          We sent a 6 digit code {channel === "email" ? "by email" : "by SMS"} to <span className="font-bold text-fg">{masked}</span>
         </p>
         <button
           type="button"
@@ -200,9 +206,10 @@ export function LoginForm() {
           if (v.length === 6 && !busy) void verify(v);
         }}
       />
+      {channel === "email" && <p className="-mt-2 text-xs text-muted">Check the inbox, and the Spam folder if it is not there in a minute.</p>}
       {devCode && (
         <p className="rounded-field bg-warn-soft px-3 py-2 text-xs font-semibold text-warn">
-          Development mode (no SMS set up): your code is {devCode}
+          Development mode (no {channel === "email" ? "email" : "SMS"} set up): your code is {devCode}
         </p>
       )}
       {error && <p className="text-sm font-semibold text-danger">{error}</p>}

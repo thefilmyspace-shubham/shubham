@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { UserPlus } from "lucide-react";
 import { addStaff, type ActionState } from "./actions";
 
-export function AddStaff() {
+export function AddStaff({ emailRequired }: { emailRequired: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(addStaff, { ok: false, message: null, at: 0 });
   return (
     <form action={action} key={state.ok ? state.at : "form"} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -26,8 +26,8 @@ export function AddStaff() {
         <input id="staff-mobile" name="mobile" className="field" required inputMode="numeric" placeholder="98765 43210" />
       </div>
       <div>
-        <label className="label" htmlFor="staff-email">Email (optional)</label>
-        <input id="staff-email" name="email" type="email" className="field" placeholder="name@example.com" />
+        <label className="label" htmlFor="staff-email">{emailRequired ? "Email (login code goes here)" : "Email (optional)"}</label>
+        <input id="staff-email" name="email" type="email" className="field" placeholder="name@example.com" required={emailRequired} />
       </div>
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-4">
         <button className="btn btn-primary" disabled={pending}>

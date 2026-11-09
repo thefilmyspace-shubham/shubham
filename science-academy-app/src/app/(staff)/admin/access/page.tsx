@@ -19,7 +19,8 @@ import type { AppUser } from "@/lib/types";
 import { Banner, Card, Chip, Page, PageHeader, Section } from "@/components/ui";
 import { Matrix, type MatrixRow } from "./Matrix";
 import { AddStaff } from "./AddStaff";
-import { logoutEverywhere, savePersonAccess, setSuspended } from "./actions";
+import { logoutEverywhere, savePersonAccess, setSuspended, updateStaffContact } from "./actions";
+import { otpChannel } from "@/lib/env";
 
 export const metadata = { title: "Access control" };
 
@@ -76,7 +77,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
 
         <Section title="Add a staff member">
           <Card className="p-4">
-            <AddStaff />
+            <AddStaff emailRequired={otpChannel() === "email"} />
           </Card>
         </Section>
 
@@ -106,7 +107,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                         {p.name} {self && <span className="text-xs text-muted">(you)</span>}
                       </span>
                       <span className="block text-[12px] text-muted">
-                        {ROLE_LABEL[p.role]} · {formatMobile(p.mobile)}
+                        {ROLE_LABEL[p.role]} · {formatMobile(p.mobile)} · {p.email ?? <span className="font-semibold text-danger">no email</span>}
                         {summary ? <span className="text-violet"> · {summary}</span> : null}
                       </span>
                     </span>
@@ -137,6 +138,22 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                         </button>
                       </form>
                     </div>
+                    <form action={updateStaffContact} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_150px_1fr_auto]">
+                      <input type="hidden" name="user_id" value={p.id} />
+                      <div>
+                        <label className="label">Name</label>
+                        <input name="name" defaultValue={p.name} className="field py-1.5 text-[14px]" required minLength={2} />
+                      </div>
+                      <div>
+                        <label className="label">Mobile</label>
+                        <input name="mobile" defaultValue={p.mobile} className="field py-1.5 text-[14px]" inputMode="numeric" required />
+                      </div>
+                      <div>
+                        <label className="label">Email (login code goes here)</label>
+                        <input name="email" type="email" defaultValue={p.email ?? ""} className="field py-1.5 text-[14px]" />
+                      </div>
+                      <button className="btn btn-ghost py-1.5 text-[13px]">Save details</button>
+                    </form>
                     {p.role === "admin" ? (
                       <p className="text-[13px] text-muted">Admin has every permission. Nothing to change here.</p>
                     ) : (

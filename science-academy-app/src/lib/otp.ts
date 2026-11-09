@@ -1,17 +1,14 @@
 import "server-only";
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { adminClient } from "./supabase/admin";
-import { serviceRoleKey } from "./env";
+import { otpChannel, serviceRoleKey } from "./env";
 import { normalizeMobile, parseStaffId } from "./ids";
 import { ensureParentUser } from "./notify";
-import { sendOtpSms } from "./sms";
 import type { Role } from "./permissions";
 import type { AppUser } from "./types";
 
-export const OTP_TTL_MINUTES = 10;
-export const RESEND_AFTER_SECONDS = 30;
-export const MAX_ATTEMPTS = 5;
-export const MAX_SENDS_PER_HOUR = 6;
+import { MAX_ATTEMPTS, MAX_SENDS_PER_HOUR, OTP_TTL_MINUTES, RESEND_AFTER_SECONDS } from "./otp-rules";
+import { deliverLoginCode } from "./otp-delivery";
 
 function hashCode(userId: string, code: string): string {
   return createHmac("sha256", serviceRoleKey()).update(`${userId}:${code}`).digest("hex");
@@ -49,7 +46,7 @@ export async function findLoginUser(role: Role, identifier: string): Promise<App
 }
 
 export type SendResult =
-  | { ok: true; challenge: string; maskedMobile: string; devCode?: string }
+  | { ok: true; challenge: string; sentTo: string; channel: "email" | "sms"; devCode?: string }
   | { ok: false; error: string; retryAfter?: number };
 
 export async function sendLoginCode(user: AppUser, now = new Date()): Promise<SendResult> {
@@ -83,13 +80,18 @@ export async function sendLoginCode(user: AppUser, now = new Date()): Promise<Se
     .single<{ id: string }>();
   if (error || !row) return { ok: false, error: "Could not make a code. Please try again." };
 
-  const sms = await sendOtpSms(user.mobile, code);
-  if (!sms.ok) return { ok: false, error: sms.error };
+  const sent = await deliverLoginCode(user, code);
+  if (!sent.ok) {
+    // Not delivered: drop the code so it does not hold up a retry.
+    await db.from("otp_codes").delete().eq("id", row.id);
+    return { ok: false, error: sent.error };
+  }
   return {
     ok: true,
     challenge: row.id,
-    maskedMobile: `+91 ${user.mobile.slice(0, 2)}•••••${user.mobile.slice(-3)}`,
-    ...(sms.dev ? { devCode: code } : {}),
+    sentTo: sent.sentTo,
+    channel: otpChannel(),
+    ...(sent.dev ? { devCode: code } : {}),
   };
 }
 
