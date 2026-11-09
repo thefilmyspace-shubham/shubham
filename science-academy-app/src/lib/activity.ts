@@ -43,6 +43,7 @@ export const ACTION_LABEL: Record<string, string> = {
   "fee.remind": "Sent fee reminders",
   "attendance.save": "Saved attendance",
   "attendance.correct": "Corrected attendance",
+  "attendance.alert": "Sent an attendance alert to a parent",
   "marks.save": "Saved marks",
   "test.save": "Saved a test",
   "test.delete": "Deleted a test",
