@@ -2,12 +2,14 @@ import "server-only";
 import { adminClient } from "./supabase/admin";
 import type { Role } from "./permissions";
 import type { AppUser } from "./types";
+import { asLang, pick, type Lang, type Localized } from "./i18n";
 
 export type NewNotification = {
   userId: string;
   kind: string;
-  title: string;
-  body?: string;
+  /** Plain text, or the same text in every language (picked for each reader). */
+  title: string | Localized;
+  body?: string | Localized;
   link?: string;
   /** Same key for the same person is only ever sent once. */
   dedupeKey?: string;
@@ -16,11 +18,18 @@ export type NewNotification = {
 /** In-app notifications (the bell). Duplicates by dedupe key are skipped. */
 export async function notify(items: NewNotification[]): Promise<void> {
   if (!items.length) return;
+  // Each reader's language, only when some text comes in several languages.
+  const langs = new Map<string, Lang>();
+  if (items.some((n) => typeof n.title !== "string" || (n.body !== undefined && typeof n.body !== "string"))) {
+    const ids = [...new Set(items.map((n) => n.userId))];
+    const { data } = await adminClient().from("users").select("*").in("id", ids);
+    for (const u of (data ?? []) as AppUser[]) langs.set(u.id, asLang(u.language));
+  }
   const rows = items.map((n) => ({
     user_id: n.userId,
     kind: n.kind,
-    title: n.title,
-    body: n.body ?? null,
+    title: pick(n.title, langs.get(n.userId) ?? "en"),
+    body: n.body === undefined ? null : pick(n.body, langs.get(n.userId) ?? "en"),
     link: n.link ?? null,
     dedupe_key: n.dedupeKey ?? null,
   }));
