@@ -2,51 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Activity,
-  Bell,
-  Bot,
-  CalendarDays,
-  ClipboardCheck,
-  DatabaseBackup,
-  GraduationCap,
-  House,
-  IndianRupee,
-  Layers,
-  Menu,
-  MessagesSquare,
-  PhoneCall,
-  ReceiptText,
-  ShieldCheck,
-  Trophy,
-  UserPlus,
-  Users,
-  LogOut,
-  type LucideIcon,
-} from "lucide-react";
-import type { NavIcon, NavItem } from "@/lib/nav";
+import { Bell, LogOut } from "lucide-react";
+import type { NavItem } from "@/lib/nav";
 import { Logo } from "./Logo";
+import { ICONS } from "./nav-icons";
 
-export const ICONS: Record<NavIcon, LucideIcon> = {
-  home: House,
-  students: Users,
-  register: UserPlus,
-  fees: IndianRupee,
-  calls: PhoneCall,
-  billing: ReceiptText,
-  attendance: ClipboardCheck,
-  timetable: CalendarDays,
-  ranks: Trophy,
-  groups: MessagesSquare,
-  assistant: Bot,
-  access: ShieldCheck,
-  batches: Layers,
-  activity: Activity,
-  promotion: GraduationCap,
-  backup: DatabaseBackup,
-  bell: Bell,
-  more: Menu,
-};
 
 function isActive(href: string, path: string) {
   if (href === "/") return path === "/";

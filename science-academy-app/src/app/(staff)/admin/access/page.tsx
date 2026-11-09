@@ -143,7 +143,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                       <form action={savePersonAccess} className="space-y-2">
                         <input type="hidden" name="user_id" value={p.id} />
                         <p className="text-[13px] font-bold text-navy">Access for {p.name} only</p>
-                        <div className="grid gap-x-6 gap-y-1.5 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 md:grid-cols-2">
                           {PERMISSION_KEYS.filter((k) => !isLocked(p.role, k)).map((k) => {
                             const base = roleValue(p.role, k, roleOverrides[p.role]);
                             const cur = mine[k];

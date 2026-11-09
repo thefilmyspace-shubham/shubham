@@ -109,7 +109,7 @@ export async function AdminHome({ viewer }: { viewer: StaffViewer }) {
         {feeData && <Stat label="Pending amount" value={rupeesShort(feeData.pendingTotal)} tone="danger" hint={`${feeData.owing.size} students`} href="/fees?status=pending" />}
         <Stat label="Attendance today" value={att.total ? `${att.pct}%` : "—"} tone="primary" hint={att.total ? `${att.present + att.late} of ${att.total} present` : "Not marked yet"} href="/attendance" />
       </div>
-      <div className="grid gap-x-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <div>
           <NeedsAttention items={items} />
           {feeData && <ReminderChainCard chain={chain} overdueStudents={[...feeData.owing.values()].filter((o) => o.overdue > 0).length} />}
@@ -170,7 +170,7 @@ export async function ReceptionHome({ viewer }: { viewer: StaffViewer }) {
           </Link>
         )}
       </div>
-      <div className="grid gap-x-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         {feeData && (
           <Section title="Parents to call today" action={<SectionLink href="/calls">Open call log</SectionLink>}>
             {due.length === 0 ? (
@@ -231,7 +231,7 @@ export async function ManagementHome({ viewer }: { viewer: StaffViewer }) {
         <Stat label="Low attendance" value={low.length} tone={low.length ? "warn" : "ok"} hint="Below 75% or 3 days absent" href="/attendance" />
         {feeData && <Stat label="Pending amount" value={rupeesShort(feeData.pendingTotal)} tone="danger" href="/fees" />}
       </div>
-      <div className="grid gap-x-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <div>
           <AttendanceTodayCard att={att} notMarked={notMarked} />
           <LowAttendanceList list={low} batches={bm} />
@@ -268,7 +268,7 @@ export async function FacultyHome({ viewer }: { viewer: StaffViewer }) {
         {mine.length === 0 ? (
           <Empty>No batches are assigned to you yet. Admin assigns batches in Batches & faculty.</Empty>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {mine.map((b) => {
               const meets = batchMeets(b.id, weekday, entries);
               const marked = att.markedBatches.has(b.id);
@@ -292,7 +292,7 @@ export async function FacultyHome({ viewer }: { viewer: StaffViewer }) {
           </div>
         )}
       </Section>
-      <div className="grid gap-x-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <TodayClasses entries={todayEntries} batches={bm} />
         <UpcomingTests tests={tests} batches={bm} title="Upcoming tests for my batches" />
       </div>

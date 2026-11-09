@@ -130,7 +130,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                       <h3 className="mb-2 text-sm font-bold text-muted">
                         Class {c} · {total} {total === 1 ? "student" : "students"}
                       </h3>
-                      <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                         {[...byBatch.keys()]
                           .sort((x, y) => label(x).localeCompare(label(y)))
                           .map((key) => (

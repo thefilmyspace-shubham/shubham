@@ -39,7 +39,7 @@ export default async function TestFormPage({ searchParams }: { searchParams: Pro
               </Banner>
             </div>
           )}
-          <form action={saveTest} className="grid gap-3 sm:grid-cols-2">
+          <form action={saveTest} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {test && <input type="hidden" name="id" value={test.id} />}
             <div className="sm:col-span-2">
               <label className="label" htmlFor="name">

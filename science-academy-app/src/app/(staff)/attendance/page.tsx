@@ -60,7 +60,7 @@ export default async function AttendancePage() {
             )}
             {[...groups].map(([title, list]) => (
               <Section key={title} title={title}>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {list.map((b) => {
                     const mine = students.filter((s) => s.batch_id === b.id);
                     const c = countStatuses(mine.map((s) => statusOf.get(s.id)));

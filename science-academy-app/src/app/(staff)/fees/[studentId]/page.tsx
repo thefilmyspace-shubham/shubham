@@ -55,7 +55,7 @@ export default async function StudentFeesPage({ params }: { params: Promise<{ st
           <Stat label="Paid (all bills)" value={rupees(totalPaid)} tone="ok" />
         </div>
 
-        <div className="grid gap-x-5 lg:grid-cols-[1fr_340px]">
+        <div className="grid grid-cols-1 gap-x-5 lg:grid-cols-[1fr_340px]">
           <div>
             <Section title="Ledger">
               {d.ledger.length === 0 ? (

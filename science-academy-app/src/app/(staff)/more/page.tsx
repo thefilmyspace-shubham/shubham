@@ -5,7 +5,7 @@ import { navFor } from "@/lib/nav";
 import { ROLE_LABEL } from "@/lib/permissions";
 import { unreadCount } from "@/lib/notifications";
 import { formatMobile } from "@/lib/ids";
-import { ICONS } from "@/components/StaffNav";
+import { ICONS } from "@/components/nav-icons";
 import { Card, Page, PageHeader, Section } from "@/components/ui";
 
 export const metadata = { title: "More" };

@@ -79,7 +79,7 @@ export function BillForm({
   const preview = billPreview(Number(fee), info?.paid ?? 0, Number(received));
 
   return (
-    <form action={submit} className="grid gap-5 lg:grid-cols-[1fr_340px]">
+    <form action={submit} className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
       <div className="space-y-4 rounded-card bg-card p-4 shadow-card lg:p-5">
         {/* Student */}
         <div>
@@ -145,7 +145,7 @@ export function BillForm({
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label>
             <span className="label">Fee month</span>
             <input type="month" name="month" className="field" value={month} onChange={(e) => {

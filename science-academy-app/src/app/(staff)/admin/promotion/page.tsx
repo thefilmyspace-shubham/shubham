@@ -49,7 +49,7 @@ export default async function PromotionPage({ searchParams }: { searchParams: Pr
 
         <Section title="1. Choose the class">
           <Card className="p-4">
-            <form className="grid gap-3 sm:grid-cols-4" method="get">
+            <form className="grid grid-cols-1 gap-3 sm:grid-cols-4" method="get">
               <div>
                 <label className="label" htmlFor="board">
                   Board

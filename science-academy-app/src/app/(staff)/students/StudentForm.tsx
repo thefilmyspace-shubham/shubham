@@ -115,7 +115,7 @@ export function StudentForm({
   };
 
   const relRow = (rel: GuardianRelation, label: string, nameField?: React.ReactNode) => (
-    <div className="grid gap-2 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {nameField}
       <div className={nameField ? "" : "sm:col-span-2"}>
         <label className="label" htmlFor={`${rel}_mobile`}>
@@ -186,11 +186,11 @@ export function StudentForm({
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_380px]">
         <div className={`space-y-4 ${step === 1 ? "block" : "hidden"} lg:block`}>
           <section className="rounded-card bg-card p-4 shadow-card">
             <h2 className="mb-3 text-[15px] font-bold text-navy">Student</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className="label" htmlFor="name">
                   Student name

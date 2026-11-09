@@ -77,7 +77,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
 
         {groups.map((g) => (
           <Section key={g.bucket} title={`${g.title} · ${g.items.length}`}>
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {g.items.map((e) => (
                 <CallCard key={e.studentId} e={e} today={today} showNumbers={showNumbers} canBill={can(viewer, "bills.create")} />
               ))}

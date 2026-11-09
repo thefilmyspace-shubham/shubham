@@ -159,7 +159,7 @@ export default async function StudentProfile({
           />
         </div>
 
-        <div className="grid gap-x-4 lg:grid-cols-[1fr_360px]">
+        <div className="grid grid-cols-1 gap-x-4 lg:grid-cols-[1fr_360px]">
           <div>
             <Section title="Recent tests">
               {numbers.results.length ? (
@@ -198,7 +198,7 @@ export default async function StudentProfile({
             <Section title="Attendance, last six months">
               <Card className="p-4">
                 <BarChart
-                  data={byMonth.map((m) => ({ label: monthShort(m.month), value: m.pct }))}
+                  data={byMonth.map((m) => ({ label: monthShort(m.month), value: m.total ? m.pct : null }))}
                   max={100}
                   format={(v) => `${v}%`}
                   color="var(--color-green)"

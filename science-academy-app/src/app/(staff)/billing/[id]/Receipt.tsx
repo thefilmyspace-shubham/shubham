@@ -31,7 +31,7 @@ export function Receipt({ inv, academy, qr, copy }: { inv: Invoice; academy: Aca
         </div>
       </div>
 
-      <div className="grid gap-x-6 gap-y-1.5 py-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-1.5 py-4 sm:grid-cols-2">
         <Field label="Student" value={inv.student_name} />
         <Field label="Student ID" value={inv.student_code} />
         <Field label="Class" value={`${inv.class} · ${boardName(inv.board)}`} />

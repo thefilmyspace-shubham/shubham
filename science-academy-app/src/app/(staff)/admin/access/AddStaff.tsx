@@ -7,7 +7,7 @@ import { addStaff, type ActionState } from "./actions";
 export function AddStaff() {
   const [state, action, pending] = useActionState<ActionState, FormData>(addStaff, { ok: false, message: null, at: 0 });
   return (
-    <form action={action} key={state.ok ? state.at : "form"} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <form action={action} key={state.ok ? state.at : "form"} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div>
         <label className="label" htmlFor="staff-role">Role</label>
         <select id="staff-role" name="role" className="field" defaultValue="faculty">

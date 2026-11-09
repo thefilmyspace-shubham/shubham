@@ -133,7 +133,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
             <Empty icon={CalendarDays}>{viewer.user.role === "faculty" ? "No batches are assigned to you yet." : "No batches yet. Admin adds them in Batches & faculty."}</Empty>
           </div>
         ) : (
-          <div className="grid gap-x-6 2xl:grid-cols-[1fr_400px]">
+          <div className="grid grid-cols-1 gap-x-6 2xl:grid-cols-[1fr_400px]">
             <div>
               <Section
                 title={batch ? `Weekly timetable · ${batchLabel(batch)}` : "Weekly timetable"}
@@ -159,7 +159,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
                   <Empty>No batch matches these filters.</Empty>
                 ) : (
                   <>
-                    <div className="grid gap-2 lg:grid-cols-7">
+                    <div className="grid grid-cols-1 gap-2 lg:grid-cols-7">
                       {WEEKDAYS.map((day, i) => {
                         const list = shownEntries.filter((e) => e.weekday === i + 1);
                         return (
