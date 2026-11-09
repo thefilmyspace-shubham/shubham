@@ -1,6 +1,4 @@
 import "server-only";
-import { testLoginCodeFor } from "./test-login";
-import { todayIst } from "./format";
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { adminClient } from "./supabase/admin";
 import { otpChannel, serviceRoleKey } from "./env";
@@ -83,7 +81,7 @@ async function loginNumberForEmail(email: string): Promise<string | null> {
 }
 
 export type SendResult =
-  | { ok: true; challenge: string; sentTo: string; channel: "email" | "sms"; devCode?: string; testMode?: boolean }
+  | { ok: true; challenge: string; sentTo: string; channel: "email" | "sms"; devCode?: string }
   | { ok: false; error: string; retryAfter?: number };
 
 /** `t` is the language of the login screen (error messages). */
@@ -106,9 +104,7 @@ export async function sendLoginCode(user: AppUser, t: TFn = translator("en"), no
   }
   if (sends.length >= MAX_SENDS_PER_HOUR) return { ok: false, error: t("core.otp.tooManySends") };
 
-  // Test login (testing group only, until a set date): the shared tester code, nothing is sent.
-  const testCode = testLoginCodeFor(user, todayIst(now));
-  const code = testCode ?? String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const { data: row, error } = await db
     .from("otp_codes")
     .insert({
@@ -120,7 +116,6 @@ export async function sendLoginCode(user: AppUser, t: TFn = translator("en"), no
     .single<{ id: string }>();
   if (error || !row) return { ok: false, error: t("core.otp.makeFailed") };
 
-  if (testCode) return { ok: true, challenge: row.id, sentTo: "", channel: otpChannel(), testMode: true };
   const sent = await deliverLoginCode(user, code, t);
   if (!sent.ok) {
     // Not delivered: drop the code so it does not hold up a retry.

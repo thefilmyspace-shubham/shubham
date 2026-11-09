@@ -28,7 +28,6 @@ export function LoginForm({ channel }: { channel: "email" | "sms" }) {
   const [challenge, setChallenge] = useState("");
   const [masked, setMasked] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
-  const [testMode, setTestMode] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +65,6 @@ export function LoginForm({ channel }: { channel: "email" | "sms" }) {
       setChallenge(data.challenge);
       setMasked(data.sentTo);
       setDevCode(data.devCode ?? null);
-      setTestMode(Boolean(data.testMode));
       setCode("");
       setStep("otp");
       setWait(RESEND_SECONDS);
@@ -187,13 +185,9 @@ export function LoginForm({ channel }: { channel: "email" | "sms" }) {
       className="space-y-4"
     >
       <div>
-        {testMode ? (
-          <p className="rounded-field bg-warn-soft px-3 py-2 text-sm font-semibold text-warn">{t("core.login.testMode")}</p>
-        ) : (
-          <p className="text-sm text-muted">
-            {channel === "email" ? t("core.login.sentEmail") : t("core.login.sentSms")} <span className="font-bold text-fg">{masked}</span>
-          </p>
-        )}
+        <p className="text-sm text-muted">
+          {channel === "email" ? t("core.login.sentEmail") : t("core.login.sentSms")} <span className="font-bold text-fg">{masked}</span>
+        </p>
         <button
           type="button"
           onClick={() => {
@@ -219,7 +213,7 @@ export function LoginForm({ channel }: { channel: "email" | "sms" }) {
           if (v.length === 6 && !busy) void verify(v);
         }}
       />
-      {channel === "email" && !testMode && <p className="-mt-2 text-xs text-muted">{t("core.login.checkSpam")}</p>}
+      {channel === "email" && <p className="-mt-2 text-xs text-muted">{t("core.login.checkSpam")}</p>}
       {devCode && (
         <p className="rounded-field bg-warn-soft px-3 py-2 text-xs font-semibold text-warn">
           {t("core.login.devMode", { code: devCode })}

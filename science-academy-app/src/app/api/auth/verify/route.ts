@@ -6,8 +6,6 @@ import { logActivity } from "@/lib/activity";
 import { resolvePermissions } from "@/lib/permissions";
 import { adminClient } from "@/lib/supabase/admin";
 import { LANG_COOKIE, asLang, isLang, translator } from "@/lib/i18n";
-import { testLoginCodeFor } from "@/lib/test-login";
-import { todayIst } from "@/lib/format";
 
 const Body = z.object({ challenge: z.string(), code: z.string().trim() });
 
@@ -32,7 +30,6 @@ export async function POST(req: NextRequest) {
     { user, sessionId: "", perms: resolvePermissions(user.role, {}, {}), ownBatchIds: null },
     "auth.login",
     { type: "user", id: user.id },
-    testLoginCodeFor(user, todayIst()) ? { test_login: true } : {},
   );
   return NextResponse.json({ ok: true, home: user.role === "parent" ? "/parent" : "/" });
 }
