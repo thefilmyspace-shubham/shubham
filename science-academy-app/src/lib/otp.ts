@@ -15,21 +15,23 @@ function hashCode(userId: string, code: string): string {
 }
 
 /**
- * Who is logging in. Staff type their ID (AD-01) or registered mobile;
- * parents type the registered login number of their child.
+ * Who is logging in. Staff type their email, staff ID (AD-01) or registered
+ * mobile; parents type their child's login number or the email given at
+ * registration.
  */
 export async function findLoginUser(role: Role, identifier: string): Promise<AppUser | null> {
   const db = adminClient();
+  const email = parseEmail(identifier);
   if (role !== "parent") {
-    const staffId = parseStaffId(identifier);
-    const mobile = normalizeMobile(identifier);
-    if (!staffId && !mobile) return null;
+    const staffId = email ? null : parseStaffId(identifier);
+    const mobile = email || staffId ? null : normalizeMobile(identifier);
+    if (!email && !staffId && !mobile) return null;
     let q = db.from("users").select("*").eq("role", role);
-    q = staffId ? q.eq("staff_id", staffId) : q.eq("mobile", mobile!);
-    const { data } = await q.maybeSingle<AppUser>();
+    q = email ? q.ilike("email", likeExact(email)) : staffId ? q.eq("staff_id", staffId) : q.eq("mobile", mobile!);
+    const { data } = await q.limit(1).maybeSingle<AppUser>();
     return data ?? null;
   }
-  const mobile = normalizeMobile(identifier);
+  const mobile = email ? await loginNumberForEmail(email) : normalizeMobile(identifier);
   if (!mobile) return null;
   const { data } = await db.from("users").select("*").eq("role", "parent").eq("mobile", mobile).maybeSingle<AppUser>();
   if (data) return data;
@@ -43,6 +45,38 @@ export async function findLoginUser(role: Role, identifier: string): Promise<App
     .limit(1)
     .maybeSingle<{ name: string | null }>();
   return link ? ensureParentUser(mobile, link.name ?? "Parent") : null;
+}
+
+/** "Name@Gmail.com " → "name@gmail.com"; null when it is not an email. */
+export function parseEmail(text: string): string | null {
+  const t = text.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t) ? t : null;
+}
+
+/** An exact, case-insensitive match for ilike (escapes its wildcards). */
+function likeExact(text: string): string {
+  return text.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/** The login number of the student registered with this parent email. */
+async function loginNumberForEmail(email: string): Promise<string | null> {
+  const db = adminClient();
+  const { data: kids } = await db
+    .from("students")
+    .select("id")
+    .ilike("email", likeExact(email))
+    .in("status", ["active", "passed_out"])
+    .limit(5);
+  const ids = ((kids ?? []) as { id: string }[]).map((k) => k.id);
+  if (!ids.length) return null;
+  const { data: g } = await db
+    .from("guardians")
+    .select("mobile")
+    .in("student_id", ids)
+    .eq("is_login_number", true)
+    .limit(1)
+    .maybeSingle<{ mobile: string }>();
+  return g?.mobile ?? null;
 }
 
 export type SendResult =

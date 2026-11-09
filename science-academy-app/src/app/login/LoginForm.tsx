@@ -7,11 +7,11 @@ import { ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness, Crown, Headset, Loa
 type RoleKey = "admin" | "management" | "reception" | "faculty" | "parent";
 
 const ROLES: { key: RoleKey; label: string; hint: string; icon: typeof Crown }[] = [
-  { key: "parent", label: "Parent / Guardian", hint: "Login number of your child", icon: Users },
-  { key: "faculty", label: "Faculty", hint: "FC-01 or mobile", icon: BookOpen },
-  { key: "reception", label: "Reception", hint: "RC-01 or mobile", icon: Headset },
-  { key: "management", label: "Management", hint: "MG-01 or mobile", icon: BriefcaseBusiness },
-  { key: "admin", label: "Admin", hint: "AD-01 or mobile", icon: Crown },
+  { key: "parent", label: "Parent / Guardian", hint: "Your child's login number or email", icon: Users },
+  { key: "faculty", label: "Faculty", hint: "Your email, staff ID or mobile", icon: BookOpen },
+  { key: "reception", label: "Reception", hint: "Your email, staff ID or mobile", icon: Headset },
+  { key: "management", label: "Management", hint: "Your email, staff ID or mobile", icon: BriefcaseBusiness },
+  { key: "admin", label: "Admin", hint: "Your email, staff ID or mobile", icon: Crown },
 ];
 
 const RESEND_SECONDS = 30;
@@ -137,28 +137,28 @@ export function LoginForm({ channel }: { channel: "email" | "sms" }) {
         </button>
         <div>
           <label className="label" htmlFor="identifier">
-            {parent ? "Registered mobile number" : "Staff ID or registered mobile"}
+            {parent ? "Login mobile number or email" : "Email, staff ID or mobile"}
           </label>
-          <div className="flex items-center gap-2">
-            {parent && <span className="rounded-field border border-line bg-field px-3 py-2.5 text-[15px] font-semibold text-muted">+91</span>}
-            <input
-              id="identifier"
-              className="field text-[16px]"
-              autoFocus
-              inputMode={parent ? "numeric" : "text"}
-              autoComplete={parent ? "tel-national" : "username"}
-              placeholder={parent ? "98765 43210" : roleInfo?.hint}
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-            />
-          </div>
-          {parent && (
+          <input
+            id="identifier"
+            className="field text-[16px]"
+            autoFocus
+            inputMode={parent && channel !== "email" ? "numeric" : "email"}
+            autoComplete={parent && channel !== "email" ? "tel-national" : "username"}
+            placeholder={parent ? "Mobile number or email" : "Type your email, ID or mobile"}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+          />
+          {parent ? (
             <p className="mt-1.5 text-xs text-muted">
-              Use the one number the academy chose as your login number at registration.
-              {channel === "email" ? " The code goes to the email you gave at registration." : ""}
+              Use the login number the academy chose at registration, or the email you gave.
+              {channel === "email" ? " The code is sent to that email." : ""}
+            </p>
+          ) : (
+            <p className="mt-1.5 text-xs text-muted">
+              {channel === "email" ? "The code is sent to your email saved with the academy." : "The code is sent to your registered mobile."}
             </p>
           )}
-          {!parent && channel === "email" && <p className="mt-1.5 text-xs text-muted">The code goes to your email saved with the academy.</p>}
         </div>
         {error && <p className="text-sm font-semibold text-danger">{error}</p>}
         <button className="btn btn-primary w-full py-3" disabled={busy || identifier.trim().length < 3 || wait > 0}>

@@ -3,12 +3,12 @@
 /**
  * Science Academy logo (public/brand, cut from the owner's logo file):
  * logo.png = mark + "SCIENCE ACADEMY / WE BELIEVE IN QUALITY",
- * logo-mark.png = the graduate mark only. Both have a transparent background
- * and are shown on white.
+ * logo-mark.png = the graduate mark only. Both are the original artwork on its
+ * own white background (no cut-out edges), so they always sit on white.
  */
 
-const FULL_RATIO = 1198 / 262;
-const MARK_RATIO = 357 / 393;
+const FULL_RATIO = 1821 / 417;
+const MARK_RATIO = 369 / 417;
 
 export function LogoMark({ size = 36 }: { size?: number }) {
   return (
