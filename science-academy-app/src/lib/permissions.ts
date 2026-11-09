@@ -125,6 +125,11 @@ export const PERMISSIONS = {
     defaults: d(true, true, true, true),
     parent: "No",
   },
+  "queries.reply": {
+    label: "Answer parent queries",
+    defaults: d(true, true, true, false),
+    parent: "Own child",
+  },
   "ai.ask": {
     label: "Ask the AI assistant",
     defaults: d(true, true, true, false),

@@ -16,6 +16,7 @@ export type NavIcon =
   | "ranks"
   | "groups"
   | "assistant"
+  | "queries"
   | "access"
   | "batches"
   | "activity"
@@ -45,6 +46,7 @@ export const NAV: NavItem[] = [
   { href: "/timetable", label: "core.nav.timetable", icon: "timetable", anyOf: [], section: "main" },
   { href: "/ranks", label: "core.nav.ranks", icon: "ranks", anyOf: ["ranks.view"], section: "main" },
   { href: "/groups", label: "core.nav.groups", icon: "groups", anyOf: ["groups.staff_chat", "groups.post_batch"], section: "main" },
+  { href: "/queries", label: "core.nav.queries", icon: "queries", anyOf: ["queries.reply"], section: "main" },
   { href: "/assistant", label: "core.nav.assistant", icon: "assistant", anyOf: ["ai.ask"], section: "main" },
   { href: "/admin/access", label: "core.nav.access", icon: "access", anyOf: ["admin.access"], section: "admin" },
   { href: "/admin/batches", label: "core.nav.batches", icon: "batches", anyOf: ["admin.access"], section: "admin" },

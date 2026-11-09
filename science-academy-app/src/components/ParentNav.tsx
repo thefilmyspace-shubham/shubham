@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, IndianRupee, MessagesSquare, Trophy } from "lucide-react";
+import { CalendarDays, IndianRupee, MessagesSquare, Trophy, MessageCircleQuestion } from "lucide-react";
 import type { DictKey } from "@/lib/i18n";
 import { useT } from "./I18nProvider";
 
@@ -11,6 +11,7 @@ const TABS: { href: string; label: DictKey; icon: typeof Trophy }[] = [
   { href: "/parent/fees", label: "core.parentNav.fees", icon: IndianRupee },
   { href: "/parent/marks", label: "core.parentNav.marks", icon: Trophy },
   { href: "/parent/timetable", label: "core.parentNav.timetable", icon: CalendarDays },
+  { href: "/parent/query", label: "groups.query.tab", icon: MessageCircleQuestion },
 ];
 
 /** Parent app bottom menu: Group, Fees, Marks, Timetable (bell is in the header). */
@@ -19,7 +20,7 @@ export function ParentNav() {
   const t = useT();
   return (
     <nav className="safe-bottom no-print fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/95 backdrop-blur">
-      <ul className="mx-auto grid max-w-lg grid-cols-4">
+      <ul className="mx-auto grid max-w-lg grid-cols-5">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = href === "/parent" ? path === "/parent" : path.startsWith(href);
           return (
