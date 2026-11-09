@@ -7,6 +7,8 @@ import { boardName, type Board } from "@/lib/ids";
 import type { Batch, Student } from "@/lib/types";
 import { Card, Chip, Empty, FilterChips, Page, PageHeader } from "@/components/ui";
 import { getT } from "@/lib/i18n/server";
+import { BulkBar, BulkCheck } from "@/components/BulkBar";
+import { deleteDrafts } from "./actions";
 
 export const metadata = { title: "Students" };
 
@@ -143,10 +145,15 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                               </div>
                               <ul className="divide-y divide-line">
                                 {byBatch.get(key)!.map((s) => (
-                                  <li key={s.id}>
+                                  <li key={s.id} className="flex items-center">
+                                    {canEdit && s.status === "draft" && (
+                                      <span className="pl-4">
+                                        <BulkCheck group="drafts" id={s.id} label={s.name} />
+                                      </span>
+                                    )}
                                     <Link
                                       href={s.status === "draft" ? `/students/${s.id}/edit` : `/students/${s.id}`}
-                                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-field"
+                                      className="flex min-w-0 flex-1 items-center gap-3 px-4 py-2.5 hover:bg-field"
                                     >
                                       <span className="min-w-0 flex-1">
                                         <span className="block truncate text-[14px] font-semibold">{s.name}</span>
@@ -171,6 +178,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             </section>
           ))
         )}
+        {canEdit && status === "draft" && <BulkBar group="drafts" action={deleteDrafts} />}
       </Page>
     </>
   );

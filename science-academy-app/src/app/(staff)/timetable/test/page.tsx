@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/SubmitButton";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, Trash2 } from "lucide-react";
@@ -110,7 +111,7 @@ export default async function TestFormPage({ searchParams }: { searchParams: Pro
               <input id="max_marks" type="number" step="0.5" min="1" name="max_marks" defaultValue={test?.max_marks ?? ""} placeholder="50" className="field" />
             </div>
             <div className="flex items-end gap-2 sm:col-span-2">
-              <button className="btn btn-primary flex-1">{test ? t("academics.tt.saveChanges") : t("academics.test.saveTest")}</button>
+              <SubmitButton className="btn btn-primary flex-1">{test ? t("academics.tt.saveChanges") : t("academics.test.saveTest")}</SubmitButton>
               <Link href="/timetable" className="btn btn-ghost">
                 {t("core.cancel")}
               </Link>
@@ -120,9 +121,9 @@ export default async function TestFormPage({ searchParams }: { searchParams: Pro
           {test && (
             <form action={deleteTest} className="mt-4 border-t border-line pt-4">
               <input type="hidden" name="id" value={test.id} />
-              <button className="btn btn-danger py-1.5 text-[13px]">
+              <SubmitButton className="btn btn-danger py-1.5 text-[13px]">
                 <Trash2 size={14} /> {t("academics.test.delete")}
-              </button>
+              </SubmitButton>
             </form>
           )}
         </Card>

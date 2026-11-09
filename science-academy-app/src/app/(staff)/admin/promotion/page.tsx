@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowRight, CheckCircle2, GraduationCap, TriangleAlert } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
@@ -164,9 +165,9 @@ export default async function PromotionPage({ searchParams }: { searchParams: Pr
                       <label className="flex items-center gap-2 text-sm font-semibold">
                         <input type="checkbox" name="confirm" className="h-4 w-4 accent-[var(--color-primary)]" /> {t("students.promo.checked")}
                       </label>
-                      <button className="btn btn-primary w-full sm:w-auto">
+                      <SubmitButton className="btn btn-primary w-full sm:w-auto">
                         <GraduationCap size={16} /> {t("students.promo.button", { n: students.length })}
-                      </button>
+                      </SubmitButton>
                     </form>
                   </Card>
                 </Section>

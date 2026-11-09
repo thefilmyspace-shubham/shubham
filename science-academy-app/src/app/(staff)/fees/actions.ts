@@ -1,5 +1,7 @@
 "use server";
 
+import { bulkResult, cleanIds } from "@/lib/bulk";
+import type { BulkResult } from "@/components/BulkBar";
 import { revalidatePath } from "next/cache";
 import { can, canSeeBatch, staffForApi } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
@@ -159,6 +161,18 @@ export async function deleteFeeRow(rowId: string): Promise<PlanResult> {
   });
   revalidatePath(`/fees/${row.student_id}`);
   return { ok: true };
+}
+
+/** Select many unpaid rows → delete. Rows with money or a bill are kept. */
+export async function deleteFeeRows(ids: string[]): Promise<BulkResult> {
+  let done = 0;
+  let skipped = 0;
+  for (const id of cleanIds(ids)) {
+    const res = await deleteFeeRow(id);
+    if (res.ok) done++;
+    else skipped++;
+  }
+  return bulkResult(done, skipped, "core.bulk.why.paid");
 }
 
 /**

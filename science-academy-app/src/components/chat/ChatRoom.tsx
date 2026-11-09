@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, CheckCheck, Eye, FileText, Info, LoaderCircle, Lock, MoreVertical, Paperclip, Send, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, CheckCheck, CheckSquare, Square, Eye, FileText, Info, LoaderCircle, Lock, MoreVertical, Paperclip, Send, Trash2, X } from "lucide-react";
 import { browserClient } from "@/lib/supabase/browser";
 import { dateTimeLabel, dayLabel, timeLabel, todayIst } from "@/lib/format";
 import { POST_TYPES, looksLikeFeeMessage } from "@/lib/groups";
 import { useT } from "@/components/I18nProvider";
 import type { ChatMessage, Reader } from "@/lib/groups-db";
 import type { MessageType } from "@/lib/types";
-import { deleteMessage, getSeenBy, markRead, sendMessage } from "./actions";
+import { deleteMessage, deleteMessages, getSeenBy, markRead, sendMessage } from "./actions";
 
 type Props = {
   groupId: string;
@@ -43,6 +43,30 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
   const [pending, start] = useTransition();
   const [live, setLive] = useState(false);
   const [menu, setMenu] = useState<ChatMessage | null>(null);
+  // Select mode: tap messages to pick several, then delete them together.
+  const [picked, setPicked] = useState<Set<string> | null>(null);
+  const [pickConfirm, setPickConfirm] = useState(false);
+  const [pickNote, setPickNote] = useState<string | null>(null);
+  const [deleting, startDelete] = useTransition();
+  const toggle = (id: string) =>
+    setPicked((cur) => {
+      const next = new Set(cur ?? []);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const deletable = messages.filter((m) => m.canDelete);
+  function deletePicked() {
+    if (!picked?.size) return;
+    const ids = [...picked];
+    startDelete(async () => {
+      const res = await deleteMessages(ids);
+      setPicked(null);
+      setPickConfirm(false);
+      setPickNote(res.message);
+      router.refresh();
+    });
+  }
 
   // New messages: realtime (RLS lets readers of this group see inserts); polling if that is not connected.
   useEffect(() => {
@@ -115,7 +139,12 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
                   </span>
                 </div>
               )}
-              <Bubble m={m} showSenderTag={showSenderTag} onOpen={actions ? () => setMenu(m) : undefined} />
+              <Bubble
+                m={m}
+                showSenderTag={showSenderTag}
+                onOpen={actions ? () => (picked ? m.canDelete && toggle(m.id) : setMenu(m)) : undefined}
+                pick={picked ? (m.canDelete ? picked.has(m.id) : "off") : undefined}
+              />
             </div>
           );
         })}
@@ -129,10 +158,50 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
             setMenu(null);
             router.refresh();
           }}
+          onSelect={() => {
+            setPicked(new Set([menu.id]));
+            setPickNote(null);
+            setMenu(null);
+          }}
         />
       )}
 
-      {composer ? (
+      {pickNote && !picked && (
+        <div className="sticky bottom-0 z-10 flex items-center gap-2 border-t border-line bg-card px-4 py-2.5 text-[13px] font-semibold text-fg">
+          <span className="flex-1">{pickNote}</span>
+          <button type="button" onClick={() => setPickNote(null)} className="grid h-7 w-7 place-items-center rounded-full hover:bg-field" aria-label={t("core.close")}>
+            <X size={15} />
+          </button>
+        </div>
+      )}
+      {picked ? (
+        <div className="safe-bottom sticky bottom-0 z-10 flex flex-wrap items-center gap-2 border-t border-line bg-navy px-4 py-3 text-white lg:rounded-b-card">
+          {pickConfirm ? (
+            <>
+              <p className="min-w-0 flex-1 text-[13px] font-semibold">{t("core.bulk.confirm", { n: picked.size })}</p>
+              <button type="button" className="btn bg-white/15 py-1.5 text-[13px] text-white" onClick={() => setPickConfirm(false)} disabled={deleting}>
+                {t("core.bulk.keep")}
+              </button>
+              <button type="button" className="btn bg-danger py-1.5 text-[13px] text-white" onClick={deletePicked} disabled={deleting}>
+                {deleting ? <LoaderCircle size={15} className="animate-spin" /> : <Trash2 size={15} />} {t("core.bulk.deleteN", { n: picked.size })}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/10" onClick={() => setPicked(null)} aria-label={t("core.bulk.clear")}>
+                <X size={18} />
+              </button>
+              <p className="min-w-0 flex-1 text-sm font-bold">{t("core.bulk.selected", { n: picked.size })}</p>
+              <button type="button" className="btn bg-white/15 px-2.5 py-1.5 text-[13px] text-white" onClick={() => setPicked(new Set(deletable.map((m) => m.id)))}>
+                <CheckSquare size={15} /> {t("core.bulk.selectAll")}
+              </button>
+              <button type="button" className="btn bg-danger py-1.5 text-[13px] text-white disabled:opacity-50" disabled={!picked.size} onClick={() => setPickConfirm(true)}>
+                <Trash2 size={15} /> {t("core.bulk.delete")}
+              </button>
+            </>
+          )}
+        </div>
+      ) : composer ? (
         <form onSubmit={submit} className="safe-bottom sticky bottom-0 z-10 border-t border-line bg-card px-3 pt-2 pb-2 lg:rounded-b-card">
           <p className={`mb-2 flex items-start gap-1.5 text-[12px] font-semibold ${composer.kind === "batch" ? "text-warn" : "text-muted"}`}>
             {composer.kind === "batch" ? <AlertTriangle size={14} className="mt-px shrink-0" /> : <Info size={14} className="mt-px shrink-0" />}
@@ -217,11 +286,17 @@ export function ChatRoom({ groupId, messages, composer, readOnlyText, showSender
   );
 }
 
-function Bubble({ m, showSenderTag, onOpen }: { m: ChatMessage; showSenderTag: boolean; onOpen?: () => void }) {
+function Bubble({ m, showSenderTag, onOpen, pick }: { m: ChatMessage; showSenderTag: boolean; onOpen?: () => void; pick?: boolean | "off" }) {
   const t = useT();
+  const picking = pick !== undefined;
   return (
-    <div className={`group flex items-center gap-1 ${m.mine ? "justify-end" : "justify-start"}`}>
-      {onOpen && m.mine && <MenuButton onOpen={onOpen} />}
+    <div className={`group flex items-center gap-1 ${m.mine ? "justify-end" : "justify-start"} ${pick === "off" ? "opacity-45" : ""} ${pick === true ? "rounded-xl bg-primary/10" : ""}`}>
+      {picking && pick !== "off" && (
+        <button type="button" onClick={onOpen} className={`shrink-0 ${pick ? "text-primary" : "text-faint"} ${m.mine ? "order-first mr-auto" : ""}`} aria-pressed={pick === true} aria-label={t("core.bulk.select")}>
+          {pick ? <CheckSquare size={20} /> : <Square size={20} />}
+        </button>
+      )}
+      {!picking && onOpen && m.mine && <MenuButton onOpen={onOpen} />}
       <div
         onClick={(e) => {
           if (!onOpen || (e.target as HTMLElement).closest("a")) return;
@@ -271,7 +346,7 @@ function Bubble({ m, showSenderTag, onOpen }: { m: ChatMessage; showSenderTag: b
           {m.ticks === 3 && <CheckCheck size={13} className="text-seen" aria-label={t("groups.seenAll")} />}
         </div>
       </div>
-      {onOpen && !m.mine && <MenuButton onOpen={onOpen} />}
+      {!picking && onOpen && !m.mine && <MenuButton onOpen={onOpen} />}
     </div>
   );
 }
@@ -293,7 +368,7 @@ function MenuButton({ onOpen }: { onOpen: () => void }) {
 type SeenBy = { seen: Reader[]; notSeen: Reader[]; audience: "parents" | "staff" };
 
 /** Tapped message: who has seen it, and Delete (own messages; Admin any). */
-function MessageSheet({ m, onClose, onDeleted }: { m: ChatMessage; onClose: () => void; onDeleted: () => void }) {
+function MessageSheet({ m, onClose, onDeleted, onSelect }: { m: ChatMessage; onClose: () => void; onDeleted: () => void; onSelect: () => void }) {
   const [data, setData] = useState<SeenBy | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirm, setConfirm] = useState(false);
@@ -385,9 +460,14 @@ function MessageSheet({ m, onClose, onDeleted }: { m: ChatMessage; onClose: () =
           <div className="border-t border-line px-5 py-3">
             {error && <p className="mb-2 text-[12.5px] font-semibold text-danger">{error}</p>}
             {!confirm ? (
-              <button type="button" onClick={() => setConfirm(true)} className="btn btn-danger w-full">
-                <Trash2 size={16} /> {t("groups.deleteMsg")}
-              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={onSelect} className="btn btn-ghost flex-1">
+                  <CheckSquare size={16} /> {t("groups.selectMany")}
+                </button>
+                <button type="button" onClick={() => setConfirm(true)} className="btn btn-danger flex-1">
+                  <Trash2 size={16} /> {t("groups.deleteMsg")}
+                </button>
+              </div>
             ) : (
               <div className="space-y-2">
                 <p className="text-[13px] font-semibold text-fg">{t("groups.deleteConfirm")}</p>

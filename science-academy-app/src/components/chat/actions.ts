@@ -1,11 +1,13 @@
 "use server";
 
-import { getViewer, staffForApi } from "@/lib/auth";
+import { getViewer, staffForApi, type StaffViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { groupFor, batchParentIds, markGroupRead, messageReaders, type Reader } from "@/lib/groups-db";
 import { canDeleteMessage, looksLikeFeeMessage } from "@/lib/groups";
 import { getT } from "@/lib/i18n/server";
-import { all } from "@/lib/i18n";
+import { all, type TFn } from "@/lib/i18n";
+import { bulkResult, cleanIds } from "@/lib/bulk";
+import type { BulkResult } from "@/components/BulkBar";
 import { saveFile } from "@/lib/storage";
 import { notify } from "@/lib/notify";
 import { logActivity } from "@/lib/activity";
@@ -112,6 +114,25 @@ export async function deleteMessage(messageId: string): Promise<SendResult> {
   const { t } = await getT();
   const viewer = await staffForApi();
   if (!viewer) return { ok: false, error: t("groups.err.login") };
+  return removeMessage(viewer, messageId, t);
+}
+
+/** Select many → delete. Each one follows the same rule (own; Admin any). */
+export async function deleteMessages(ids: string[]): Promise<BulkResult> {
+  const { t } = await getT();
+  const viewer = await staffForApi();
+  if (!viewer) return { ok: false, message: t("groups.err.login") };
+  let done = 0;
+  let skipped = 0;
+  for (const id of cleanIds(ids)) {
+    const res = await removeMessage(viewer, id, t);
+    if (res.ok) done++;
+    else skipped++;
+  }
+  return bulkResult(done, skipped, "core.bulk.why.notYours");
+}
+
+async function removeMessage(viewer: StaffViewer, messageId: string, t: TFn): Promise<SendResult> {
   if (!/^[0-9a-f-]{36}$/i.test(messageId)) return { ok: false, error: t("groups.err.notFound") };
   const db = adminClient();
   const { data: msg } = await db.from("messages").select("*").eq("id", messageId).maybeSingle<{

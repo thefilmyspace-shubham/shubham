@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
+import { bulkResult, cleanIds } from "@/lib/bulk";
+import type { BulkResult } from "@/components/BulkBar";
 
 /** Opens a notification: marks it read and goes to its page. */
 export async function openNotification(formData: FormData) {
@@ -33,4 +35,15 @@ export async function markAllRead() {
     .eq("user_id", viewer.user.id)
     .is("read_at", null);
   revalidatePath("/", "layout");
+}
+
+/** Select many → delete (only the person's own notifications). */
+export async function deleteNotifications(ids: string[]): Promise<BulkResult> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  const list = cleanIds(ids);
+  if (!list.length) return bulkResult(0);
+  const { data } = await adminClient().from("notifications").delete().in("id", list).eq("user_id", viewer.user.id).select("id");
+  revalidatePath("/", "layout");
+  return bulkResult(data?.length ?? 0);
 }

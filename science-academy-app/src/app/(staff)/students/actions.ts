@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { otpChannel } from "@/lib/env";
 import { getT } from "@/lib/i18n/server";
 import { redirect } from "next/navigation";
-import { canSeeStudent, requirePermission, requireStaff } from "@/lib/auth";
+import { can, canSeeStudent, requirePermission, requireStaff } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
 import { logActivity } from "@/lib/activity";
 import { ensureParentUser } from "@/lib/notify";
@@ -21,6 +21,8 @@ import {
   type ParsedRegistration,
 } from "@/lib/students";
 import type { Batch, Marksheet, Student } from "@/lib/types";
+import { bulkResult, cleanIds, noAccess } from "@/lib/bulk";
+import type { BulkResult } from "@/components/BulkBar";
 
 export type SaveState = { errors?: FieldErrors; message?: string } | null;
 
@@ -313,4 +315,28 @@ export async function markActive(form: FormData) {
   await logActivity(viewer, "student.edit", { type: "student", id: student.id }, { code: student.code, restored: true });
   revalidatePath(`/students/${student.id}`);
   redirect(`/students/${student.id}`);
+}
+
+/** Select many drafts → delete. Only drafts (never registered, no roll number). */
+export async function deleteDrafts(ids: string[]): Promise<BulkResult> {
+  const viewer = await requireStaff();
+  if (!can(viewer, "students.edit")) return noAccess();
+  const list = cleanIds(ids);
+  if (!list.length) return bulkResult(0);
+  const db = adminClient();
+  const { data: files } = await db.from("marksheets").select("file_path").in("student_id", list);
+  const { data } = await db.from("students").delete().in("id", list).eq("status", "draft").is("roll_number", null).select("id, name");
+  const gone = (data ?? []) as { id: string; name: string }[];
+  const goneIds = new Set(gone.map((d) => d.id));
+  const paths = ((files ?? []) as { file_path: string | null }[]).map((f) => f.file_path).filter((p): p is string => Boolean(p));
+  if (gone.length && paths.length) {
+    // Only files of drafts that were really deleted (their marksheet rows went with them).
+    const { data: left } = await db.from("marksheets").select("file_path").in("file_path", paths);
+    const still = new Set(((left ?? []) as { file_path: string }[]).map((f) => f.file_path));
+    const remove = paths.filter((p) => !still.has(p));
+    if (remove.length) await db.storage.from("marksheets").remove(remove).catch(() => null);
+  }
+  for (const d of gone) await logActivity(viewer, "student.edit", { type: "student", id: d.id }, { deleted_draft: d.name });
+  revalidatePath("/students");
+  return bulkResult(goneIds.size, list.length - goneIds.size);
 }

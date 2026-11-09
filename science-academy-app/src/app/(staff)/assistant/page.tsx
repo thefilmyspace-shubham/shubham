@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/SubmitButton";
 import { Bot, CheckCircle2, Download, Eye, Info, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { requirePermission, can } from "@/lib/auth";
 import { assistantClient, conversation, type AiMessage } from "@/lib/assistant/chat";
@@ -38,9 +39,9 @@ export default async function AssistantPage() {
         right={
           messages.length > 0 ? (
             <form action={clearConversation}>
-              <button className="btn btn-ghost px-2.5 py-1.5 text-[13px]" title={t("admin.ai.clearTitle")}>
+              <SubmitButton className="btn btn-ghost px-2.5 py-1.5 text-[13px]" title={t("admin.ai.clearTitle")}>
                 <Trash2 size={15} /> <span className="hidden sm:inline">{t("admin.ai.clear")}</span>
-              </button>
+              </SubmitButton>
             </form>
           ) : null
         }
@@ -164,15 +165,15 @@ function ActionCard({ action, canAct, t }: { action: AiActionRow; canAct: boolea
         <div className="mt-3 flex gap-2">
           <form action={confirmAiAction} className="flex-1">
             <input type="hidden" name="id" value={action.id} />
-            <button className="btn btn-green w-full">
+            <SubmitButton className="btn btn-green w-full">
               <CheckCircle2 size={16} /> {t("admin.ai.confirmSend")}
-            </button>
+            </SubmitButton>
           </form>
           <form action={cancelAiAction}>
             <input type="hidden" name="id" value={action.id} />
-            <button className="btn btn-ghost">
+            <SubmitButton className="btn btn-ghost">
               <XCircle size={16} /> {t("core.cancel")}
-            </button>
+            </SubmitButton>
           </form>
         </div>
       ) : (

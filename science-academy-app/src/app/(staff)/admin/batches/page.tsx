@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/SubmitButton";
 import { Layers, Pencil, X } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
@@ -108,7 +109,7 @@ export default async function BatchesPage() {
                               <input name="subject" className="field" placeholder="Physics" />
                             </div>
                             <div className="col-span-2 flex items-end md:col-span-1">
-                              <button className="btn btn-soft w-full">{t("admin.batches.assign")}</button>
+                              <SubmitButton className="btn btn-soft w-full">{t("admin.batches.assign")}</SubmitButton>
                             </div>
                           </form>
                         )}
@@ -119,10 +120,10 @@ export default async function BatchesPage() {
                             n > 0 ? (
                               <p className="text-[12.5px] text-muted">{t("admin.batches.moveFirst", { n })}</p>
                             ) : (
-                              <button className="btn btn-danger py-1.5 text-[13px]">{t("admin.batches.makeInactive")}</button>
+                              <SubmitButton className="btn btn-danger py-1.5 text-[13px]">{t("admin.batches.makeInactive")}</SubmitButton>
                             )
                           ) : (
-                            <button className="btn btn-green py-1.5 text-[13px]">{t("admin.batches.makeActive")}</button>
+                            <SubmitButton className="btn btn-green py-1.5 text-[13px]">{t("admin.batches.makeActive")}</SubmitButton>
                           )}
                         </form>
                       </div>

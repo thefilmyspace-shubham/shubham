@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/SubmitButton";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth";
 import { sessionYearFor } from "@/lib/ids";
@@ -49,14 +50,14 @@ export default async function EditStudentPage({
           <form action={markLeft} className="mt-6 flex items-center justify-between gap-3 rounded-card border border-danger-line bg-card p-4">
             <input type="hidden" name="student_id" value={student.id} />
             <p className="text-sm text-muted">{t("students.edit.leftQ")}</p>
-            <button className="btn btn-danger shrink-0">{t("students.edit.markLeft")}</button>
+            <SubmitButton className="btn btn-danger shrink-0">{t("students.edit.markLeft")}</SubmitButton>
           </form>
         )}
         {student.status === "left" && (
           <form action={markActive} className="mt-6 flex items-center justify-between gap-3 rounded-card bg-card p-4 shadow-card">
             <input type="hidden" name="student_id" value={student.id} />
             <p className="text-sm text-muted">{t("students.edit.isLeft")}</p>
-            <button className="btn btn-soft shrink-0">{t("students.edit.markActive")}</button>
+            <SubmitButton className="btn btn-soft shrink-0">{t("students.edit.markActive")}</SubmitButton>
           </form>
         )}
       </Page>

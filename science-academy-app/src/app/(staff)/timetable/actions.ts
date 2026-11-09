@@ -9,6 +9,8 @@ import { logActivity } from "@/lib/activity";
 import { ensureParentUser, notify } from "@/lib/notify";
 import type { Batch, Test } from "@/lib/types";
 import { all } from "@/lib/i18n";
+import { bulkResult, cleanIds, noAccess } from "@/lib/bulk";
+import type { BulkResult } from "@/components/BulkBar";
 
 async function editor(): Promise<StaffViewer> {
   const viewer = await requireStaff();
@@ -51,6 +53,19 @@ export async function saveEntry(form: FormData) {
     faculty_id: e.faculty_id || null,
     tag: e.tag,
   };
+  // The same class at the same time on the same day is not added twice (double Save).
+  if (!e.id) {
+    const { data: same } = await db
+      .from("timetable_entries")
+      .select("id")
+      .eq("batch_id", row.batch_id)
+      .eq("weekday", row.weekday)
+      .eq("start_time", row.start_time)
+      .eq("subject", row.subject)
+      .limit(1)
+      .maybeSingle();
+    if (same) redirect(`/timetable?batch=${e.batch_id}&saved=timetable`);
+  }
   const { data, error } = e.id
     ? await db.from("timetable_entries").update(row).eq("id", e.id).select("id").single()
     : await db.from("timetable_entries").insert(row).select("id").single();
@@ -112,6 +127,21 @@ export async function saveTest(form: FormData) {
     max_marks: t.max_marks === "" || t.max_marks === undefined ? null : t.max_marks,
   };
   const db = adminClient();
+  // Pressed Save twice (slow network): the same new test within 2 minutes is not made again.
+  if (!t.id) {
+    let dup = db
+      .from("tests")
+      .select("id")
+      .eq("name", row.name)
+      .eq("board", row.board)
+      .eq("class", row.class)
+      .eq("date", row.date)
+      .eq("created_by", viewer.user.id)
+      .gte("created_at", new Date(Date.now() - 120_000).toISOString());
+    dup = row.batch_id ? dup.eq("batch_id", row.batch_id) : dup.is("batch_id", null);
+    const { data: same } = await dup.limit(1).maybeSingle<{ id: string }>();
+    if (same) redirect(`/timetable?board=${target.board}&class=${target.class}&saved=test&test=${same.id}`);
+  }
   const { data, error } = t.id
     ? await db.from("tests").update(row).eq("id", t.id).select("id").single()
     : await db.from("tests").insert({ ...row, created_by: viewer.user.id }).select("id").single();
@@ -134,6 +164,39 @@ export async function deleteTest(form: FormData) {
   if (data) await logActivity(viewer, "test.delete", { type: "test", id }, { name: data.name, date: data.date, board: data.board, class: data.class });
   revalidatePath("/timetable");
   redirect("/timetable?saved=deleted");
+}
+
+/** Select many → delete. Tests with marks are kept (they feed ranks and profiles). */
+export async function deleteTests(ids: string[]): Promise<BulkResult> {
+  const viewer = await requireStaff();
+  if (!can(viewer, "academics.edit")) return noAccess();
+  const list = cleanIds(ids);
+  if (!list.length) return bulkResult(0);
+  const db = adminClient();
+  const { data: marked } = await db.from("marks").select("test_id").in("test_id", list);
+  const keep = new Set(((marked ?? []) as { test_id: string }[]).map((m) => m.test_id));
+  const go = list.filter((id) => !keep.has(id));
+  const { data } = go.length ? await db.from("tests").delete().in("id", go).select("*") : { data: [] };
+  for (const x of (data ?? []) as Test[]) {
+    await logActivity(viewer, "test.delete", { type: "test", id: x.id }, { name: x.name, date: x.date, board: x.board, class: x.class, bulk: true });
+  }
+  revalidatePath("/timetable");
+  revalidatePath("/ranks");
+  return bulkResult(data?.length ?? 0, keep.size, "core.bulk.why.marks");
+}
+
+/** Select many weekly classes → delete. */
+export async function deleteEntries(ids: string[]): Promise<BulkResult> {
+  const viewer = await requireStaff();
+  if (!can(viewer, "academics.edit")) return noAccess();
+  const list = cleanIds(ids);
+  if (!list.length) return bulkResult(0);
+  const { data } = await adminClient().from("timetable_entries").delete().in("id", list).select("*");
+  for (const row of (data ?? []) as { id: string }[]) {
+    await logActivity(viewer, "timetable.save", { type: "timetable_entry", id: row.id }, { deleted: row, bulk: true });
+  }
+  revalidatePath("/timetable");
+  return bulkResult(data?.length ?? 0);
 }
 
 // ---------------------------------------------------------------------------

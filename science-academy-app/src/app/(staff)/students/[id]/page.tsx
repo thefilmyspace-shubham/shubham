@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/SubmitButton";
 import { DueDateEdit } from "../../fees/DueDateEdit";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -233,9 +234,9 @@ export default async function StudentProfile({
                   <form action={addFacultyNote} className="flex flex-col gap-2 p-3 sm:flex-row">
                     <input type="hidden" name="student_id" value={student.id} />
                     <textarea name="note" rows={2} required maxLength={1000} className="field flex-1 resize-none" placeholder={t("students.prof.notePh")} />
-                    <button className="btn btn-soft self-end">
+                    <SubmitButton className="btn btn-soft self-end">
                       <NotebookPen size={15} /> {t("students.prof.addNote")}
-                    </button>
+                    </SubmitButton>
                   </form>
                 )}
               </Card>
@@ -331,9 +332,9 @@ export default async function StudentProfile({
                           {canEdit && m.file_path && m.ai_check_result !== "matched" && (
                             <form action={recheckMarksheet}>
                               <input type="hidden" name="marksheet_id" value={m.id} />
-                              <button className="flex items-center gap-1 text-xs font-bold text-primary">
+                              <SubmitButton className="flex items-center gap-1 text-xs font-bold text-primary">
                                 <RefreshCw size={12} /> {t("students.prof.checkAgain")}
-                              </button>
+                              </SubmitButton>
                             </form>
                           )}
                           {canEdit && (

@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/SubmitButton";
 import Link from "next/link";
 import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Megaphone, Pencil, Plus, Trash2 } from "lucide-react";
 import { can, requireStaff } from "@/lib/auth";
@@ -7,7 +8,8 @@ import { WEEKDAYS, addDays, clockLabel, dayLabel, todayIst } from "@/lib/format"
 import { clashKey, facultyNames, findClashes, testsForBatches, timeInput, timetableOf } from "@/lib/academics";
 import type { Tag, Test, TimetableEntry } from "@/lib/types";
 import { Banner, Card, Chip, Empty, FilterChips, Page, PageHeader, Section } from "@/components/ui";
-import { deleteEntry, saveEntry } from "./actions";
+import { deleteEntries, deleteEntry, deleteTests, saveEntry } from "./actions";
+import { BulkBar, BulkCheck } from "@/components/BulkBar";
 import { getT } from "@/lib/i18n/server";
 import type { DictKey, TFn } from "@/lib/i18n";
 
@@ -218,7 +220,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
                 ) : (
                   <Card className="divide-y divide-line">
                     {upcoming.map((x) => (
-                      <TestRow key={x.id} test={x} batchName={x.batch_id ? (bmap.get(x.batch_id) ? batchShort(bmap.get(x.batch_id)!) : t("academics.batch")) : t("academics.wholeClass")} clash={clashes.has(clashKey(x))} canEdit={canEdit} canPost={canPost} canMarks={false} t={t} />
+                      <TestRow key={x.id} test={x} batchName={x.batch_id ? (bmap.get(x.batch_id) ? batchShort(bmap.get(x.batch_id)!) : t("academics.batch")) : t("academics.wholeClass")} clash={clashes.has(clashKey(x))} canEdit={canEdit} canPost={canPost} canMarks={false} selectable={canEdit} t={t} />
                     ))}
                   </Card>
                 )}
@@ -239,6 +241,12 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
             </div>
           </div>
         )}
+        {canEdit && (
+          <>
+            <BulkBar group="tests" action={deleteTests} />
+            <BulkBar group="entries" action={deleteEntries} />
+          </>
+        )}
       </Page>
     </>
   );
@@ -255,6 +263,7 @@ function TestRow({
   canEdit,
   canPost,
   canMarks,
+  selectable = false,
   t,
 }: {
   test: Test;
@@ -263,12 +272,18 @@ function TestRow({
   canEdit: boolean;
   canPost: boolean;
   canMarks: boolean;
+  selectable?: boolean;
   t: TFn;
 }) {
   const x = test;
   return (
     <div className="px-4 py-3">
       <div className="flex items-start gap-2">
+        {selectable && (
+          <span className="pt-0.5">
+            <BulkCheck group="tests" id={x.id} label={x.name} />
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <p className="font-bold text-navy">{x.name}</p>
           <p className="text-xs text-muted">
@@ -299,10 +314,13 @@ function TestRow({
 function EntryItem({ e, faculty, canEdit, facultyList, t }: { e: TimetableEntry; faculty?: string; canEdit: boolean; facultyList: Map<string, string>; t: TFn }) {
   return (
     <li className="rounded-field bg-field px-2.5 py-2">
-      <p className="text-[11.5px] font-bold text-muted">
-        {clockLabel(e.start_time)}
-        {e.end_time ? `–${clockLabel(e.end_time)}` : ""}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11.5px] font-bold text-muted">
+          {clockLabel(e.start_time)}
+          {e.end_time ? `–${clockLabel(e.end_time)}` : ""}
+        </p>
+        {canEdit && <BulkCheck group="entries" id={e.id} label={e.subject} />}
+      </div>
       <p className="text-[13.5px] font-bold">{e.subject}</p>
       <div className="mt-0.5 flex flex-wrap items-center gap-1">
         {faculty && <span className="text-[11.5px] text-muted">{faculty}</span>}
@@ -316,9 +334,9 @@ function EntryItem({ e, faculty, canEdit, facultyList, t }: { e: TimetableEntry;
           <EntryForm batchId={e.batch_id} entry={e} facultyList={facultyList} t={t} />
           <form action={deleteEntry} className="mt-2">
             <input type="hidden" name="id" value={e.id} />
-            <button className="btn btn-danger w-full py-1.5 text-[12px]">
+            <SubmitButton className="btn btn-danger w-full py-1.5 text-[12px]">
               <Trash2 size={13} /> {t("academics.tt.remove")}
-            </button>
+            </SubmitButton>
           </form>
         </details>
       )}
@@ -371,7 +389,7 @@ function EntryForm({ batchId, entry, facultyList, t }: { batchId: string; entry?
           <option value="School">{t("academics.tag.School")}</option>
         </select>
       </div>
-      <button className="btn btn-primary sm:col-span-2">{entry ? t("academics.tt.saveChanges") : t("academics.tt.addClass")}</button>
+      <SubmitButton className="btn btn-primary sm:col-span-2">{entry ? t("academics.tt.saveChanges") : t("academics.tt.addClass")}</SubmitButton>
     </form>
   );
 }

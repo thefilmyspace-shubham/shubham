@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/SubmitButton";
 import { notFound } from "next/navigation";
 import { AlertTriangle, Megaphone } from "lucide-react";
 import { can, requireStaff } from "@/lib/auth";
@@ -98,9 +99,9 @@ export default async function PostPage({ searchParams }: { searchParams: Promise
                 </div>
               )}
             </fieldset>
-            <button className="btn btn-primary w-full" disabled={targets.length === 0}>
+            <SubmitButton className="btn btn-primary w-full" disabled={targets.length === 0}>
               <Megaphone size={16} /> {kind === "test" ? t("academics.post.asTest") : t("academics.post.asTimetable")}
-            </button>
+            </SubmitButton>
           </form>
         </Card>
       </Page>

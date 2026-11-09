@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/SubmitButton";
 import { LogOut, ShieldCheck, UserCheck, UserX } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
@@ -156,21 +157,21 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                           <input type="hidden" name="user_id" value={p.id} />
                           <input type="hidden" name="suspend" value={p.status === "active" ? "1" : "0"} />
                           {p.status === "active" ? (
-                            <button className="btn btn-danger py-1.5 text-[13px]">
+                            <SubmitButton className="btn btn-danger py-1.5 text-[13px]">
                               <UserX size={15} /> {t("admin.access.suspend")}
-                            </button>
+                            </SubmitButton>
                           ) : (
-                            <button className="btn btn-green py-1.5 text-[13px]">
+                            <SubmitButton className="btn btn-green py-1.5 text-[13px]">
                               <UserCheck size={15} /> {t("admin.access.restore")}
-                            </button>
+                            </SubmitButton>
                           )}
                         </form>
                       )}
                       <form action={logoutEverywhere}>
                         <input type="hidden" name="user_id" value={p.id} />
-                        <button className="btn btn-ghost py-1.5 text-[13px]">
+                        <SubmitButton className="btn btn-ghost py-1.5 text-[13px]">
                           <LogOut size={15} /> {t("admin.access.logoutAll")}
-                        </button>
+                        </SubmitButton>
                       </form>
                     </div>
                     <form action={updateStaffContact} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_150px_1fr_auto]">
@@ -187,7 +188,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                         <label className="label">{t("admin.access.emailCode")}</label>
                         <input name="email" type="email" defaultValue={p.email ?? ""} className="field py-1.5 text-[14px]" />
                       </div>
-                      <button className="btn btn-ghost py-1.5 text-[13px]">{t("admin.access.saveDetails")}</button>
+                      <SubmitButton className="btn btn-ghost py-1.5 text-[13px]">{t("admin.access.saveDetails")}</SubmitButton>
                     </form>
                     {p.role === "admin" ? (
                       <p className="text-[13px] text-muted">{t("admin.access.adminAll")}</p>
@@ -211,7 +212,7 @@ export default async function AccessPage({ searchParams }: { searchParams: Promi
                             );
                           })}
                         </div>
-                        <button className="btn btn-primary py-1.5 text-[13px]">{t("admin.access.saveFor", { name: p.name.split(" ")[0] })}</button>
+                        <SubmitButton className="btn btn-primary py-1.5 text-[13px]">{t("admin.access.saveFor", { name: p.name.split(" ")[0] })}</SubmitButton>
                       </form>
                     )}
                   </div>

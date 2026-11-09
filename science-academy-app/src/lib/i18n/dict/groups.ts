@@ -105,6 +105,7 @@ export const en = {
   "groups.query.notifyStaffTitle": "New query from {parent}",
   "groups.query.notifyParentTitle": "Reply from Science Academy",
   "groups.query.fileOnly": "Sent a file",
+  "groups.selectMany": "Select many",
 } satisfies Record<string, string>;
 
 export const hi: Record<keyof typeof en, string> = {
@@ -211,6 +212,7 @@ export const hi: Record<keyof typeof en, string> = {
   "groups.query.notifyStaffTitle": "{parent} का नया सवाल",
   "groups.query.notifyParentTitle": "साइंस अकादमी से जवाब",
   "groups.query.fileOnly": "फाइल भेजी",
+  "groups.selectMany": "कई चुनें",
 };
 
 export const hinglish: Record<keyof typeof en, string> = {
@@ -317,4 +319,5 @@ export const hinglish: Record<keyof typeof en, string> = {
   "groups.query.notifyStaffTitle": "{parent} ka naya sawaal",
   "groups.query.notifyParentTitle": "Science Academy se jawab",
   "groups.query.fileOnly": "File bheji",
+  "groups.selectMany": "Kai select karo",
 };

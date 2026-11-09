@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { CalendarClock, Check, LoaderCircle, Pencil, Plus, Trash2, X } from "lucide-react";
 import { FEE_PLAN_LABEL, type FeePlan, type FeeStatus } from "@/lib/fees";
 import { useT } from "@/components/I18nProvider";
-import { addFeeRow, deleteFeeRow, updateFeeRow, updatePlan } from "../actions";
+import { addFeeRow, deleteFeeRow, deleteFeeRows, updateFeeRow, updatePlan } from "../actions";
+import { BulkBar, BulkCheck } from "@/components/BulkBar";
 import { FeeStatusChip } from "../StatusChip";
 
 export type PlanRow = {
@@ -161,6 +162,7 @@ export function PlanEditor({
               </li>
             ) : (
               <li key={r.id} className="flex items-center gap-3 px-4 py-2.5">
+                {canEdit && (r.paid === 0 ? <BulkCheck group="feerows" id={r.id} label={r.label ?? monthName(r.month)} /> : <span className="w-5 shrink-0" />)}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-semibold">{r.label ?? monthName(r.month)}</p>
                   <p className="text-xs text-muted">
@@ -253,6 +255,7 @@ export function PlanEditor({
           )}
         </div>
       )}
+      {canEdit && <BulkBar group="feerows" action={deleteFeeRows} />}
     </div>
   );
 }
