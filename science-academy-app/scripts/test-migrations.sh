@@ -37,3 +37,11 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -f "$ROOT/scripts/sql/checks.sql"
 echo "all database checks passed"
+
+# The demo data script must load on a fresh database too.
+"${RUN[@]}" "$PGBIN/createdb" -h "$WORK" -p "$PORT" -U postgres demo
+DEMO=("${RUN[@]}" "$PGBIN/psql" -h "$WORK" -p "$PORT" -U postgres -d demo -v ON_ERROR_STOP=1 -q)
+grep -v "^create role" "$ROOT/scripts/sql/supabase-shim.sql" | "${DEMO[@]}" 2>/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do "${DEMO[@]}" -f "$f"; done
+"${DEMO[@]}" -f "$ROOT/scripts/sql/demo-seed.sql"
+"${DEMO[@]}" -c "select (select count(*) from public.students) students, (select count(*) from public.invoices) bills, (select count(*) from public.attendance) attendance, (select count(*) from public.marks) marks"
