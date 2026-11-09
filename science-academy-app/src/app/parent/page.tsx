@@ -1,3 +1,4 @@
+import { PushPrompt } from "@/components/PushPrompt";
 import { Lock, MessagesSquare } from "lucide-react";
 import { parentContext } from "@/lib/parent";
 import { adminClient } from "@/lib/supabase/admin";
@@ -30,6 +31,7 @@ export default async function ParentGroupPage({ searchParams }: { searchParams: 
 
   return (
     <>
+      <PushPrompt />
       <ChildStrip list={children} current={child} basePath="/parent" />
       <div className="sticky top-[60px] z-[5] border-b border-line bg-card">
         <div className="mx-auto flex max-w-lg items-center gap-2 px-4 py-2 text-[12.5px] font-semibold text-muted">

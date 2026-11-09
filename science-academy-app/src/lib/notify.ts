@@ -3,6 +3,7 @@ import { adminClient } from "./supabase/admin";
 import type { Role } from "./permissions";
 import type { AppUser } from "./types";
 import { asLang, pick, type Lang, type Localized } from "./i18n";
+import { sendPush } from "./push";
 
 export type NewNotification = {
   userId: string;
@@ -33,10 +34,16 @@ export async function notify(items: NewNotification[]): Promise<void> {
     link: n.link ?? null,
     dedupe_key: n.dedupeKey ?? null,
   }));
-  const { error } = await adminClient()
+  const { data: made, error } = await adminClient()
     .from("notifications")
-    .upsert(rows, { onConflict: "user_id,dedupe_key", ignoreDuplicates: true });
-  if (error) console.error("notify failed", error.message);
+    .upsert(rows, { onConflict: "user_id,dedupe_key", ignoreDuplicates: true })
+    .select("user_id, title, body, link");
+  if (error) {
+    console.error("notify failed", error.message);
+    return;
+  }
+  // Only the new ones (duplicates by dedupe key were skipped) go to phones.
+  await sendPush(((made ?? []) as { user_id: string; title: string; body: string | null; link: string | null }[]).map((n) => ({ userId: n.user_id, title: n.title, body: n.body, link: n.link })));
 }
 
 export async function activeUsersWithRole(roles: Role[]): Promise<AppUser[]> {

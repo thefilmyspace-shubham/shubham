@@ -1,6 +1,7 @@
 import { requireParent } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
 import { LanguagePicker } from "@/components/LanguagePicker";
+import { PushSetting } from "@/components/PushPrompt";
 import { Card } from "@/components/ui";
 
 export const metadata = { title: "Language" };
@@ -16,6 +17,8 @@ export default async function ParentLanguagePage() {
         <LanguagePicker />
         <p className="mt-3 text-sm text-muted">{t("core.parent.languageHint")}</p>
       </Card>
+      <h2 className="mt-6 mb-3 text-lg font-extrabold text-navy">{t("core.push.setting")}</h2>
+      <PushSetting />
     </div>
   );
 }

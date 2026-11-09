@@ -143,6 +143,17 @@ export const en = {
   "core.rem.callTasks": "{n} calls to make today",
   "core.rem.callTasksBody": "Fee was due yesterday and is not paid: {names}.",
   "core.rem.andMore": "{names} and {n} more",
+  "core.push.title": "Turn on notifications",
+  "core.push.body": "Get fee reminders, attendance, results and messages on your phone, even when the app is closed.",
+  "core.push.turnOn": "Turn on",
+  "core.push.later": "Later",
+  "core.push.enabled": "Phone notifications are on for this phone.",
+  "core.push.off": "Phone notifications are off.",
+  "core.push.denied": "Notifications are blocked for this app. Allow them in the phone's settings for this app or site.",
+  "core.push.iosInstall": "On iPhone, first add the app to the Home Screen (Share → Add to Home Screen), open it from there, then turn on notifications.",
+  "core.push.unsupported": "This browser cannot show phone notifications. Use Chrome on Android, or the installed app.",
+  "core.push.error": "Could not turn on notifications. Please try again.",
+  "core.push.setting": "Phone notifications",
 } satisfies Record<string, string>;
 
 export const hi: Record<keyof typeof en, string> = {
@@ -287,6 +298,17 @@ export const hi: Record<keyof typeof en, string> = {
   "core.rem.callTasks": "आज {n} कॉल करनी हैं",
   "core.rem.callTasksBody": "कल फीस की तारीख थी और जमा नहीं हुई: {names}।",
   "core.rem.andMore": "{names} और {n} अन्य",
+  "core.push.title": "सूचनाएँ चालू करें",
+  "core.push.body": "फीस की याद, हाज़िरी, रिज़ल्ट और संदेश फ़ोन पर पाएँ, ऐप बंद होने पर भी।",
+  "core.push.turnOn": "चालू करें",
+  "core.push.later": "बाद में",
+  "core.push.enabled": "इस फ़ोन पर सूचनाएँ चालू हैं।",
+  "core.push.off": "फ़ोन पर सूचनाएँ बंद हैं।",
+  "core.push.denied": "इस ऐप के लिए सूचनाएँ बंद (ब्लॉक) हैं। फ़ोन की सेटिंग में इस ऐप/साइट के लिए अनुमति दें।",
+  "core.push.iosInstall": "iPhone पर पहले ऐप को होम स्क्रीन पर जोड़ें (Share → Add to Home Screen), वहीं से खोलें, फिर सूचनाएँ चालू करें।",
+  "core.push.unsupported": "यह ब्राउज़र फ़ोन सूचनाएँ नहीं दिखा सकता। Android पर Chrome या इंस्टॉल किया ऐप इस्तेमाल करें।",
+  "core.push.error": "सूचनाएँ चालू नहीं हो पाईं। फिर से कोशिश करें।",
+  "core.push.setting": "फ़ोन सूचनाएँ",
 };
 
 export const hinglish: Record<keyof typeof en, string> = {
@@ -431,4 +453,15 @@ export const hinglish: Record<keyof typeof en, string> = {
   "core.rem.callTasks": "Aaj {n} calls karne hain",
   "core.rem.callTasksBody": "Kal fees ki date thi aur jama nahi hui: {names}.",
   "core.rem.andMore": "{names} aur {n} aur",
+  "core.push.title": "Notifications chalu karo",
+  "core.push.body": "Fees reminder, attendance, result aur messages phone pe paao, app band ho tab bhi.",
+  "core.push.turnOn": "Chalu karo",
+  "core.push.later": "Baad mein",
+  "core.push.enabled": "Is phone pe notifications chalu hain.",
+  "core.push.off": "Phone pe notifications band hain.",
+  "core.push.denied": "Is app ke liye notifications block hain. Phone ki settings mein is app/site ko allow karo.",
+  "core.push.iosInstall": "iPhone pe pehle app ko Home Screen pe jodo (Share → Add to Home Screen), wahin se kholo, phir notifications chalu karo.",
+  "core.push.unsupported": "Ye browser phone notifications nahi dikha sakta. Android pe Chrome ya install kiya hua app use karo.",
+  "core.push.error": "Notifications chalu nahi ho paaye. Phir se try karo.",
+  "core.push.setting": "Phone notifications",
 };

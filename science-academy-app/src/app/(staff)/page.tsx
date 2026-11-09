@@ -1,3 +1,4 @@
+import { PushPrompt } from "@/components/PushPrompt";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { can, requireStaff } from "@/lib/auth";
@@ -29,6 +30,7 @@ export default async function HomePage() {
   const role = viewer.user.role;
   return (
     <>
+      <PushPrompt />
       <header className="safe-top no-print sticky top-0 z-10 bg-card/95 shadow-bar backdrop-blur lg:static lg:bg-transparent lg:shadow-none">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 lg:px-8 lg:pt-7">
           <span className="lg:hidden">

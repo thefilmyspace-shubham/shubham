@@ -4,6 +4,7 @@ import { requireStaff } from "@/lib/auth";
 import { navFor } from "@/lib/nav";
 import { getT } from "@/lib/i18n/server";
 import { LanguagePicker } from "@/components/LanguagePicker";
+import { PushSetting } from "@/components/PushPrompt";
 import { unreadCount } from "@/lib/notifications";
 import { formatMobile } from "@/lib/ids";
 import { ICONS } from "@/components/nav-icons";
@@ -44,6 +45,9 @@ export default async function MorePage() {
             <LanguagePicker />
             <p className="mt-2 text-xs text-muted">{t("core.more.languageHint")}</p>
           </Card>
+        </Section>
+        <Section title={t("core.push.setting")}>
+          <PushSetting />
         </Section>
         <Section title={t("core.more.screens")}>
           <Card className="divide-y divide-line overflow-hidden">

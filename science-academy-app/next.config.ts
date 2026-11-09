@@ -15,7 +15,19 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  serverExternalPackages: ["exceljs", "jspdf"],
+  serverExternalPackages: ["exceljs", "jspdf", "web-push"],
+  async headers() {
+    return [
+      {
+        // A new service worker must reach phones at once.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
