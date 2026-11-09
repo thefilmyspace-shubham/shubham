@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getViewer } from "@/lib/auth";
 import { adminClient } from "@/lib/supabase/admin";
-import { bulkResult, cleanIds } from "@/lib/bulk";
+import { bulkResult, cleanIds, noAccess } from "@/lib/bulk";
 import type { BulkResult } from "@/components/BulkBar";
 
 /** Opens a notification: marks it read and goes to its page. */
@@ -37,10 +37,11 @@ export async function markAllRead() {
   revalidatePath("/", "layout");
 }
 
-/** Select many → delete (only the person's own notifications). */
+/** Select many → delete (staff only, and only their own notifications). */
 export async function deleteNotifications(ids: string[]): Promise<BulkResult> {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
+  if (viewer.user.role === "parent") return noAccess();
   const list = cleanIds(ids);
   if (!list.length) return bulkResult(0);
   const { data } = await adminClient().from("notifications").delete().in("id", list).eq("user_id", viewer.user.id).select("id");

@@ -11,7 +11,8 @@ import type { Notification } from "@/lib/types";
 import { getT } from "@/lib/i18n/server";
 import { Card, Empty } from "./ui";
 
-export async function NotificationList({ items }: { items: Notification[] }) {
+/** selectable: tick many and delete (staff only; parents keep every notification). */
+export async function NotificationList({ items, selectable = false }: { items: Notification[]; selectable?: boolean }) {
   const { t } = await getT();
   if (!items.length) return <Empty icon={Bell}>{t("core.notif.empty")}</Empty>;
   const unread = items.filter((n) => !n.read_at).length;
@@ -30,19 +31,14 @@ export async function NotificationList({ items }: { items: Notification[] }) {
             key={n.id}
             className={`flex items-start ${n.read_at ? "" : "bg-primary-soft/40"}`}
           >
-            <label
-              className="cursor-pointer py-3 pr-1 pl-4"
-              title={t("core.notif.select")}
-            >
-              <BulkCheck
-                group="notifications"
-                id={n.id}
-                label={t("core.notif.select")}
-              />
-            </label>
+            {selectable && (
+              <label className="cursor-pointer py-3 pr-1 pl-4" title={t("core.notif.select")}>
+                <BulkCheck group="notifications" id={n.id} label={t("core.notif.select")} />
+              </label>
+            )}
             <form action={openNotification} className="min-w-0 flex-1">
               <input type="hidden" name="id" value={n.id} />
-              <button className="flex w-full items-start gap-3 py-3 pr-4 pl-2 text-left hover:bg-field">
+              <button className={`flex w-full items-start gap-3 py-3 pr-4 text-left hover:bg-field ${selectable ? "pl-2" : "pl-4"}`}>
                 <span
                   className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read_at ? "bg-transparent" : "bg-primary"}`}
                 />
@@ -64,7 +60,7 @@ export async function NotificationList({ items }: { items: Notification[] }) {
           </div>
         ))}
       </Card>
-      <BulkBar group="notifications" action={deleteNotifications} />
+      {selectable && <BulkBar group="notifications" action={deleteNotifications} />}
     </div>
   );
 }

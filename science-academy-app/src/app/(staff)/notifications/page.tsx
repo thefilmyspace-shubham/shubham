@@ -13,7 +13,7 @@ export default async function NotificationsPage() {
     <>
       <PageHeader title={t("core.notifications")} back="/" />
       <Page>
-        <NotificationList items={items} />
+        <NotificationList items={items} selectable />
       </Page>
     </>
   );

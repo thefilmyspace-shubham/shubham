@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { ClipboardCheck, ClipboardX, PhoneCall, ReceiptText, UserPlus } from "lucide-react";
+import { ClipboardCheck, ClipboardX, PhoneCall, ReceiptText, UserCheck, UserPlus } from "lucide-react";
+import { dutyTests } from "@/lib/test-duty";
+import { boardName } from "@/lib/ids";
 import { can, visibleBatchIds, type StaffViewer } from "@/lib/auth";
 import { allBatches, batchesFor, batchLabel, batchMap } from "@/lib/batches";
-import { addDays, monthStart, rupees, rupeesShort, todayIst, weekdayOf } from "@/lib/format";
+import { addDays, clockLabel, dayLabel, monthStart, rupees, rupeesShort, todayIst, weekdayOf } from "@/lib/format";
 import {
   activeStudents,
   attendanceOn,
@@ -277,7 +279,8 @@ export async function FacultyHome({ viewer }: { viewer: StaffViewer }) {
     attendanceOn(addDays(today, -1), ids),
     upcomingTests(today, 14, mine),
   ]);
-  const low = await lowAttendance(today, students);
+  const [low, duty] = await Promise.all([lowAttendance(today, students), dutyTests(viewer.user.id, addDays(today, -7))]);
+  const dutyOpen = duty.filter((x) => !x.done_at && x.date <= addDays(today, 14));
   const bm = batchMap(mine);
   const weekday = weekdayOf(today);
   const todayEntries = entries.filter((e) => e.weekday === weekday);
@@ -286,6 +289,33 @@ export async function FacultyHome({ viewer }: { viewer: StaffViewer }) {
 
   return (
     <>
+      {dutyOpen.length > 0 && (
+        <Section title={t("academics.duty.homeTitle")}>
+          <Card className="divide-y divide-line overflow-hidden">
+            {dutyOpen.map((x) => (
+              <Link key={x.id} href={x.date <= today ? `/tests/${x.id}/attendance` : "/timetable"} className="flex items-center gap-3 px-4 py-3 hover:bg-field">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
+                  <UserCheck size={19} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14.5px] font-bold">{x.name}</span>
+                  <span className="block truncate text-[12.5px] text-muted">
+                    {boardName(x.board)} {x.class} · {dayLabel(x.date)}
+                    {x.start_time ? ` · ${clockLabel(x.start_time)}` : ""}
+                  </span>
+                </span>
+                {x.date < today ? (
+                  <Chip tone="danger">{t("academics.duty.pending")}</Chip>
+                ) : x.date === today ? (
+                  <Chip tone="warn">{t("academics.duty.markNow")}</Chip>
+                ) : (
+                  <Chip>{dayLabel(x.date).split(",")[0]}</Chip>
+                )}
+              </Link>
+            ))}
+          </Card>
+        </Section>
+      )}
       <Section title={t("admin.home.myBatches")} action={can(viewer, "attendance.mark") ? <SectionLink href="/attendance">{t("admin.home.attendance")}</SectionLink> : undefined}>
         {mine.length === 0 ? (
           <Empty>{t("admin.home.noBatches")}</Empty>

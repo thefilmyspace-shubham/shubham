@@ -174,6 +174,11 @@ export type Test = {
   tag: Tag;
   max_marks: number | null;
   created_by: string | null;
+  /** Faculty on duty: marks the test's attendance (and marks) for every student of it. */
+  faculty_id?: string | null;
+  /** "Test done": moves it from Upcoming to the tests that need marks. */
+  done_at?: string | null;
+  done_by?: string | null;
 };
 
 export type Mark = {

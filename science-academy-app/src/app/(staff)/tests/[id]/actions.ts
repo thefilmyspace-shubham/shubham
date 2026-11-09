@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { can, canSeeBatch, staffForApi } from "@/lib/auth";
+import { can, staffForApi } from "@/lib/auth";
+import { testAccess } from "@/lib/test-duty";
 import { adminClient } from "@/lib/supabase/admin";
 import { logActivity } from "@/lib/activity";
 import { notify, parentUserOf, type NewNotification } from "@/lib/notify";
 import { getTest, marksOf, studentsForTest } from "@/lib/academics";
-import { visibleBatchIds } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
 import { all } from "@/lib/i18n";
 
@@ -23,10 +23,11 @@ export async function saveMarks(_prev: MarksState, form: FormData): Promise<Mark
   if (!viewer || !can(viewer, "marks.enter")) return { ok: false, message: t("academics.marks.cannotEnter") };
   const test = await getTest(String(form.get("testId") ?? ""));
   if (!test) return { ok: false, message: t("academics.marks.testNotFound") };
-  if (test.batch_id && !canSeeBatch(viewer, test.batch_id)) return { ok: false, message: t("academics.marks.notYourBatch") };
+  const access = testAccess(viewer, test);
+  if (!access.see) return { ok: false, message: t("academics.marks.notYourBatch") };
   const max = test.max_marks === null ? null : Number(test.max_marks);
 
-  const students = await studentsForTest(test, visibleBatchIds(viewer));
+  const students = await studentsForTest(test, access.scope);
   const existing = new Map((await marksOf([test.id])).map((m) => [m.student_id, m]));
 
   const upserts: { test_id: string; student_id: string; score: number | null; absent: boolean; entered_by: string; entered_at: string }[] = [];

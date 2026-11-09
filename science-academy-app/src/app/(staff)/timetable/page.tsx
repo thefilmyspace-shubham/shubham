@@ -1,6 +1,6 @@
 import { SubmitButton } from "@/components/SubmitButton";
 import Link from "next/link";
-import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Megaphone, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Megaphone, Pencil, Plus, Trash2, Undo2, UserCheck } from "lucide-react";
 import { can, requireStaff } from "@/lib/auth";
 import { batchesFor, batchLabel, batchMap, batchShort } from "@/lib/batches";
 import { BOARDS, boardName } from "@/lib/ids";
@@ -8,7 +8,9 @@ import { WEEKDAYS, addDays, clockLabel, dayLabel, todayIst } from "@/lib/format"
 import { clashKey, facultyNames, findClashes, testsForBatches, timeInput, timetableOf } from "@/lib/academics";
 import type { Tag, Test, TimetableEntry } from "@/lib/types";
 import { Banner, Card, Chip, Empty, FilterChips, Page, PageHeader, Section } from "@/components/ui";
-import { deleteEntries, deleteEntry, deleteTests, saveEntry } from "./actions";
+import { deleteEntries, deleteEntry, deleteTests, saveEntry, setTestDone } from "./actions";
+import { dutyTests, testAccess, testAttendanceCounts } from "@/lib/test-duty";
+import type { Viewer } from "@/lib/auth";
 import { BulkBar, BulkCheck } from "@/components/BulkBar";
 import { getT } from "@/lib/i18n/server";
 import type { DictKey, TFn } from "@/lib/i18n";
@@ -44,15 +46,23 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
   const filtered = visible.filter((b) => (!board || b.board === board) && (!cls || b.class === cls));
   const batch = filtered.find((b) => b.id === sp.batch) ?? filtered[0] ?? null;
 
-  const [entries, upcomingAll, recentAll, faculty] = await Promise.all([
+  const [entries, coveredTests, faculty, duty] = await Promise.all([
     timetableOf(batch ? [batch.id] : []),
-    testsForBatches(filtered, today),
     testsForBatches(filtered, addDays(today, -21)),
     facultyNames(),
+    // Tests this faculty member is on duty for show up even outside their own batches.
+    viewer.user.role === "faculty" ? dutyTests(viewer.user.id, addDays(today, -21)) : Promise.resolve([] as Test[]),
   ]);
+  const seenIds = new Set(coveredTests.map((x) => x.id));
+  const recentAll = [...coveredTests, ...duty.filter((x) => !seenIds.has(x.id) && (!board || x.board === board) && (!cls || x.class === cls))].sort(
+    (a, b) => a.date.localeCompare(b.date) || (a.start_time ?? "").localeCompare(b.start_time ?? ""),
+  );
+  // Upcoming: today on, until "Test done". Done ones (and past ones) wait for marks below.
+  const upcomingAll = recentAll.filter((x) => x.date >= today && !x.done_at);
   const clashes = findClashes(upcomingAll);
   const upcoming = upcomingAll.filter((t) => !tag || t.tag === tag);
-  const recent = recentAll.filter((t) => t.date < today && (!tag || t.tag === tag)).reverse();
+  const recent = recentAll.filter((t) => (t.date < today || t.done_at) && (!tag || t.tag === tag)).reverse();
+  const attCounts = await testAttendanceCounts([...upcoming, ...recent].map((x) => x.id));
   const shownEntries = entries.filter((e) => !tag || e.tag === tag);
   const bmap = batchMap(visible);
 
@@ -220,7 +230,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
                 ) : (
                   <Card className="divide-y divide-line">
                     {upcoming.map((x) => (
-                      <TestRow key={x.id} test={x} batchName={x.batch_id ? (bmap.get(x.batch_id) ? batchShort(bmap.get(x.batch_id)!) : t("academics.batch")) : t("academics.wholeClass")} clash={clashes.has(clashKey(x))} canEdit={canEdit} canPost={canPost} canMarks={false} selectable={canEdit} t={t} />
+                      <TestRow key={x.id} test={x} batchName={x.batch_id ? (bmap.get(x.batch_id) ? batchShort(bmap.get(x.batch_id)!) : t("academics.batch")) : t("academics.wholeClass")} clash={clashes.has(clashKey(x))} canEdit={canEdit} canPost={canPost} canMarks={false} selectable={canEdit} viewer={viewer} today={today} dutyName={x.faculty_id ? faculty.get(x.faculty_id) : undefined} att={attCounts.get(x.id)} t={t} />
                     ))}
                   </Card>
                 )}
@@ -232,7 +242,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
                   ) : (
                     <Card className="divide-y divide-line">
                       {recent.map((x) => (
-                        <TestRow key={x.id} test={x} batchName={x.batch_id ? (bmap.get(x.batch_id) ? batchShort(bmap.get(x.batch_id)!) : t("academics.batch")) : t("academics.wholeClass")} clash={false} canEdit={canEdit} canPost={false} canMarks t={t} />
+                        <TestRow key={x.id} test={x} batchName={x.batch_id ? (bmap.get(x.batch_id) ? batchShort(bmap.get(x.batch_id)!) : t("academics.batch")) : t("academics.wholeClass")} clash={false} canEdit={canEdit} canPost={false} canMarks viewer={viewer} today={today} dutyName={x.faculty_id ? faculty.get(x.faculty_id) : undefined} att={attCounts.get(x.id)} t={t} />
                       ))}
                     </Card>
                   )}
@@ -264,6 +274,10 @@ function TestRow({
   canPost,
   canMarks,
   selectable = false,
+  viewer,
+  today,
+  dutyName,
+  att,
   t,
 }: {
   test: Test;
@@ -273,9 +287,15 @@ function TestRow({
   canPost: boolean;
   canMarks: boolean;
   selectable?: boolean;
+  viewer: Viewer;
+  today: string;
+  dutyName?: string;
+  att?: { present: number; absent: number };
   t: TFn;
 }) {
   const x = test;
+  const access = testAccess(viewer, x);
+  const started = x.date <= today;
   return (
     <div className="px-4 py-3">
       <div className="flex items-start gap-2">
@@ -300,13 +320,42 @@ function TestRow({
           <AlertTriangle size={13} /> {t("academics.tt.clashRow")}
         </p>
       )}
-      {(canEdit || canPost || canMarks) && (
-        <div className="mt-1.5 flex flex-wrap gap-3 text-[13px] font-bold text-primary">
-          {canMarks && <Link href={`/tests/${x.id}`}>{t("academics.tt.marks")}</Link>}
-          {canEdit && <Link href={`/timetable/test?id=${x.id}`}>{t("core.edit")}</Link>}
-          {canPost && <Link href={`/timetable/post?kind=test&id=${x.id}`}>{t("academics.tt.postToGroup")}</Link>}
+      {(dutyName || x.done_at || att) && (
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {dutyName && (
+            <Chip tone={access.onDuty ? "primary" : "neutral"}>
+              <UserCheck size={12} /> {access.onDuty ? t("academics.duty.yourDuty") : t("academics.duty.onDuty", { name: dutyName })}
+            </Chip>
+          )}
+          {x.done_at && (
+            <Chip tone="ok">
+              <CheckCircle2 size={12} /> {t("academics.duty.done")}
+            </Chip>
+          )}
+          {att && <Chip>{t("academics.duty.attCount", { present: att.present, absent: att.absent })}</Chip>}
         </div>
       )}
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] font-bold text-primary">
+        {access.canRun && started && <Link href={`/tests/${x.id}/attendance`}>{t("academics.duty.attendance")}</Link>}
+        {canMarks && <Link href={`/tests/${x.id}`}>{t("academics.tt.marks")}</Link>}
+        {canEdit && <Link href={`/timetable/test?id=${x.id}`}>{t("core.edit")}</Link>}
+        {canPost && <Link href={`/timetable/post?kind=test&id=${x.id}`}>{t("academics.tt.postToGroup")}</Link>}
+        {access.canRun && started && (
+          <form action={setTestDone}>
+            <input type="hidden" name="id" value={x.id} />
+            <input type="hidden" name="done" value={x.done_at ? "0" : "1"} />
+            {x.done_at ? (
+              <SubmitButton className="inline-flex items-center gap-1 text-[12.5px] font-bold text-muted">
+                <Undo2 size={13} /> {t("academics.duty.undoDone")}
+              </SubmitButton>
+            ) : (
+              <SubmitButton className="btn btn-green px-2.5 py-1 text-[12.5px]">
+                <CheckCircle2 size={14} /> {t("academics.duty.markDone")}
+              </SubmitButton>
+            )}
+          </form>
+        )}
+      </div>
     </div>
   );
 }

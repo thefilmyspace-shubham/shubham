@@ -121,7 +121,11 @@ body {
   white-space: nowrap;
   transition:
     background 0.15s,
-    opacity 0.15s;
+    opacity 0.15s,
+    transform 0.1s;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 .btn:disabled {
   opacity: 0.55;
@@ -172,5 +176,51 @@ details > summary::-webkit-details-marker {
   }
   .print-page:last-child {
     break-after: auto;
+  }
+}
+
+/* Tap feedback: everything tappable dims for a moment when pressed (phones
+   show nothing otherwise, as the grey tap flash is turned off above). In the
+   base layer, so a component's own classes still win. */
+@layer base {
+  :where(a, button, summary, label, [role="button"], [role="radio"], [role="tab"]) {
+    transition:
+      opacity 0.12s,
+      transform 0.1s,
+      background-color 0.15s;
+    touch-action: manipulation;
+  }
+  :where(a, button, summary, [role="button"], [role="radio"], [role="tab"]):active:not(:disabled) {
+    opacity: 0.6;
+  }
+  /* Small buttons (icons, chips) also press in; wide rows only dim. */
+  :where(button, [role="button"], [role="radio"]):not(.btn, .w-full, .flex-1):active:not(:disabled) {
+    transform: scale(0.94);
+  }
+}
+
+/* Top loading bar while the next page loads (NavProgress). */
+.nav-bar-busy {
+  width: 85%;
+  animation: nav-bar 8s cubic-bezier(0.1, 0.7, 0.2, 1);
+}
+.nav-bar-done {
+  width: 100%;
+  opacity: 0;
+  transition:
+    width 0.2s,
+    opacity 0.3s 0.1s;
+}
+@keyframes nav-bar {
+  from {
+    width: 0;
+  }
+  to {
+    width: 85%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-bar-busy {
+    animation: none;
   }
 }

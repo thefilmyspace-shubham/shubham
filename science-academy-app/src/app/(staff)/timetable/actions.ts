@@ -9,6 +9,8 @@ import { logActivity } from "@/lib/activity";
 import { ensureParentUser, notify } from "@/lib/notify";
 import type { Batch, Test } from "@/lib/types";
 import { all } from "@/lib/i18n";
+import { clockLabel, dayLabel } from "@/lib/format";
+import { testAccess } from "@/lib/test-duty";
 import { bulkResult, cleanIds, noAccess } from "@/lib/bulk";
 import type { BulkResult } from "@/components/BulkBar";
 
@@ -94,6 +96,7 @@ const TestForm = z.object({
   start_time: time.optional().or(z.literal("")),
   tag: z.enum(["School", "Coaching"]),
   max_marks: z.coerce.number().positive().max(1000).optional().or(z.literal("")),
+  faculty_id: uuid.optional().or(z.literal("")),
 });
 
 /** "for" is either "class:CB:9" (whole class) or "batch:<id>". */
@@ -125,8 +128,14 @@ export async function saveTest(form: FormData) {
     start_time: t.start_time || null,
     tag: t.tag,
     max_marks: t.max_marks === "" || t.max_marks === undefined ? null : t.max_marks,
+    faculty_id: t.faculty_id || null,
   };
   const db = adminClient();
+  if (row.faculty_id) {
+    const { data: f } = await db.from("users").select("id").eq("id", row.faculty_id).eq("role", "faculty").maybeSingle();
+    if (!f) redirect(`${back}${back.includes("?") ? "&" : "?"}error=form`);
+  }
+  const before = t.id ? await db.from("tests").select("faculty_id").eq("id", t.id).maybeSingle<{ faculty_id: string | null }>() : null;
   // Pressed Save twice (slow network): the same new test within 2 minutes is not made again.
   if (!t.id) {
     let dup = db
@@ -147,6 +156,19 @@ export async function saveTest(form: FormData) {
     : await db.from("tests").insert({ ...row, created_by: viewer.user.id }).select("id").single();
   if (error || !data) redirect(`${back}${back.includes("?") ? "&" : "?"}error=save`);
   await logActivity(viewer, "test.save", { type: "test", id: data.id }, { ...row, edited: Boolean(t.id) });
+  // The faculty put on duty hears about it (once per test and person).
+  if (row.faculty_id && row.faculty_id !== before?.data?.faculty_id && row.faculty_id !== viewer.user.id) {
+    await notify([
+      {
+        userId: row.faculty_id,
+        kind: "test_duty",
+        title: all("academics.duty.notifTitle", { test: row.name }),
+        body: all("academics.duty.notifBody", { date: `${dayLabel(row.date)}${row.start_time ? `, ${clockLabel(row.start_time)}` : ""}` }),
+        link: `/tests/${data.id}/attendance`,
+        dedupeKey: `test-duty-${data.id}-${row.faculty_id}`,
+      },
+    ]);
+  }
   revalidatePath("/timetable");
   revalidatePath("/ranks");
   redirect(`/timetable?board=${target.board}&class=${target.class}&saved=test&test=${data.id}`);
@@ -164,6 +186,29 @@ export async function deleteTest(form: FormData) {
   if (data) await logActivity(viewer, "test.delete", { type: "test", id }, { name: data.name, date: data.date, board: data.board, class: data.class });
   revalidatePath("/timetable");
   redirect("/timetable?saved=deleted");
+}
+
+/** "Test done" (or undo it): moves the test out of Upcoming into the tests that need marks. */
+export async function setTestDone(form: FormData) {
+  const viewer = await requireStaff();
+  const id = String(form.get("id") ?? "");
+  const done = form.get("done") !== "0";
+  const back = String(form.get("back") ?? "/timetable");
+  const safeBack = back.startsWith("/timetable") || back.startsWith("/tests/") || back === "/" ? back : "/timetable";
+  if (!uuid.safeParse(id).success) redirect(safeBack);
+  const db = adminClient();
+  const { data: test } = await db.from("tests").select("*").eq("id", id).maybeSingle<Test>();
+  if (!test) redirect(safeBack);
+  if (!testAccess(viewer, test).canRun) redirect(`${safeBack}${safeBack.includes("?") ? "&" : "?"}error=access`);
+  await db
+    .from("tests")
+    .update(done ? { done_at: new Date().toISOString(), done_by: viewer.user.id } : { done_at: null, done_by: null })
+    .eq("id", id);
+  await logActivity(viewer, "test.save", { type: "test", id }, { name: test.name, done });
+  revalidatePath("/timetable");
+  revalidatePath("/");
+  revalidatePath(`/tests/${id}`, "layout");
+  redirect(safeBack);
 }
 
 /** Select many → delete. Tests with marks are kept (they feed ranks and profiles). */

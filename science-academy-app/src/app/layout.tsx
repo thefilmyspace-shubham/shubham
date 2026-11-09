@@ -3,6 +3,8 @@ import localFont from "next/font/local";
 import { getLang } from "@/lib/i18n/server";
 import { htmlLang } from "@/lib/i18n";
 import { I18nProvider } from "@/components/I18nProvider";
+import { NavProgress } from "@/components/NavProgress";
+import { Suspense } from "react";
 import "./globals.css";
 
 const inter = localFont({
@@ -35,6 +37,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang={htmlLang(lang)} className={inter.variable}>
       <body className="min-h-dvh font-sans antialiased">
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
         <I18nProvider lang={lang}>{children}</I18nProvider>
       </body>
     </html>

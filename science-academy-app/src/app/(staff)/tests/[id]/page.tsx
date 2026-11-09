@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Info, Trophy } from "lucide-react";
-import { can, canSeeBatch, requireStaff, visibleBatchIds } from "@/lib/auth";
+import { Info, Trophy, UserCheck } from "lucide-react";
+import { can, requireStaff } from "@/lib/auth";
+import { testAccess, testAttendanceOf } from "@/lib/test-duty";
 import { allBatches, batchMap, batchShort } from "@/lib/batches";
 import { boardName } from "@/lib/ids";
 import { dayLabel } from "@/lib/format";
@@ -20,10 +21,11 @@ export default async function TestMarksPage({ params }: { params: Promise<{ id: 
   if (!canEnter && !can(viewer, "students.view")) notFound();
   const test = await getTest(id);
   if (!test) notFound();
-  if (test.batch_id && !canSeeBatch(viewer, test.batch_id)) notFound();
-  const students = await studentsForTest(test, visibleBatchIds(viewer));
+  const access = testAccess(viewer, test);
+  if (!access.see) notFound();
+  const students = await studentsForTest(test, access.scope);
   if (!students.length && viewer.user.role === "faculty") notFound();
-  const [marks, batches] = await Promise.all([marksOf([test.id]), allBatches(true)]);
+  const [marks, batches, came] = await Promise.all([marksOf([test.id]), allBatches(true), testAttendanceOf(test.id)]);
   const bmap = batchMap(batches);
   const byStudent = new Map(marks.map((m) => [m.student_id, m]));
   const max = test.max_marks === null ? null : Number(test.max_marks);
@@ -31,7 +33,7 @@ export default async function TestMarksPage({ params }: { params: Promise<{ id: 
   const rows: MarksRow[] = students.map((s) => {
     const m = byStudent.get(s.id);
     const b = s.batch_id ? bmap.get(s.batch_id) : undefined;
-    return { id: s.id, name: s.name, code: s.code, batch: b ? batchShort(b) : "", score: m?.score ?? null, absent: m?.absent ?? false };
+    return { id: s.id, name: s.name, code: s.code, batch: b ? batchShort(b) : "", score: m?.score ?? null, absent: m?.absent ?? came.get(s.id) === false };
   });
   const entered = rows.filter((r) => r.score !== null || r.absent).length;
   const summary = classSummary(
@@ -46,11 +48,18 @@ export default async function TestMarksPage({ params }: { params: Promise<{ id: 
         subtitle={`${boardName(test.board)} ${test.class} · ${test.batch_id && bmap.get(test.batch_id) ? batchShort(bmap.get(test.batch_id)!) : t("academics.wholeClass")} · ${dayLabel(test.date)}${max !== null ? ` · ${t("academics.max", { n: max })}` : ""}`}
         back="/timetable"
         right={
-          can(viewer, "ranks.view") ? (
-            <Link href={`/ranks?test=${test.id}`} className="btn btn-ghost py-1.5 text-[13px]">
-              <Trophy size={15} /> {t("academics.marks.ranks")}
-            </Link>
-          ) : null
+          <div className="flex gap-2">
+            {access.canRun && (
+              <Link href={`/tests/${test.id}/attendance`} className="btn btn-ghost py-1.5 text-[13px]">
+                <UserCheck size={15} /> {t("academics.duty.attendance")}
+              </Link>
+            )}
+            {can(viewer, "ranks.view") && (
+              <Link href={`/ranks?test=${test.id}`} className="btn btn-ghost py-1.5 text-[13px]">
+                <Trophy size={15} /> {t("academics.marks.ranks")}
+              </Link>
+            )}
+          </div>
         }
       />
       <Page>
@@ -69,7 +78,7 @@ export default async function TestMarksPage({ params }: { params: Promise<{ id: 
             </Banner>
           </div>
         )}
-        {viewer.user.role === "faculty" && !test.batch_id && (
+        {viewer.user.role === "faculty" && !test.batch_id && access.scope && (
           <div className="mb-3">
             <Banner tone="neutral" icon={Info}>
               {t("academics.marks.facultyWhole")}

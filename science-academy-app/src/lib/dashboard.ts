@@ -237,6 +237,7 @@ export async function upcomingTests(today: string, days: number, batches: Batch[
     .select("*")
     .gte("date", today)
     .lte("date", addDays(today, days))
+    .is("done_at", null)
     .order("date")
     .order("start_time", { nullsFirst: false })
     .limit(200);

@@ -6,7 +6,7 @@ import { can, requireStaff } from "@/lib/auth";
 import { allBatches, batchLabel } from "@/lib/batches";
 import { BOARDS, CLASSES, boardName } from "@/lib/ids";
 import { todayIst } from "@/lib/format";
-import { getTest, timeInput } from "@/lib/academics";
+import { facultyNames, getTest, timeInput } from "@/lib/academics";
 import { Banner, Card, Page, PageHeader } from "@/components/ui";
 import { deleteTest, saveTest } from "../actions";
 import { getT } from "@/lib/i18n/server";
@@ -28,7 +28,7 @@ export default async function TestFormPage({ searchParams }: { searchParams: Pro
   const { t } = await getT();
   const test = sp.id ? await getTest(sp.id) : null;
   if (sp.id && !test) notFound();
-  const batches = await allBatches();
+  const [batches, faculty] = await Promise.all([allBatches(), facultyNames()]);
   const forValue = test ? (test.batch_id ? `batch:${test.batch_id}` : `class:${test.board}:${test.class}`) : (sp.for ?? "");
 
   return (
@@ -110,6 +110,20 @@ export default async function TestFormPage({ searchParams }: { searchParams: Pro
               </label>
               <input id="max_marks" type="number" step="0.5" min="1" name="max_marks" defaultValue={test?.max_marks ?? ""} placeholder="50" className="field" />
             </div>
+            <div>
+              <label className="label" htmlFor="faculty_id">
+                {t("academics.duty.facultyLabel")}
+              </label>
+              <select id="faculty_id" name="faculty_id" defaultValue={test?.faculty_id ?? ""} className="field">
+                <option value="">{t("academics.duty.noFaculty")}</option>
+                {[...faculty].map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="self-end pb-2 text-xs text-muted">{t("academics.duty.facultyHint")}</p>
             <div className="flex items-end gap-2 sm:col-span-2">
               <SubmitButton className="btn btn-primary flex-1">{test ? t("academics.tt.saveChanges") : t("academics.test.saveTest")}</SubmitButton>
               <Link href="/timetable" className="btn btn-ghost">

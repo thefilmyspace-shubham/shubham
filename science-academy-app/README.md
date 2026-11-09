@@ -46,7 +46,7 @@ On Home (staff and parents) a popup asks to turn on phone notifications; More (s
 ## 2. Set up the database (Supabase)
 
 1. Supabase → SQL Editor → New query. Paste and **Run** the files in `supabase/migrations/` **in name order**:
-   `20261201000000_init.sql`, then `20261201000100_seed.sql`, then any later files (`20261201000300_fee_plans.sql`, `20261201000400_language.sql`, `20261201000500_fee_automation.sql`, `20261201000600_parent_queries.sql`, `20261201000700_push.sql` ...). Later files are safe to run again.
+   `20261201000000_init.sql`, then `20261201000100_seed.sql`, then any later files (`20261201000300_fee_plans.sql`, `20261201000400_language.sql`, `20261201000500_fee_automation.sql`, `20261201000600_parent_queries.sql`, `20261201000700_push.sql`, `20261201000800_test_duty.sql` ...). Later files are safe to run again.
    (Or with the CLI: `npx supabase link --project-ref <ref>` then `npx supabase db push`.)
 2. Put the owner's real name and mobile on the first Admin login (AD-01):
    ```sql
