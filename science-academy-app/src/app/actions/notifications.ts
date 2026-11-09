@@ -17,6 +17,8 @@ export async function openNotification(formData: FormData) {
     .eq("user_id", viewer.user.id)
     .select("link")
     .maybeSingle<{ link: string | null }>();
+  // Fresh numbers everywhere (bell, More tab, the list itself), not a kept copy.
+  revalidatePath("/", "layout");
   const home = viewer.user.role === "parent" ? "/parent" : "/";
   const link = data?.link && data.link.startsWith("/") ? data.link : `${home === "/" ? "" : home}/notifications`;
   redirect(link);
