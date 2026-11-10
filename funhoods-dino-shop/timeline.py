@@ -1,10 +1,10 @@
-# Dino Car "shop story" reel -- about 33 s, VO-led. Until the VO is recorded the phrase times are estimates (PROVISIONAL);
+# Dino Car "shop story" reel -- 37.5 s, VO-led (VO: Gavin, sample 1, re-timed by tools/vo_retime.py). Until the VO is recorded the phrase times are estimates (PROVISIONAL);
 # once audio/vo_timing.json exists (tools/vo_retime.py) every cue follows the real words.
 import json, os
 FPS = 60
 K = 2                          # design space 1080x1920, rendered at 2160x3840
 DW, DH = 1080, 1920
-DUR = 34.0
+DUR = 37.5
 _VO = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'audio', 'vo_timing.json')
 LINES = ["Morning at the toy shop. Full shelves... but nobody stops.",
          "Then the Funhoods Dino Car arrives!",
@@ -32,8 +32,8 @@ SHUTTER = (0.15, 1.15)         # the shutter rolls up
 KIDS_PASS = (0.9, 3.9)         # kids walk past without stopping
 # 1 Then the Funhoods Dino Car arrives!
 S_ARRIVE = gap(1)
-TRUCK_STOP = S_ARRIVE + 0.55   # the truck pulls up
-CARTON_LAND = w(1, 5)          # "arrives": the carton hops to the shop door
+TRUCK_STOP = S_ARRIVE + 0.85   # the truck pulls up
+CARTON_LAND = w(1, 6)          # "arrives": the carton hops to the shop door  (words: Then the fun hoods dino car arrives)
 # 2 Twelve dinos in a bright display box, right on the counter.
 S_COUNTER = gap(2)
 BOX_LAND = w(2, 5)             # "display box"
@@ -44,7 +44,7 @@ PUSH0 = w(3, 1)                # "push": the hand pushes
 RELEASE = w(3, 3) - 0.04       # "off it goes"
 LAUNCH = w(3, 8) - 0.20        # leaves the ramp ("360 flip")
 LAND = LAUNCH + 0.70
-CHOMPS = [(w(3, 13) - 0.05, 13, 0.06), (w(3, 15) - 0.12, 16, 0.34)]   # (open time, lift deg, hold): "mouth", "wide"
+CHOMPS = [(LAND + 0.55, 9, 0.05), (w(3, 13) - 0.05, 13, 0.06), (w(3, 15) - 0.12, 16, 0.34)]   # (open, lift deg, hold): after landing, "mouth", "wide"
 # 4 Kids crowd in... and by evening, the box is empty. Time to reorder!
 S_RUSH = gap(4)
 GRABS = [S_RUSH + 0.45 + 0.17 * i for i in range(12)]          # the 12 dinos hop out of the box
@@ -60,9 +60,10 @@ STACK = [(318, 1130, S_CARTON + 0.36), (762, 1130, S_CARTON + 0.64), (540, 828, 
 TRUCK = w(6, 4) - 0.05         # "pan India delivery"
 # 7 Distributors and wholesalers, put the Dino Car in every shop on your route!
 S_ROUTE = gap(7)
-ROUTE_LIT = [w(7, 8) - 0.3 + 0.5 * i for i in range(3)]       # "every shop on your route": the truck passes each shop, its window lights up
+ROUTE_LIT = [w(7, 3) - 0.1 + 0.7 * i for i in range(3)]          # from "put the Dino Car...": the truck passes each shop, its window lights up
 # 8 Funhoods, Childhood Full of Fun!
 S_END = gap(8)
 
 CUTS = [(S_ARRIVE, None), (S_COUNTER, 'zoom'), (S_DEMO, 'zoom'), (S_RUSH, 'zoom'), (S_FACTS, 'chev'),
         (S_CARTON, 'zoom'), (S_ROUTE, 'chev'), (S_END, 'flash')]
+MUSIC_IN = 0.231                # "Playful" (Mixkit) -- 130 BPM, bar 0 downbeat at 0.231 s

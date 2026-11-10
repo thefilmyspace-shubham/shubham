@@ -844,7 +844,7 @@ def scene_counter(t, t0, t1):
         place(c, box_img(BOX_H), BOX_X, y)
     if t > T.BOX_LAND: sparkles(c, t, 17, BOX_X, cy, 330, 330, n=12, size=40)
     pop(c, chip('12 PCS DISPLAY BOX', 54, RED, WHITE, F_HEAD, 40, 18), DW / 2, 1600, t, T.BOX_LAND + 0.12, None, slide=30)
-    pop(c, head('RIGHT ON THE COUNTER', 78, RED), DW / 2, 1720, t, T.w(2, 8) - 0.05, None, slide=24)
+    pop(c, head('RIGHT ON THE COUNTER', 78, RED), DW / 2, 1720, t, T.w(2, 7) - 0.05, None, slide=24)
     return c
 
 DEMO_GY = 1330; DEMO_HC = 290
@@ -899,10 +899,10 @@ def scene_demo(t, t0, t1):
     kid(c, 960, 2240, 1.55, 2, 'cheer' if cheer else 'stand', t + 0.3, 'happy' if t > T.LAND else ('wow' if cheer else 'smile'))
     pop(c, chip('PUSH & GO', 52, YEL, DRED, F_HEAD, 40, 18), DW / 2, 300, t, T.PUSH0, T.LAUNCH - 0.1, slide=24)
     if t >= T.LAUNCH:
-        place(c, burst(620), DW / 2, 380, 0.3 + 0.6 * e_back(prog(t, T.LAUNCH, 0.3), 1.6), (t * 40) % 360, 0.9 * (1 - prog(t, T.CHOMPS[0][0] - 0.2, 0.2)))
-    pop(c, impact_txt('360° FLIP!', 170, YEL), DW / 2, 380, t, T.LAUNCH, T.CHOMPS[0][0], d=0.3, rot=-4, from_scale=1.8)
-    pop(c, head('MOUTH OPENS WIDE!', 100, RED), DW / 2, 380, t, T.CHOMPS[0][0], None, slide=30)
-    pop(c, body('DINOSAUR MOUTH CAN BE OPENED UP AND DOWN', 30, RED), DW / 2, 480, t, T.CHOMPS[0][0] + 0.2, None, slide=16)
+        place(c, burst(620), DW / 2, 380, 0.3 + 0.6 * e_back(prog(t, T.LAUNCH, 0.3), 1.6), (t * 40) % 360, 0.9 * (1 - prog(t, T.CHOMPS[1][0] - 0.2, 0.2)))
+    pop(c, impact_txt('360° FLIP!', 170, YEL), DW / 2, 380, t, T.LAUNCH, T.CHOMPS[1][0], d=0.3, rot=-4, from_scale=1.8)
+    pop(c, head('MOUTH OPENS WIDE!', 100, RED), DW / 2, 380, t, T.CHOMPS[1][0], None, slide=30)
+    pop(c, body('DINOSAUR MOUTH CAN BE OPENED UP AND DOWN', 30, RED), DW / 2, 480, t, T.CHOMPS[1][0] + 0.2, None, slide=16)
     return c
 
 def scene_rush(t, t0, t1):
@@ -1005,7 +1005,7 @@ def scene_route(t, t0, t1):
     v = (890 - 190) / (T.ROUTE_LIT[2] - T.ROUTE_LIT[0]); x = 190 + (t - T.ROUTE_LIT[0]) * v
     place(c, truck(380), x, 1445 + 2 * math.sin(t * 30))
     pop(c, chip('BULK ORDERS ONLY', 56, YEL, DRED, F_HEAD, 44, 20), DW / 2, 1660, t, T.w(7, 3) - 0.05, None, slide=30)
-    pop(c, impact_txt('EVERY SHOP ON YOUR ROUTE!', 92, YEL), DW / 2, 1790, t, T.ROUTE_LIT[0], None, d=0.3, rot=-3, from_scale=1.7)
+    pop(c, impact_txt('EVERY SHOP ON YOUR ROUTE!', 92, YEL), DW / 2, 1790, t, T.w(7, 8) - 0.05, None, d=0.3, rot=-3, from_scale=1.7)
     return c
 
 def scene_end(t):

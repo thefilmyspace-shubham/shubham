@@ -1,6 +1,6 @@
-# Funhoods — Dino Car (MT-03) · "The Shop Story" · VO script v1 (draft for approval)
+# Funhoods — Dino Car (MT-03) · "The Shop Story" · VO script v1 (approved; VO: sample 1, Gavin)
 
-Reel: about 33 s · 9:16 · 4K60 · animated entirely in code (flat illustration + the real Dino Car cut-outs) ·
+Reel: 37.5 s · 9:16 · 4K60 · animated entirely in code (flat illustration + the real Dino Car cut-outs) ·
 B2B: distributors & wholesalers only · no phone number · no price.
 
 **Idea:** a quiet toy shop gets the Funhoods Dino Car display box. Kids stop, push it, see the 360° flip and the
@@ -43,4 +43,7 @@ dinosaur mouth can be opened up and down · available in 4 colors · BIS approve
 3+ ages · 12 pcs display box · 192 pcs per carton.
 
 Sound (separate from the VO): shop shutter, street ambience, truck, the toy's real friction whirr (from the Dino Car reel),
-a dino roar on the chomp, kids cheering, a stamp thud, pops and chimes. Music: a new track, not the Dino Car reel's.
+a dino roar on the chomp, kids cheering, a stamp thud, pops and chimes. Music: a new track ("Playful", Mixkit), which starts when the truck arrives.
+
+VO samples: `audio/VO_sample_1_Gavin.mp3` (chosen) and `audio/VO_sample_2_Callum.mp3`. The storyboard times above were estimates;
+the final times are in README.md.
