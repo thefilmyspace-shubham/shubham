@@ -2,6 +2,7 @@ import "server-only";
 import { allBatches, batchShort } from "@/lib/batches";
 import { studentDetails } from "@/lib/students";
 import type { Student } from "@/lib/types";
+import { maskMobile } from "@/lib/ids";
 import type { BatchOption, FormInitial } from "./StudentForm";
 
 export async function batchOptions(): Promise<BatchOption[]> {
@@ -9,10 +10,11 @@ export async function batchOptions(): Promise<BatchOption[]> {
   return list.map((b) => ({ id: b.id, board: b.board, class: b.class, label: batchShort(b) }));
 }
 
-export async function formInitial(student: Student): Promise<FormInitial> {
+/** hideNumbers: the saved numbers are not sent to the browser, only a masked hint (Reception). */
+export async function formInitial(student: Student, hideNumbers = false): Promise<FormInitial> {
   const d = await studentDetails(student.id);
   const mobiles: FormInitial["mobiles"] = {};
-  for (const g of d.guardians) mobiles[g.relation] = { mobile: g.mobile, name: g.name };
+  for (const g of d.guardians) mobiles[g.relation] = hideNumbers ? { mobile: "", masked: maskMobile(g.mobile), name: g.name } : { mobile: g.mobile, name: g.name };
   return {
     id: student.id,
     status: student.status,

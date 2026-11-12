@@ -38,6 +38,13 @@ export async function saveStudent(_prev: SaveState, form: FormData): Promise<Sav
   const existing = existingId ? await getStudent(existingId) : null;
   if (existingId && !existing) return { message: t("students.msg.notFound") };
   const alreadyRegistered = existing !== null && existing.status !== "draft";
+  // A login that may not see numbers got empty boxes for saved numbers: empty = keep the saved one.
+  if (existing && !can(viewer, "students.contacts")) {
+    const { data: saved } = await adminClient().from("guardians").select("relation, mobile").eq("student_id", existing.id);
+    for (const g of (saved ?? []) as { relation: string; mobile: string }[]) {
+      if (!String(form.get(`${g.relation}_mobile`) ?? "").trim()) form.set(`${g.relation}_mobile`, g.mobile);
+    }
+  }
   // Editing a registered student is always strict.
   const parsed = parseRegistration(form, alreadyRegistered ? "register" : intent, { requireEmail: otpChannel() === "email", t });
   // Fees & payment plan: set at registration; afterwards it is changed on the Fees page.

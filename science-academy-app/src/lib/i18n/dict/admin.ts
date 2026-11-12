@@ -317,6 +317,7 @@ export const en = {
   "admin.ai.notify.title": "Fee reminder",
   "admin.ai.notify.body": "{name}: {amount} is due for {month}. Please pay at the earliest. Ignore if already paid.",
   // @end-en
+  "admin.hint.receptionCallLogNumbers": "Reception: only in the call log, for students with fees due",
 } satisfies Record<string, string>;
 
 export const hi: Record<keyof typeof en, string> = {
@@ -635,6 +636,7 @@ export const hi: Record<keyof typeof en, string> = {
   "admin.ai.notify.title": "फीस रिमाइंडर",
   "admin.ai.notify.body": "{name}: {month} की {amount} फीस बाकी है। कृपया जल्द भुगतान करें। अगर भर दी है तो इसे अनदेखा करें।",
   // @end-hi
+  "admin.hint.receptionCallLogNumbers": "रिसेप्शन: सिर्फ कॉल लॉग में, जिनकी फीस बाकी है",
 };
 
 export const hinglish: Record<keyof typeof en, string> = {
@@ -953,4 +955,5 @@ export const hinglish: Record<keyof typeof en, string> = {
   "admin.ai.notify.title": "Fees reminder",
   "admin.ai.notify.body": "{name}: {month} ki {amount} fees baaki hai. Please jaldi pay karo. Agar bhar di hai to ignore karo.",
   // @end-hinglish
+  "admin.hint.receptionCallLogNumbers": "Reception: sirf call log mein, jinki fees baaki hai",
 };

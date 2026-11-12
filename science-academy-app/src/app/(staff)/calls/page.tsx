@@ -45,14 +45,21 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
     list = [entry];
   }
 
-  const showNumbers = can(viewer, "students.contacts");
+  // Full numbers: people allowed to see contacts, and in this call log anyone
+  // working it, for students who owe fees (Reception sees numbers nowhere else).
+  const allNumbers = can(viewer, "students.contacts");
+  const numbersFor = (e: CallListEntry) => allNumbers || e.totalDue > 0;
   const totalDue = list.reduce((s, e) => s + e.totalDue, 0);
   // Call tasks made the day after a due date (fee still unpaid): on top until a call is logged.
   const tasks = focusId ? [] : await openCallTasks();
   const taskIds = new Set(tasks.map((t) => t.student_id));
   const taskItems = list.filter((e) => taskIds.has(e.studentId));
   const rest = list.filter((e) => !taskIds.has(e.studentId));
-  const groups = SECTIONS.map((s) => ({ ...s, items: rest.filter((e) => callBucket(e, today) === s.bucket) })).filter((g) => g.items.length);
+  // Called today (and nothing new to chase): moves out of "To call" into its own list at the end.
+  const calledToday = (e: CallListEntry) => Boolean(e.lastCallAt && todayIst(new Date(e.lastCallAt)) === today);
+  const doneToday = rest.filter((e) => calledToday(e) && ["call", "promised_due"].includes(callBucket(e, today)));
+  const doneIds = new Set(doneToday.map((e) => e.studentId));
+  const groups = SECTIONS.map((s) => ({ ...s, items: rest.filter((e) => !doneIds.has(e.studentId) && callBucket(e, today) === s.bucket) })).filter((g) => g.items.length);
 
   return (
     <>
@@ -60,7 +67,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       <Page>
         {!focusId && (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <Stat label={t("fees.calls.toCall")} value={list.filter((e) => ["call", "promised_due"].includes(callBucket(e, today))).length} />
+            <Stat label={t("fees.calls.toCall")} value={list.filter((e) => ["call", "promised_due"].includes(callBucket(e, today)) && !calledToday(e)).length} />
             <Stat label={t("fees.calls.overdueAmount")} value={rupees(totalDue)} tone="danger" />
             <Stat label={t("fees.calls.tasksToday")} value={taskItems.length} tone="danger" />
             <Stat label={t("fees.calls.promisedToday")} value={list.filter((e) => callBucket(e, today) === "promised_due").length} tone="primary" />
@@ -68,7 +75,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           </div>
         )}
         {focusNote && <Banner tone="navy">{focusNote}</Banner>}
-        {!showNumbers && (
+        {list.some((e) => !numbersFor(e)) && (
           <div className="mt-3">
             <Banner tone="warn" icon={AlertTriangle}>
               {t("fees.calls.noNumbersAccess")}
@@ -90,7 +97,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
             <p className="-mt-1 mb-2 text-xs text-muted">{t("fees.calls.tasksHint")}</p>
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {taskItems.map((e) => (
-                <CallCard key={e.studentId} e={e} today={today} showNumbers={showNumbers} canBill={can(viewer, "bills.create")} t={t} />
+                <CallCard key={e.studentId} e={e} today={today} showNumbers={numbersFor(e)} canBill={can(viewer, "bills.create")} calledToday={calledToday(e)} t={t} />
               ))}
             </div>
           </Section>
@@ -100,17 +107,41 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           <Section key={g.bucket} title={`${t(g.title)} · ${g.items.length}`}>
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
               {g.items.map((e) => (
-                <CallCard key={e.studentId} e={e} today={today} showNumbers={showNumbers} canBill={can(viewer, "bills.create")} t={t} />
+                <CallCard key={e.studentId} e={e} today={today} showNumbers={numbersFor(e)} canBill={can(viewer, "bills.create")} calledToday={calledToday(e)} t={t} />
               ))}
             </div>
           </Section>
         ))}
+
+        {doneToday.length > 0 && (
+          <Section title={`${t("fees.calls.sec.calledToday")} · ${doneToday.length}`}>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {doneToday.map((e) => (
+                <CallCard key={e.studentId} e={e} today={today} showNumbers={numbersFor(e)} canBill={can(viewer, "bills.create")} calledToday t={t} />
+              ))}
+            </div>
+          </Section>
+        )}
       </Page>
     </>
   );
 }
 
-function CallCard({ e, today, showNumbers, canBill, t }: { e: CallListEntry; today: string; showNumbers: boolean; canBill: boolean; t: TFn }) {
+function CallCard({
+  e,
+  today,
+  showNumbers,
+  canBill,
+  calledToday = false,
+  t,
+}: {
+  e: CallListEntry;
+  today: string;
+  showNumbers: boolean;
+  canBill: boolean;
+  calledToday?: boolean;
+  t: TFn;
+}) {
   const login = e.guardians.find((g) => g.is_login_number) ?? e.guardians[0];
   const others = e.guardians.filter((g) => g !== login);
   return (
@@ -184,6 +215,7 @@ function CallCard({ e, today, showNumbers, canBill, t }: { e: CallListEntry; tod
       <div className="mt-3 flex flex-wrap gap-2">
         {e.guardians.length > 0 && (
           <CallDone
+            again={calledToday}
             studentId={e.studentId}
             studentName={e.student.name}
             attempt={e.attempts + 1}

@@ -26,7 +26,8 @@ export type FormInitial = {
   email: string | null;
   monthly_fee: number;
   feePlan: FeePlanInitial;
-  mobiles: Partial<Record<GuardianRelation, { mobile: string; name: string | null }>>;
+  /** masked: a saved number this login may not see; leave the box empty to keep it. */
+  mobiles: Partial<Record<GuardianRelation, { mobile: string; masked?: string; name: string | null }>>;
   loginRelation: GuardianRelation | null;
   marksheets: { id: string; year_label: string; file_name: string | null; typed_percentage: number | null; ai: AiCheck; note: string | null }[];
   consentGiven: boolean;
@@ -132,18 +133,18 @@ export function StudentForm({
             name={`${rel}_mobile`}
             className="field"
             inputMode="numeric"
-            placeholder={t("students.form.mobilePh")}
+            placeholder={initial?.mobiles[rel]?.masked ? t("students.form.mobileSaved", { masked: initial.mobiles[rel]!.masked! }) : t("students.form.mobilePh")}
             value={mobiles[rel]}
             onChange={(e) => {
               const v = e.target.value;
               setMobiles((m) => ({ ...m, [rel]: v }));
-              if (!v.trim() && login === rel) setLogin("");
+              if (!v.trim() && login === rel && !initial?.mobiles[rel]?.masked) setLogin("");
             }}
           />
           <label
             className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-2 text-[12px] font-bold ${
               login === rel ? "border-primary bg-primary-soft text-primary" : "border-line text-muted"
-            } ${mobiles[rel].trim() ? "" : "pointer-events-none opacity-40"}`}
+            } ${mobiles[rel].trim() || initial?.mobiles[rel]?.masked ? "" : "pointer-events-none opacity-40"}`}
           >
             <input
               type="radio"
@@ -151,7 +152,7 @@ export function StudentForm({
               value={rel}
               checked={login === rel}
               onChange={() => setLogin(rel)}
-              disabled={!mobiles[rel].trim()}
+              disabled={!mobiles[rel].trim() && !initial?.mobiles[rel]?.masked}
               className="accent-[var(--color-primary)]"
             />
             {t("students.form.login")}

@@ -27,6 +27,7 @@ const HINT_KEY: Record<string, DictKey> = {
   "Faculty: own batches only": "admin.hint.ownBatchesOnly",
   "Faculty: own batches": "admin.hint.ownBatches",
   "Every correction is logged": "admin.hint.correctionLogged",
+  "Reception: only in the call log, for students with fees due": "admin.hint.receptionCallLogNumbers",
   "Off: only own batches": "admin.hint.offOwnBatches",
 };
 const PARENT_KEY: Record<string, DictKey> = {

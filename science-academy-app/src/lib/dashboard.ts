@@ -1,6 +1,6 @@
 import "server-only";
 import { adminClient } from "./supabase/admin";
-import { addDays, addMonths, monthStart } from "./format";
+import { addDays, addMonths, monthStart, todayIst } from "./format";
 import { balanceOf, daysLate, dueDate } from "./fees";
 import type { Batch, CallLogRow, Student, Test, TimetableEntry } from "./types";
 
@@ -136,6 +136,8 @@ export function callsDue(fees: FeeOverview, calls: Map<string, CallLogRow>, toda
   for (const o of fees.owing.values()) {
     if (o.overdue <= 0) continue;
     const last = calls.get(o.studentId) ?? null;
+    // Already called today: not due again until tomorrow.
+    if (last && todayIst(new Date(last.created_at)) === today) continue;
     if (last?.outcome === "promised_date" && last.follow_up_date) {
       if (last.follow_up_date > today) continue;
       out.push({ studentId: o.studentId, reason: last.follow_up_date === today ? "promised_today" : "promise_broken", owing: o, lastCall: last });

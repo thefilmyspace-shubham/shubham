@@ -140,7 +140,7 @@ export const en = {
   "fees.calls.tasksToday": "Call tasks today",
   "fees.calls.promisedToday": "Promised today",
   "fees.calls.escalated": "Escalated",
-  "fees.calls.noNumbersAccess": "Your login cannot see parents' phone numbers. Admin can change this in Access control.",
+  "fees.calls.noNumbersAccess": "Numbers are shown only for students who owe fees.",
   "fees.calls.privateNote": "Fee reminders go to each parent privately. Never post fee messages in a batch group.",
   "fees.calls.nobody": "No overdue fees. Nobody to call today.",
   "fees.calls.tasksTitle": "Today's call tasks · {n}",
@@ -283,6 +283,9 @@ export const en = {
   "fees.due.failed": "Could not save. Please try again.",
   "fees.col.due": "Due date",
   "fees.call.moveDue": "Also make this the new due date (no call task until then)",
+  "fees.calls.sec.calledToday": "Called today",
+  "fees.cd.calledToday": "Called today",
+  "fees.cd.callAgain": "Call again",
 } satisfies Record<string, string>;
 
 export const hi: Record<keyof typeof en, string> = {
@@ -424,7 +427,7 @@ export const hi: Record<keyof typeof en, string> = {
   "fees.calls.tasksToday": "आज के कॉल काम",
   "fees.calls.promisedToday": "आज का वादा",
   "fees.calls.escalated": "एडमिन को भेजे",
-  "fees.calls.noNumbersAccess": "आपके लॉगिन से अभिभावकों के फोन नंबर नहीं दिखते। एडमिन इसे Access control में बदल सकते हैं।",
+  "fees.calls.noNumbersAccess": "नंबर सिर्फ उन्हीं विद्यार्थियों के दिखते हैं जिनकी फीस बाकी है।",
   "fees.calls.privateNote": "फीस रिमाइंडर हर अभिभावक को निजी रूप से जाते हैं। बैच ग्रुप में फीस का मैसेज कभी न डालें।",
   "fees.calls.nobody": "कोई फीस देरी में नहीं। आज किसी को कॉल नहीं करना।",
   "fees.calls.tasksTitle": "आज के कॉल काम · {n}",
@@ -567,6 +570,9 @@ export const hi: Record<keyof typeof en, string> = {
   "fees.due.failed": "सेव नहीं हो पाया। फिर से कोशिश करें।",
   "fees.col.due": "नियत तारीख",
   "fees.call.moveDue": "इसी तारीख को नई नियत तारीख बना दें (तब तक कॉल टास्क नहीं)",
+  "fees.calls.sec.calledToday": "आज कॉल हो चुकी",
+  "fees.cd.calledToday": "आज कॉल हुई",
+  "fees.cd.callAgain": "फिर से कॉल",
 };
 
 export const hinglish: Record<keyof typeof en, string> = {
@@ -708,7 +714,7 @@ export const hinglish: Record<keyof typeof en, string> = {
   "fees.calls.tasksToday": "Aaj ke call tasks",
   "fees.calls.promisedToday": "Aaj ka vaada",
   "fees.calls.escalated": "Admin ko bheje",
-  "fees.calls.noNumbersAccess": "Aapke login se parents ke phone number nahi dikhte. Admin ise Access control mein badal sakte hain.",
+  "fees.calls.noNumbersAccess": "Number sirf unhi students ke dikhte hain jinki fees baaki hai.",
   "fees.calls.privateNote": "Fees reminder har parent ko private jaata hai. Batch group mein fees ka message kabhi mat daalo.",
   "fees.calls.nobody": "Koi fees late nahi. Aaj kisi ko call nahi karna.",
   "fees.calls.tasksTitle": "Aaj ke call tasks · {n}",
@@ -851,4 +857,7 @@ export const hinglish: Record<keyof typeof en, string> = {
   "fees.due.failed": "Save nahi ho paaya. Phir se try karo.",
   "fees.col.due": "Due date",
   "fees.call.moveDue": "Isi date ko nayi due date bana do (tab tak call task nahi)",
+  "fees.calls.sec.calledToday": "Aaj call ho gayi",
+  "fees.cd.calledToday": "Aaj call hui",
+  "fees.cd.callAgain": "Dobara call",
 };

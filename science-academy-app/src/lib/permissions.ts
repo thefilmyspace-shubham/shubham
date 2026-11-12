@@ -52,7 +52,8 @@ export const PERMISSIONS = {
   },
   "students.contacts": {
     label: "See parents' phone numbers",
-    defaults: d(true, true, true, false),
+    hint: "Reception: only in the call log, for students with fees due",
+    defaults: d(true, true, false, false),
     parent: "No",
   },
   "students.marksheets": {

@@ -1,6 +1,6 @@
 import { SubmitButton } from "@/components/SubmitButton";
 import { notFound } from "next/navigation";
-import { requirePermission } from "@/lib/auth";
+import { can, requirePermission } from "@/lib/auth";
 import { sessionYearFor } from "@/lib/ids";
 import { getStudent, nextRollPreview } from "@/lib/students";
 import { getT } from "@/lib/i18n/server";
@@ -18,13 +18,13 @@ export default async function EditStudentPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ draft?: string }>;
 }) {
-  await requirePermission("students.edit");
+  const viewer = await requirePermission("students.edit");
   const { t } = await getT();
   const { id } = await params;
   const { draft } = await searchParams;
   const student = await getStudent(id);
   if (!student) notFound();
-  const [batches, nextRoll, initial] = await Promise.all([batchOptions(), nextRollPreview(), formInitial(student)]);
+  const [batches, nextRoll, initial] = await Promise.all([batchOptions(), nextRollPreview(), formInitial(student, !can(viewer, "students.contacts"))]);
   const isDraft = student.status === "draft";
   return (
     <>

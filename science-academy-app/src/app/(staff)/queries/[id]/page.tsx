@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { canSeeStudent, requirePermission } from "@/lib/auth";
+import { can, canSeeStudent, requirePermission } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
 import { adminClient } from "@/lib/supabase/admin";
 import { threadById, threadMessages } from "@/lib/queries";
@@ -30,7 +30,7 @@ export default async function QueryThreadPage({ params }: { params: Promise<{ id
     <>
       <PageHeader
         title={student.name}
-        subtitle={`${t("groups.query.parentOf", { parent: parent?.name ?? "", student: student.code ?? "" })}${parent ? ` · ${formatMobile(parent.mobile)}` : ""}`}
+        subtitle={`${t("groups.query.parentOf", { parent: parent?.name ?? "", student: student.code ?? "" })}${parent && can(viewer, "students.contacts") ? ` · ${formatMobile(parent.mobile)}` : ""}`}
         back="/queries"
         right={<StatusButton threadId={thread.id} status={thread.status} />}
       />

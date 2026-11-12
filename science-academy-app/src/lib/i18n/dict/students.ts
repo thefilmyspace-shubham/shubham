@@ -241,6 +241,7 @@ export const en = {
   "students.status.left": "Left",
   "students.status.passed_out": "Passed out",
   "students.title": "Students",
+  "students.form.mobileSaved": "Saved ({masked}) · type to change",
 } satisfies Record<string, string>;
 
 export const hi: Record<keyof typeof en, string> = {
@@ -482,6 +483,7 @@ export const hi: Record<keyof typeof en, string> = {
   "students.status.left": "छोड़ दिया",
   "students.status.passed_out": "पास आउट",
   "students.title": "छात्र",
+  "students.form.mobileSaved": "सेव है ({masked}) · बदलने के लिए लिखें",
 };
 
 export const hinglish: Record<keyof typeof en, string> = {
@@ -723,4 +725,5 @@ export const hinglish: Record<keyof typeof en, string> = {
   "students.status.left": "Chhod diya",
   "students.status.passed_out": "Passed out",
   "students.title": "Students",
+  "students.form.mobileSaved": "Saved hai ({masked}) · badalne ke liye likho",
 };

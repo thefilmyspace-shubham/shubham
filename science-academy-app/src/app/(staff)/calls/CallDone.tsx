@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { CheckCircle2, LoaderCircle, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, PhoneCall, X } from "lucide-react";
 import { CALL_OUTCOME_LABEL } from "@/lib/fees";
 import { useT } from "@/components/I18nProvider";
 import type { ActionResult } from "../fees/ActionForm";
@@ -10,7 +10,22 @@ import { logCall } from "./actions";
 type Option = { id: string; label: string };
 
 /** "Call done" button and the outcome sheet. */
-export function CallDone({ studentId, studentName, numbers, attempt, today }: { studentId: string; studentName: string; numbers: Option[]; attempt: number; today: string }) {
+export function CallDone({
+  studentId,
+  studentName,
+  numbers,
+  attempt,
+  today,
+  again = false,
+}: {
+  studentId: string;
+  studentName: string;
+  numbers: Option[];
+  attempt: number;
+  today: string;
+  /** Already called today: show "Called today" and a small "Call again" instead. */
+  again?: boolean;
+}) {
   const tr = useT();
   const [open, setOpen] = useState(false);
   const [outcome, setOutcome] = useState<string>("");
@@ -28,9 +43,20 @@ export function CallDone({ studentId, studentName, numbers, attempt, today }: { 
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn btn-green px-3 py-1.5 text-[13px]">
-        <CheckCircle2 size={15} /> {tr("fees.cd.callDone")}
-      </button>
+      {again ? (
+        <>
+          <span className="inline-flex items-center gap-1 rounded-full bg-ok-soft px-3 py-1.5 text-[13px] font-bold text-ok">
+            <CheckCircle2 size={15} /> {tr("fees.cd.calledToday")}
+          </span>
+          <button type="button" onClick={() => setOpen(true)} className="btn btn-ghost px-3 py-1.5 text-[13px]">
+            <PhoneCall size={15} /> {tr("fees.cd.callAgain")}
+          </button>
+        </>
+      ) : (
+        <button type="button" onClick={() => setOpen(true)} className="btn btn-green px-3 py-1.5 text-[13px]">
+          <CheckCircle2 size={15} /> {tr("fees.cd.callDone")}
+        </button>
+      )}
       {open && (
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center" onClick={() => !pending && setOpen(false)}>
           <form
