@@ -71,9 +71,9 @@ On Home (staff and parents) a popup asks to turn on phone notifications; More (s
    - `CRON_SECRET` (any long random text)
    - Bill details: `ACADEMY_ADDRESS`, `ACADEMY_PHONE`, `ACADEMY_UPI_ID`, `ACADEMY_BANK_NAME`, `ACADEMY_ACCOUNT_NUMBER`, `ACADEMY_IFSC`, `ACADEMY_ACCOUNT_NAME`. Until these are set, bills print the placeholders `[YOUR UPI ID]`, `[BANK NAME]` and so on, and no payable QR code is printed.
 4. Deploy. The daily job (`vercel.json` → `/api/cron/daily`, about 9 AM IST) creates the month's fee rows, runs the fee reminder automation, sends reminders and makes the daily Excel backup.
-5. Log in as Admin (role Admin → `AD-01` or the owner's mobile → SMS code). Then, in order:
+5. Log in as Admin (role Admin → `AD-01` or the owner's email → code by email). Then, in order:
    1. **Batches & faculty**: add batches (board, class, name, time). Each batch gets its parents' group automatically.
-   2. **Access control → Add staff**: Management (MG-xx), Reception (RC-xx), Faculty (FC-xx). Each logs in with their ID or mobile.
+   2. **Access control → Add staff**: Management (MG-xx), Reception (RC-xx), Faculty (FC-xx). Each logs in with their staff ID or email.
    3. Batches & faculty: assign faculty to their batches.
    4. Reception starts registering students.
 
@@ -100,7 +100,7 @@ npm run test:db                                  # migrations + database rules o
 
 ## 5. How the important rules work
 
-- **Login:** role → ID or mobile → 6-digit code by **email** (10 minutes, 5 tries, resend after 30 s). Staff get it on their own email (Admin sets it in Access control); a parent gets it on the email saved on their child's registration (needed to Register). Set `OTP_CHANNEL=sms` once MSG91/DLT is ready to send it by SMS to the mobile instead. Asked once; the person stays logged in on that device until **Log out**. Admin can **Log out everywhere** or **Suspend** a login from Access control; that ends every session at once.
+- **Login:** role → staff ID or email (parents: the email given at registration; a mobile number is not accepted while codes go by email) → 6-digit code by **email** (10 minutes, 5 tries, resend after 30 s). Staff get it on their own email (Admin sets it in Access control); a parent gets it on the email saved on their child's registration (needed to Register). Set `OTP_CHANNEL=sms` once MSG91/DLT is ready to send it by SMS to the mobile instead. Asked once; the person stays logged in on that device until **Log out**. Admin can **Log out everywhere** or **Suspend** a login from Access control; that ends every session at once.
 - **Student ID:** `BOARD CLASS-ROLL-SESSION`, e.g. `MP9-025-26`. The roll number comes from one academy-wide counter when **Register** is pressed, is never reused (not after a student leaves, not after a deleted draft), and becomes 4 digits after 999. Promotion changes class and session (`MP9-025-26` → `MP10-025-27`) and keeps the roll; every earlier ID still finds the student and is shown as "Earlier ID". Bills keep the ID the student had that day.
 - **Bills:** numbered `SA-26-0001` onwards per session year, made inside one database transaction, so a failed bill never leaves a gap. Bills can't be deleted (the database refuses). Only Admin can cancel, with a reason; the number stays in the list as cancelled and the payment comes off the ledger.
 - **Fees:** each student has a payment plan chosen at registration: **Monthly** (fee + due day of the month), **One time**, **Installments** (total, how many, first date, gap; the app splits it and every date/amount can be changed) or a **Manual** schedule. Every fee row has its own due date; Admin and Reception change dates, amounts and the plan on the student's Fees page (logged). Paid / Partial / Pending / Overdue are worked out from the ledger. Fee reminders go only to the parent's own login, never into a batch group (the group composer blocks fee-like messages).

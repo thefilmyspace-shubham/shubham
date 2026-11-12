@@ -20,19 +20,25 @@ function hashCode(userId: string, code: string): string {
  * mobile; parents type their child's login number or the email given at
  * registration.
  */
+/**
+ * Who is logging in. With codes by email, a mobile number is not accepted:
+ * staff use their email or staff ID, parents the email given at registration.
+ * With codes by SMS, a mobile number works too.
+ */
 export async function findLoginUser(role: Role, identifier: string): Promise<AppUser | null> {
   const db = adminClient();
   const email = parseEmail(identifier);
+  const mobileAllowed = otpChannel() === "sms";
   if (role !== "parent") {
     const staffId = email ? null : parseStaffId(identifier);
-    const mobile = email || staffId ? null : normalizeMobile(identifier);
+    const mobile = email || staffId || !mobileAllowed ? null : normalizeMobile(identifier);
     if (!email && !staffId && !mobile) return null;
     let q = db.from("users").select("*").eq("role", role);
     q = email ? q.ilike("email", likeExact(email)) : staffId ? q.eq("staff_id", staffId) : q.eq("mobile", mobile!);
     const { data } = await q.limit(1).maybeSingle<AppUser>();
     return data ?? null;
   }
-  const mobile = email ? await loginNumberForEmail(email) : normalizeMobile(identifier);
+  const mobile = email ? await loginNumberForEmail(email) : mobileAllowed ? normalizeMobile(identifier) : null;
   if (!mobile) return null;
   const { data } = await db.from("users").select("*").eq("role", "parent").eq("mobile", mobile).maybeSingle<AppUser>();
   if (data) return data;
@@ -166,4 +172,9 @@ export async function verifyLoginCode(challenge: string, code: string, t: TFn = 
   const { data: user } = await db.from("users").select("*").eq("id", row.user_id).maybeSingle<AppUser>();
   if (!user || user.status !== "active") return { ok: false, error: t("core.otp.suspended") };
   return { ok: true, user };
+}
+
+/** A mobile number typed where only an email or ID works (codes by email). */
+export function isMobileWhereNotAllowed(identifier: string): boolean {
+  return otpChannel() !== "sms" && !parseEmail(identifier) && /^[+\d\s-]{10,}$/.test(identifier.trim());
 }

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { findLoginUser, sendLoginCode } from "@/lib/otp";
+import { findLoginUser, isMobileWhereNotAllowed, sendLoginCode } from "@/lib/otp";
 import { ROLES } from "@/lib/permissions";
 import { LANG_COOKIE, asLang, translator } from "@/lib/i18n";
 
@@ -15,6 +15,9 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: t("core.auth.enterIdentifier") }, { status: 400 });
   const { role, identifier } = parsed.data;
+  if (isMobileWhereNotAllowed(identifier)) {
+    return NextResponse.json({ error: role === "parent" ? t("core.auth.useEmailParent") : t("core.auth.useEmailStaff") }, { status: 400 });
+  }
   const user = await findLoginUser(role as (typeof ROLES)[number], identifier);
   if (!user) {
     return NextResponse.json({ error: role === "parent" ? t("core.auth.notFoundParent") : t("core.auth.notFoundStaff") }, { status: 404 });

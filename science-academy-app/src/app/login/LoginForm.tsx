@@ -131,6 +131,7 @@ export function LoginForm({ channel }: { channel: "email" | "sms" }) {
 
   if (step === "id") {
     const parent = role === "parent";
+    const sms = channel === "sms";
     return (
       <form
         onSubmit={(e) => {
@@ -144,15 +145,17 @@ export function LoginForm({ channel }: { channel: "email" | "sms" }) {
         </button>
         <div>
           <label className="label" htmlFor="identifier">
-            {parent ? t("core.login.labelParent") : t("core.login.labelStaff")}
+            {sms ? (parent ? t("core.login.labelParentSms") : t("core.login.labelStaffSms")) : parent ? t("core.login.labelParent") : t("core.login.labelStaff")}
           </label>
           <input
             id="identifier"
             className="field text-[16px]"
             autoFocus
-            inputMode={parent && channel !== "email" ? "numeric" : "email"}
-            autoComplete={parent && channel !== "email" ? "tel-national" : "username"}
-            placeholder={parent ? t("core.login.placeholderParent") : t("core.login.placeholderStaff")}
+            inputMode={parent && sms ? "numeric" : "email"}
+            autoComplete={parent && sms ? "tel-national" : parent ? "email" : "username"}
+            placeholder={
+              sms ? (parent ? t("core.login.placeholderParentSms") : t("core.login.placeholderStaffSms")) : parent ? t("core.login.placeholderParent") : t("core.login.placeholderStaff")
+            }
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
           />
