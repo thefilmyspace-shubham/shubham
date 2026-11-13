@@ -151,43 +151,50 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     # ---------- routing ----------
-    def do_GET(self):
+    def route(self):
+        """Parse the request; some firmware (eSSL X2008) adds '.aspx' to every path."""
         url = urlparse(self.path)
+        path = url.path.rstrip("/")
+        if path.lower().endswith(".aspx"):
+            path = path[:-5]
         q = {k: v[0] for k, v in parse_qs(url.query).items()}
+        return path or "/", q
+
+    def do_GET(self):
+        path, q = self.route()
         sn = q.get("SN", "")
-        if url.path.startswith("/iclock/"):
+        if path.startswith("/iclock/"):
             self.rawlog("GET")
-        if url.path == "/iclock/cdata":
+        if path == "/iclock/cdata":
             self.touch_device(sn, q.get("pushver") and "pushver=" + q["pushver"])
             return self.send_text(self.options(sn))
-        if url.path == "/iclock/getrequest":
+        if path == "/iclock/getrequest":
             self.touch_device(sn, q.get("INFO"))
             return self.send_text(self.next_command(sn))
-        if url.path == "/iclock/ping":
+        if path == "/iclock/ping":
             self.touch_device(sn)
             return self.send_text("OK")
-        if url.path in ("/", "/admin"):
+        if path in ("/", "/admin"):
             if not self.authorized():
                 return self.ask_auth()
             return self.send_text(self.admin_page(), ctype="text/html")
         return self.send_text("Not found", 404)
 
     def do_POST(self):
-        url = urlparse(self.path)
-        q = {k: v[0] for k, v in parse_qs(url.query).items()}
+        path, q = self.route()
         sn = q.get("SN", "")
         body = self.read_body()
-        if url.path.startswith("/iclock/"):
+        if path.startswith("/iclock/"):
             self.rawlog("POST", body)
             self.touch_device(sn)
-        if url.path == "/iclock/cdata":
+        if path == "/iclock/cdata":
             return self.send_text(self.handle_upload(sn, q.get("table", ""), body))
-        if url.path == "/iclock/querydata":
+        if path == "/iclock/querydata":
             n = self.handle_querydata(sn, body)
             return self.send_text("OK: %d" % n)
-        if url.path == "/iclock/devicecmd":
+        if path == "/iclock/devicecmd":
             return self.send_text(self.handle_cmd_result(body))
-        if url.path == "/admin/command":
+        if path == "/admin/command":
             if not self.authorized():
                 return self.ask_auth()
             msg = self.handle_admin_form(parse_qs(body))
