@@ -35,8 +35,11 @@ On the VM list, click **SSH** next to `hos-server`, then paste:
 
 ```bash
 sudo mkdir -p /opt/hos && sudo chown $USER /opt/hos
-curl -fsSL -o /opt/hos/adms_server.py https://raw.githubusercontent.com/thefilmyspace-shubham/shubham/claude/quirky-brown-y54q7s/gym-server/adms_server.py
+for f in adms_server.py members.py; do curl -fsSL -o /opt/hos/$f https://raw.githubusercontent.com/thefilmyspace-shubham/shubham/claude/quirky-brown-y54q7s/gym-server/$f; done
 ```
+
+To update later: run the same `for` line with `sudo curl`, then
+`sudo chown -R nobody:nogroup /opt/hos && sudo systemctl restart hos`.
 
 (If the repository is private, upload the file with the SSH window's
 **Upload file** button instead, then `mv ~/adms_server.py /opt/hos/`.)
@@ -96,6 +99,19 @@ eSSL X2008, serial NFZ8252002076, firmware 8.0.4.3, pushver 2.4.1:
   receiving them too.
 - Block (`DATA DELETE USERINFO`) → door stayed shut. Unblock (restore USERINFO +
   FINGERTMP from backup) → door opened. All commands returned 0.
+
+## Members and door sync
+
+Pages (same login): **Members** (`/members`), **Add / Renew** (`/member`), **Door sync** (`/sync`).
+
+- Import the old software's client list as CSV (`client_id, name, phone, gender,
+  registration, package, expiry`) from the Members page.
+- Add / Renew records the payment, sets the new expiry and, if the member was
+  blocked, puts them back on the machine straight away.
+- Door sync removes members whose membership ended more than *grace* days ago
+  (default 3) from the machine and restores them on renewal. It only touches IDs
+  below 10000 that are in the members list and have a fingerprint backup.
+  Automatic sync (every 30 min) is **off** until switched on from the page.
 
 ## 4. Test checklist
 

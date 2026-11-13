@@ -29,6 +29,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlencode, urlparse
 
+import members as M
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8081"))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(HERE, "hos.db"))
@@ -74,6 +76,7 @@ def db():
 def init_db():
     with DB_LOCK, db() as conn:
         conn.executescript(SCHEMA)
+        M.init(conn)
 
 
 def kv_fields(text):
@@ -174,6 +177,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/iclock/ping":
             self.touch_device(sn)
             return self.send_text("OK")
+        if path in ("/members", "/member", "/sync"):
+            if not self.authorized():
+                return self.ask_auth()
+            with DB_LOCK, db() as conn:
+                sn = M.default_sn(conn)
+                page = {"/members": M.members_page, "/member": M.member_page}.get(path)
+                html_ = page(conn, sn, q, q.get("m", "")) if page else M.sync_page(conn, sn, q.get("m", ""))
+            return self.send_text(html_, ctype="text/html")
         if path in ("/", "/admin", "/admin/command"):
             if not self.authorized():
                 return self.ask_auth()
@@ -202,6 +213,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_text("OK: %d" % n)
         if path == "/iclock/devicecmd":
             return self.send_text(self.handle_cmd_result(body))
+        if path in ("/members/import", "/member/save", "/member/door", "/sync"):
+            if not self.authorized():
+                return self.ask_auth()
+            return self.handle_member_post(path, body)
         if path == "/admin/command":
             if not self.authorized():
                 return self.ask_auth()
@@ -209,6 +224,42 @@ class Handler(BaseHTTPRequestHandler):
             # Back to the main page so the auto-refresh never re-posts or 404s.
             return self.redirect("/?" + urlencode({"m": msg}))
         return self.send_text("OK")
+
+    def handle_member_post(self, path, body):
+        f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+        with DB_LOCK, db() as conn:
+            sn = M.default_sn(conn)
+            if path == "/members/import":
+                a, u, s = M.import_csv(conn, body)
+                return self.send_text("Imported: %d new, %d updated, %d skipped" % (a, u, s))
+            if path == "/member/save":
+                ok, msg = M.save_member(conn, sn, f)
+                cid = f.get("client_id", "")
+                return self.redirect("/member?" + urlencode({"id": cid, "m": msg}) if ok
+                                     else "/member?" + urlencode({"m": msg}))
+            if path == "/member/door":
+                cid = f.get("id", "")
+                if not sn or not cid.isdigit():
+                    return self.redirect("/members")
+                ok, msg = (M.unblock(conn, sn, cid) if f.get("do") == "unblock"
+                           else M.block(conn, sn, cid, "manual"))
+                return self.redirect("/member?" + urlencode({"id": cid, "m": msg}))
+            # /sync
+            do = f.get("do")
+            if f.get("grace", "").isdigit():
+                M.set_setting(conn, "grace_days", int(f["grace"]))
+            if do == "auto_on":
+                M.set_setting(conn, "auto_sync", "1")
+                msg = "Automatic sync is ON."
+            elif do == "auto_off":
+                M.set_setting(conn, "auto_sync", "0")
+                msg = "Automatic sync is OFF."
+            elif do == "run" and sn:
+                b, r = M.run_sync(conn, sn)
+                msg = "Sync queued: %d blocked, %d restored." % (b, r)
+            else:
+                msg = "Saved."
+            return self.redirect("/sync?" + urlencode({"m": msg}))
 
     # ---------- device protocol ----------
     def options(self, sn):
@@ -378,6 +429,7 @@ form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
 input,select,button{min-height:40px;padding:0 10px;border-radius:8px;border:1px solid #333;background:#151517;color:#fff}
 button{background:#d90b16;border:0;font-weight:600;cursor:pointer}.msg{background:#1f2a1a;padding:10px;border-radius:8px}</style>
 </head><body><h1>House of Strength — gate test</h1>
+<p><a href="/members" style="color:#ff7a7a">Members</a> · <a href="/member" style="color:#ff7a7a">Add / Renew</a> · <a href="/sync" style="color:#ff7a7a">Door sync</a></p>
 <p>Page refreshes every 15 seconds. Server time %s</p>%s
 <h2>Machines</h2>%s
 <h2>Last punches</h2>%s
@@ -412,10 +464,25 @@ button{background:#d90b16;border:0;font-weight:600;cursor:pointer}.msg{backgroun
         )
 
 
+def auto_sync_loop():
+    """Every 30 minutes: if automatic sync is switched on, block/restore by expiry."""
+    while True:
+        try:
+            with DB_LOCK, db() as conn:
+                sn = M.default_sn(conn)
+                if sn and M.setting(conn, "auto_sync", "0") == "1":
+                    b, r = M.run_sync(conn, sn)
+                    print("%s auto sync: blocked %d, restored %d" % (now(), b, r), flush=True)
+        except Exception as exc:  # keep the loop alive
+            print("%s auto sync error: %s" % (now(), exc), flush=True)
+        threading.Event().wait(1800)
+
+
 def main():
     if not ADMIN_PASS:
         sys.exit("Set ADMIN_PASS before starting, e.g. ADMIN_PASS=secret python3 adms_server.py")
     init_db()
+    threading.Thread(target=auto_sync_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print("%s listening on port %d, database %s" % (now(), PORT, DB_PATH), flush=True)
     srv.serve_forever()
