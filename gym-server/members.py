@@ -274,7 +274,7 @@ a{color:#ff7a7a}.msg{background:#1f2a1a;padding:10px;border-radius:8px}.warn{bac
 
 
 def layout(title, active, body, msg=""):
-    links = [("/", "Gate"), ("/members", "Members"), ("/member", "Add / Renew"), ("/sync", "Door sync")]
+    links = [("/today", "Today"), ("/members", "Members"), ("/member", "Add / Renew"), ("/sync", "Door sync"), ("/", "Gate")]
     nav = "".join('<a href="%s"%s>%s</a>' % (h, ' class="on"' if h == active else "", t) for h, t in links)
     return ('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" '
             'content="width=device-width,initial-scale=1"><title>%s</title><style>%s</style></head>'
@@ -426,3 +426,67 @@ fingerprint stays on the server and is put back the moment they renew. Staff IDs
         len(p["block"]), rows(p["block"]), len(p["no_backup"]), rows(p["no_backup"]),
         len(p["unblock"]), rows(p["unblock"]))
     return layout("Door sync", "/sync", body, msg)
+
+
+# ---------------- today ----------------
+
+def wa_link(phone, text):
+    from urllib.parse import quote
+    digits = re.sub(r"\D", "", phone or "")
+    if len(digits) == 10:
+        digits = "91" + digits
+    if len(digits) < 11:
+        return ""
+    return "https://wa.me/%s?text=%s" % (digits, quote(text))
+
+
+def today_page(conn, sn, msg=""):
+    t = today()
+    t_iso = iso(t)
+    month = t_iso[:7]
+    pay_today = conn.execute("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM payments WHERE paid_on=?", (t_iso,)).fetchone()
+    pay_month = conn.execute("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM payments WHERE substr(paid_on,1,7)=?", (month,)).fetchone()
+    names = {str(r[0]): r[1] for r in conn.execute("SELECT client_id, name FROM members")}
+    names.update({k: v for k, v in machine_names(conn, sn).items() if k not in names})
+    punches = conn.execute(
+        "SELECT pin, MIN(ts) first_in FROM punches WHERE sn=? AND substr(ts,1,10)=? GROUP BY pin ORDER BY first_in DESC",
+        (sn, t_iso)).fetchall()
+
+    def remind_rows(sql, args, kind):
+        out = []
+        for m in conn.execute(sql, args):
+            exp = parse_date(m["expiry"])
+            if kind == "soon":
+                text = ("Hi %s, House of Strength me aapki membership %s ko khatam ho rahi hai. "
+                        "Renew karwane ke liye reception pe milein. Thank you!") % (m["name"], exp.strftime("%d-%m-%Y"))
+            else:
+                text = ("Hi %s, House of Strength aapko miss kar raha hai! Aapki membership %s ko khatam ho gayi thi. "
+                        "Renew karwa ke wapas training shuru karein.") % (m["name"], exp.strftime("%d-%m-%Y"))
+            link = wa_link(m["phone"], text)
+            out.append("<tr><td>%s</td><td><a href=\"/member?id=%s\">%s</a></td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
+                m["client_id"], m["client_id"], e(m["name"] or ""), show(m["expiry"]), e(m["package"] or ""),
+                '<a href="%s" target="_blank" rel="noopener">WhatsApp</a>' % e(link) if link else "—"))
+        return "".join(out) or '<tr><td colspan="5">—</td></tr>'
+
+    soon = remind_rows("SELECT * FROM members WHERE expiry BETWEEN ? AND ? ORDER BY expiry",
+                       (t_iso, iso(t + datetime.timedelta(days=7))), "soon")
+    lapsed = remind_rows("SELECT * FROM members WHERE expiry BETWEEN ? AND ? ORDER BY expiry DESC",
+                         (iso(t - datetime.timedelta(days=15)), iso(t - datetime.timedelta(days=1))), "lapsed")
+    pays = "".join("<tr><td>%s</td><td>%s</td><td>%s</td><td>%g</td><td>%s</td></tr>" % (
+        p["client_id"], e(names.get(str(p["client_id"]), "")), e(p["package"] or ""), p["amount"] or 0, e(p["mode"] or ""))
+        for p in conn.execute("SELECT * FROM payments WHERE paid_on=? ORDER BY id DESC", (t_iso,))) or '<tr><td colspan="5">—</td></tr>'
+    ins = "".join("<tr><td>%s</td><td>%s</td><td>%s</td></tr>" % (
+        e(p["pin"]), e(names.get(p["pin"], "")), e(p["first_in"][11:16])) for p in punches) or '<tr><td colspan="3">—</td></tr>'
+    body = """<h1>Today · %s</h1><div class="cards">
+<div class="card"><span class="dim">Collection today</span><b>₹%s</b><span class="dim">%d payments</span></div>
+<div class="card"><span class="dim">Collection this month</span><b>₹%s</b><span class="dim">%d payments</span></div>
+<div class="card"><span class="dim">Present today</span><b>%d</b><span class="dim">from gate</span></div></div>
+<h2>Expiring in next 7 days — send reminder</h2>
+<table><tr><th>ID</th><th>Name</th><th>Expiry</th><th>Package</th><th>Remind</th></tr>%s</table>
+<h2>Expired in last 15 days — bring back</h2>
+<table><tr><th>ID</th><th>Name</th><th>Expired</th><th>Package</th><th>Message</th></tr>%s</table>
+<h2>Payments today</h2><table><tr><th>ID</th><th>Name</th><th>Package</th><th>Amount</th><th>Mode</th></tr>%s</table>
+<h2>Check-ins today</h2><table><tr><th>ID</th><th>Name</th><th>First in</th></tr>%s</table>""" % (
+        t.strftime("%d-%m-%Y"), "{:,.0f}".format(pay_today[0]), pay_today[1],
+        "{:,.0f}".format(pay_month[0]), pay_month[1], len(punches), soon, lapsed, pays, ins)
+    return layout("Today", "/today", body, msg)

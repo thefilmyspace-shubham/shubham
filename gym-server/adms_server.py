@@ -177,13 +177,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/iclock/ping":
             self.touch_device(sn)
             return self.send_text("OK")
-        if path in ("/members", "/member", "/sync"):
+        if path in ("/members", "/member", "/sync", "/today"):
             if not self.authorized():
                 return self.ask_auth()
             with DB_LOCK, db() as conn:
                 sn = M.default_sn(conn)
                 page = {"/members": M.members_page, "/member": M.member_page}.get(path)
-                html_ = page(conn, sn, q, q.get("m", "")) if page else M.sync_page(conn, sn, q.get("m", ""))
+                if page:
+                    html_ = page(conn, sn, q, q.get("m", ""))
+                elif path == "/today":
+                    html_ = M.today_page(conn, sn, q.get("m", ""))
+                else:
+                    html_ = M.sync_page(conn, sn, q.get("m", ""))
             return self.send_text(html_, ctype="text/html")
         if path in ("/", "/admin", "/admin/command"):
             if not self.authorized():
@@ -429,7 +434,7 @@ form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
 input,select,button{min-height:40px;padding:0 10px;border-radius:8px;border:1px solid #333;background:#151517;color:#fff}
 button{background:#d90b16;border:0;font-weight:600;cursor:pointer}.msg{background:#1f2a1a;padding:10px;border-radius:8px}</style>
 </head><body><h1>House of Strength — gate test</h1>
-<p><a href="/members" style="color:#ff7a7a">Members</a> · <a href="/member" style="color:#ff7a7a">Add / Renew</a> · <a href="/sync" style="color:#ff7a7a">Door sync</a></p>
+<p><a href="/today" style="color:#ff7a7a">Today</a> · <a href="/members" style="color:#ff7a7a">Members</a> · <a href="/member" style="color:#ff7a7a">Add / Renew</a> · <a href="/sync" style="color:#ff7a7a">Door sync</a></p>
 <p>Page refreshes every 15 seconds. Server time %s</p>%s
 <h2>Machines</h2>%s
 <h2>Last punches</h2>%s
