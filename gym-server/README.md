@@ -84,6 +84,19 @@ Menu (M/OK) → COMM:
 Within a minute the machine should appear under **Machines** on the page.
 To go back to the old setup: set Server Address back to `0.0.0.0`.
 
+## Results on the real machine (13 Nov 2026)
+
+eSSL X2008, serial NFZ8252002076, firmware 8.0.4.3, pushver 2.4.1:
+
+- Connected over ADMS; the firmware adds `.aspx` to every path (handled).
+- First connect uploaded 258 USER + 258 FP records and the day's punch history.
+  The machine reports 262 fingerprints, so a few second-finger templates may be
+  missing from the backup — check before blocking members with two fingers.
+- New punches arrive within seconds; the old laptop program (port 4370) keeps
+  receiving them too.
+- Block (`DATA DELETE USERINFO`) → door stayed shut. Unblock (restore USERINFO +
+  FINGERTMP from backup) → door opened. All commands returned 0.
+
 ## 4. Test checklist
 
 1. Machine appears under Machines.
