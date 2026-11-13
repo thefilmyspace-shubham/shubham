@@ -27,7 +27,7 @@ import sqlite3
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8081"))
@@ -174,11 +174,19 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/iclock/ping":
             self.touch_device(sn)
             return self.send_text("OK")
-        if path in ("/", "/admin"):
+        if path in ("/", "/admin", "/admin/command"):
             if not self.authorized():
                 return self.ask_auth()
-            return self.send_text(self.admin_page(), ctype="text/html")
+            if path != "/":
+                return self.redirect("/")
+            return self.send_text(self.admin_page(q.get("m", "")), ctype="text/html")
         return self.send_text("Not found", 404)
+
+    def redirect(self, location):
+        self.send_response(303)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_POST(self):
         path, q = self.route()
@@ -198,7 +206,8 @@ class Handler(BaseHTTPRequestHandler):
             if not self.authorized():
                 return self.ask_auth()
             msg = self.handle_admin_form(parse_qs(body))
-            return self.send_text(self.admin_page(msg), ctype="text/html")
+            # Back to the main page so the auto-refresh never re-posts or 404s.
+            return self.redirect("/?" + urlencode({"m": msg}))
         return self.send_text("OK")
 
     # ---------- device protocol ----------
@@ -360,7 +369,7 @@ class Handler(BaseHTTPRequestHandler):
         opts = "".join('<option value="%s">%s</option>' % (e(d["sn"]), e(d["sn"])) for d in devices)
         return """<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="refresh" content="15"><title>HOS gate test</title>
+<meta http-equiv="refresh" content="15;url=/"><title>HOS gate test</title>
 <style>body{font-family:system-ui,sans-serif;background:#0b0b0c;color:#f4f4f5;margin:0;padding:16px}
 h1{color:#ff5a5a;margin:0 0 8px}h2{margin:24px 0 8px;font-size:18px}
 table{border-collapse:collapse;width:100%%;font-size:13px;display:block;overflow-x:auto}
