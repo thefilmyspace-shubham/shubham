@@ -2,7 +2,8 @@
 
 Animated remake of the client reel (IG DezE1gUAeGm). Everything is drawn in code (SVG) and rendered with headless Chromium.
 
-- **v3 (current, 32.5 s):** v2 plus a music bed (Mixkit "Sicilian Coffee", free licence, ducked under the voices) and the end tagline "Aaj kuch naya try kiya kya?" under the logo.
+- **v4 (current, 32.5 s) — 3D look:** same script, voices, music and tagline as v3, but every shot is an AI-generated 3D still (Magnific, Nano Banana 2.1, made from frames of the original reel) animated on a canvas in `anim3d.html`: slow camera moves, captions, and a lip flap that fades a feathered "mouth open" face patch over the base still (`build_patches.py` -> `ai/patch_*.png`, `ai/patches.json`). Render with `node render.js --page anim3d.html ...`. 15 images at 65 credits = 975 Magnific credits. Source PNGs are not committed (only `ai/*.jpg` and the patches).
+- **v3 (32.5 s), flat 2D:** v2 plus a music bed (Mixkit "Sicilian Coffee", free licence, ducked under the voices) and the end tagline "Aaj kuch naya try kiya kya?" under the logo.
 - **v2 (31.5 s):** new short script, AI voices. Guest = ElevenLabs "Abhishek - Conversational Hinglish" (eleven_v4); waiter = Magnific voiceover "Deepak Singh" (eleven_v4). Raw takes are in `vo/`.
 - **v1 (33 s):** original reel voices cut down — rejected ("script adhi kat di"). See git history.
 

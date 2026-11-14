@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 const HERE = __dirname;
-const MIME = { '.html': 'text/html', '.json': 'application/json', '.png': 'image/png', '.woff2': 'font/woff2' };
+const MIME = { '.html': 'text/html', '.json': 'application/json', '.png': 'image/png', '.woff2': 'font/woff2', '.jpg': 'image/jpeg' };
 (async () => {
   const srv = http.createServer((q, r) => {
     const p = path.join(HERE, decodeURIComponent(q.url.split('?')[0]));
@@ -17,7 +17,7 @@ const MIME = { '.html': 'text/html', '.json': 'application/json', '.png': 'image
   const b = await chromium.launch();
   const pg = await b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: scale });
   pg.on('pageerror', e => console.error('PAGE ERROR', e.message));
-  await pg.goto(`http://localhost:${port}/anim.html`);
+  await pg.goto(`http://localhost:${port}/${arg('page', 'anim.html')}`);
   const total = await pg.evaluate(() => window.init());
   const stills = arg('stills');
   if (stills) {

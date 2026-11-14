@@ -1,0 +1,77 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:PF;font-weight:400;src:url(assets/playfair-display-latin-400-normal.woff2)}
+@font-face{font-family:PF;font-weight:600;src:url(assets/playfair-display-latin-600-normal.woff2)}
+html,body{margin:0;background:#000;overflow:hidden}
+canvas{display:block;width:100vw;height:100vh}
+</style></head><body><canvas id="C"></canvas>
+<script>
+// v4: AI-generated 3D stills (ai/*.jpg) animated on a canvas: slow camera moves, mouth-patch lip flap, captions.
+const W=1080,H=1920;
+let ENV=[],TOTAL=32.5,IM={},PATCH={},ctx;
+// [start,end,image, openPatch, camera from [zoom,cx,cy] to [zoom,cx,cy]]  (cx,cy = focus point in 0..1 image coords)
+const SHOTS=[
+ [0,2.2,'door',null,[1.0,.5,.5],[1.14,.52,.42]],
+ [2.2,4.3,'wide2','wide_wtalk',[1.0,.5,.5],[1.06,.45,.5]],
+ [4.3,6.5,'close','close_open',[1.12,.58,.5],[1.2,.6,.48]],
+ [6.5,8.5,'wide2','wide_wtalk',[1.1,.4,.52],[1.16,.36,.5]],
+ [8.5,11.0,'waiter','waiter_open',[1.0,.5,.5],[1.08,.5,.44]],
+ [11.0,13.5,'wide2','wide_wtalk',[1.2,.3,.52],[1.12,.34,.52]],
+ [13.5,17.4,'close','close_open',[1.18,.6,.49],[1.3,.61,.47]],
+ [17.4,20.1,'wide_gesture','gesture_open',[1.0,.5,.5],[1.1,.4,.5]],
+ [20.1,23.8,'sushi',null,[1.0,.5,.45],[1.22,.5,.3]],
+ [23.8,25.5,'eat',null,[1.05,.52,.42],[1.2,.54,.36]],
+ [25.5,27.9,'delight','delight_open',[1.04,.5,.5],[1.14,.5,.46]],
+ [27.9,99,'logo',null,[1,.5,.5],[1,.5,.5]]];
+const SPEAK=[[2.4,4.1],[4.4,6.3],[6.7,13.34],[13.7,17.23],[17.5,19.93],[25.5,27.6]];   // lines spoken on screen (21.2-23.6 is over the sushi)
+const CAPS=[[2.4,4.15,"Hello sir! Aaj kya lenge?"],[4.4,6.3,"Wahi… regular laga do"],
+ [6.7,8.3,"Sir, ek baat bolun?"],[8.7,9.8,"Aap har baar naye outfit"],[9.8,10.95,"mein aate ho…"],[11.2,13.4,"Par order hamesha wahi regular!"],
+ [13.7,14.9,"Haan yaar…"],[14.9,16.1,"Mujhe nayi cheezein"],[16.1,17.3,"explore karna pasand hai"],
+ [17.5,18.7,"To phir aaj khaane mein bhi"],[18.7,19.98,"kuch naya try kijiye!"],
+ [21.2,22.2,"Fresh sushi,"],[22.2,23.65,"authentic sauce ke saath"],[25.5,27.6,"Mmm… kya cheez hai ye!"]];
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)), lerp=(a,b,u)=>a+(b-a)*u, ease=u=>{u=cl(u);return u*u*(3-2*u)}, eout=u=>1-Math.pow(1-cl(u),3);
+function cam(img,z,cx,cy){ // cover-fit the image, zoom about a focus point, keep the frame filled
+ const s=Math.max(W/img.width,H/img.height)*z, w=img.width*s, h=img.height*s;
+ let x=W/2-cx*w, y=H/2-cy*h; x=cl(x,W-w,0); y=cl(y,H-h,0); return {s,x,y,w,h}}
+function text(str,x,y,size,weight,color,alpha){ctx.save();ctx.globalAlpha=alpha;ctx.font=`${weight} ${size}px PF`;ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,.9)';ctx.shadowBlur=14;ctx.shadowOffsetY=4;ctx.fillStyle=color;ctx.fillText(str,x,y);ctx.shadowBlur=6;ctx.fillText(str,x,y);ctx.restore()}
+function sparkle(x,y,r,a){ctx.save();ctx.globalAlpha=cl(a);ctx.fillStyle='#ffe08a';ctx.shadowColor='#ffd060';ctx.shadowBlur=24;ctx.beginPath();ctx.moveTo(x,y-r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.quadraticCurveTo(x,y,x,y+r);ctx.quadraticCurveTo(x,y,x-r,y);ctx.quadraticCurveTo(x,y,x,y-r);ctx.fill();ctx.restore()}
+function mouth(t){ // 0..1 from the voice envelope, lightly smoothed
+ if(!SPEAK.some(([a,b])=>t>=a&&t<b))return 0; let v=0,n=0;for(let i=-2;i<=2;i++){v+=ENV[Math.round(t*60)+i]||0;n++}return cl((v/n-0.25)*1.9)}
+function draw(t){
+ ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); ctx.globalAlpha=1; ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+ const sh=SHOTS.find(s=>t>=s[0]&&t<s[1])||SHOTS[SHOTS.length-1], u=cl((t-sh[0])/Math.min(sh[1]-sh[0],4));
+ if(sh[2]=='logo'){ const a=ease((t-27.9)/0.6), k=lerp(.94,1.02,cl((t-27.9)/3.5)), L=IM.logo, w=940*k, h=w*L.height/L.width;
+  ctx.globalAlpha=a; ctx.drawImage(L,W/2-w/2,960-256*k,w,h);
+  for(let i=0;i<10;i++){const x=120+(i*97)%860,y=((1900-(t*40+i*190))%1900+1900)%1900;ctx.globalAlpha=a*(.25+.2*Math.sin(t*3+i));ctx.fillStyle='#d9a93f';ctx.beginPath();ctx.arc(x,y,2+i%3,0,7);ctx.fill()}
+  const ta=ease((t-28.8)/0.6), ty=1330+(1-eout((t-28.8)/0.7))*24;
+  text("Aaj kuch naya try kiya kya?",540,ty,64,400,'#f1dfae',ta);
+  ctx.globalAlpha=ta;ctx.strokeStyle='#c9a14a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(540-150*ta,1385);ctx.lineTo(540+150*ta,1385);ctx.stroke();ctx.globalAlpha=1;
+  return; }
+ const img=IM[sh[2]], e=ease(u)*.5+u*.5, c=cam(img,lerp(sh[4][0],sh[5][0],e),lerp(sh[4][1],sh[5][1],e),lerp(sh[4][2],sh[5][2],e));
+ ctx.drawImage(img,c.x,c.y,c.w,c.h);
+ let pn=sh[3], o=pn?mouth(t):0;
+ if(sh[2]=='close'&&t>=13.5&&t<14.75){pn='close_laugh';o=ease((t-13.55)/0.15)*(1-ease((t-14.55)/0.2))}   // the chuckle before "Haan yaar"
+ if(pn&&o>0.01){const p=PATCH[pn];ctx.globalAlpha=o;ctx.drawImage(IM['patch_'+pn],c.x+p.x*c.w,c.y+p.y*c.h,p.w*c.w,p.h*c.h);ctx.globalAlpha=1}
+ if(sh[2]=='sushi'){ // title + warm light leak on the reveal
+  const a=cl((t-20.15)/0.2)*(1-ease((t-20.95)/0.25)), sc=lerp(1.5,1,eout((t-20.15)/0.35));
+  if(a>0){ctx.save();ctx.translate(540,1380);ctx.scale(sc,sc);text('Sushi',0,0,180,600,'#fff',a);ctx.restore()}
+  const lk=.85*(1-ease((t-20.1)/0.7)); if(lk>0.01){const g=ctx.createRadialGradient(760,760,0,760,760,1700);g.addColorStop(0,'rgba(255,243,208,1)');g.addColorStop(.4,'rgba(255,154,92,.8)');g.addColorStop(1,'rgba(255,92,138,.2)');ctx.globalAlpha=lk;ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
+  for(let i=0;i<3;i++){const y=((t*70+i*90)%260);ctx.save();ctx.globalAlpha=.22*(1-y/260);ctx.strokeStyle='#fff';ctx.lineWidth=12;ctx.lineCap='round';ctx.filter='blur(6px)';ctx.beginPath();const x=380+i*150;ctx.moveTo(x,700-y);ctx.bezierCurveTo(x+40,650-y,x-40,600-y,x,540-y);ctx.stroke();ctx.restore()} }
+ if(sh[2]=='eat'||sh[2]=='delight'){const a=cl((t-sh[0]-0.3)/0.3);for(let i=0;i<6;i++){const an=i*1.05+t*.5,r=430+50*Math.sin(t*1.7+i);sparkle(540+r*Math.cos(an),760+r*.8*Math.sin(an),20+12*Math.sin(t*5+i),a*(.5+.45*Math.sin(t*6+i*2)))}}
+ // soft vignette
+ const v=ctx.createRadialGradient(540,960,700,540,960,1350);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.36)');ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
+ for(const [a,b,tx] of CAPS) if(t>=a&&t<b){const k=cl((t-a)/0.12);text(tx,540,1392-(1-eout(k))*14,62,400,'#fff',k)}
+ if(t<0.35){ctx.globalAlpha=1-t/0.35;ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
+}
+const load=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
+window.init=async()=>{
+ const cv=document.getElementById('C');cv.width=W*devicePixelRatio;cv.height=H*devicePixelRatio;ctx=cv.getContext('2d');ctx.imageSmoothingQuality='high';
+ const e=await (await fetch('build/env.json')).json();ENV=e.env;TOTAL=e.total;
+ PATCH=await (await fetch('ai/patches.json')).json();
+ for(const n of ['door','wide2','wide_gesture','waiter','close','sushi','eat','delight']) IM[n]=await load(`ai/${n}.jpg`);
+ for(const n of Object.keys(PATCH)) IM['patch_'+n]=await load(`ai/patch_${n}.png`);
+ IM.logo=await load('assets/logo_card.png');
+ await document.fonts.load('62px PF');await document.fonts.load('600 62px PF');return TOTAL};
+window.draw=draw;
+</script></body></html>

@@ -1,1 +1,3 @@
 build/
+ai/*.png
+!ai/patch_*.png
