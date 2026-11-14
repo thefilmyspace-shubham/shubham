@@ -272,7 +272,9 @@ function door(t,s,sh,u){ const k=1+0.05*u; let o=`<g transform="translate(540,96
 
 function logo(t,s){ const a=ease((s-27.9)/0.6), k=lerp(.94,1.02,cl((s-27.9)/3.5));
  let o=`<rect width="1080" height="1920" fill="#000"/>`;
- o+=`<g transform="translate(540,960) scale(${f(k*1000)/1000})" opacity="${f(a)}"><image href="assets/logo_card.png" x="-470" y="-222" width="940" height="444"/></g>`;
+ o+=`<g transform="translate(540,960) scale(${f(k*1000)/1000})" opacity="${f(a)}"><image href="assets/logo_card.png" x="-470" y="-256" width="940" height="547"/></g>`;
+ const ta=ease((s-28.8)/0.6), ty=1330+(1-eout((s-28.8)/0.7))*24;
+ o+=`<text x="540" y="${f(ty)}" text-anchor="middle" font-size="64" fill="#f1dfae" opacity="${f(ta)}">Aaj kuch naya try kiya kya?</text><path d="M${f(540-150*ta)},1385 L${f(540+150*ta)},1385" stroke="#c9a14a" stroke-width="3" opacity="${f(ta)}"/>`;
  for(let i=0;i<10;i++){const x=120+(i*97)%860,y=((1900-(t*40+i*190))%1900+1900)%1900;o+=`<circle cx="${x}" cy="${f(y)}" r="${2+i%3}" fill="#d9a93f" opacity="${f(a*(.25+.2*sin(t*3+i)))}"/>`}
  return o;}
 

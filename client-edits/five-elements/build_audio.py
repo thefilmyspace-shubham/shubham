@@ -16,10 +16,20 @@ for f, a, b, at in tl['voice']:
     n = int(0.03 * SR); c[:n] *= np.linspace(0, 1, n); c[-2 * n:] *= np.linspace(1, 0, 2 * n)
     i = int((at - 0.04) * SR); mix[i:i + len(c)] += c[:len(mix) - i]
 mix = np.tanh(mix * 1.6) / 1.6 * 1.5
+voice = mix.copy()
+if tl.get('music'):                                                      # music bed, ducked under the voices
+    raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', f"{HERE}/music/{tl['music']}.mp3", '-ac', '1', '-ar', str(SR), '-f', 's16le', '-'], capture_output=True, check=True).stdout
+    m = np.frombuffer(raw, dtype=np.int16).astype(np.float64)[:len(mix)] / 32768
+    m *= 0.125 / np.sqrt(np.mean(m ** 2))
+    k = SR // 4; act = np.convolve((np.abs(voice) > 0.02).astype(float), np.ones(k) / k, 'same')
+    act = np.convolve(np.clip(act * 6, 0, 1), np.ones(k) / k, 'same')    # 0 = no speech, 1 = speech
+    g = 0.85 - 0.60 * act
+    t = np.arange(len(m)) / SR; g *= np.clip(t / 0.4, 0, 1) * np.clip((total - t) / 1.5, 0, 1)
+    mix = mix + m * g
 w = wave.open(f'{HERE}/build/audio.wav', 'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
 w.writeframes((np.clip(mix, -1, 1) * 32767).astype(np.int16).tobytes()); w.close()
 hop = SR // 60; win = hop * 3
-e = np.array([np.sqrt(np.mean(mix[max(0, i - win // 2):i + win // 2] ** 2) + 1e-9) for i in range(0, len(mix), hop)])
+e = np.array([np.sqrt(np.mean(voice[max(0, i - win // 2):i + win // 2] ** 2) + 1e-9) for i in range(0, len(voice), hop)])
 env = np.clip((20 * np.log10(e) + 34) / 16, 0, 1)
 json.dump({'total': total, 'env': [round(float(v), 2) for v in env]}, open(f'{HERE}/build/env.json', 'w'))
 print('duration', total)

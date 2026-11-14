@@ -2,7 +2,8 @@
 
 Animated remake of the client reel (IG DezE1gUAeGm). Everything is drawn in code (SVG) and rendered with headless Chromium.
 
-- **v2 (current, 31.5 s):** new short script, AI voices. Guest = ElevenLabs "Abhishek - Conversational Hinglish" (eleven_v4); waiter = Magnific voiceover "Deepak Singh" (eleven_v4). Raw takes are in `vo/`. No music bed (add on Instagram).
+- **v3 (current, 32.5 s):** v2 plus a music bed (Mixkit "Sicilian Coffee", free licence, ducked under the voices) and the end tagline "Aaj kuch naya try kiya kya?" under the logo.
+- **v2 (31.5 s):** new short script, AI voices. Guest = ElevenLabs "Abhishek - Conversational Hinglish" (eleven_v4); waiter = Magnific voiceover "Deepak Singh" (eleven_v4). Raw takes are in `vo/`.
 - **v1 (33 s):** original reel voices cut down — rejected ("script adhi kat di"). See git history.
 
     python3 build_audio.py                        # places vo/ lines per timeline.json -> build/audio.wav + lip-sync envelope
