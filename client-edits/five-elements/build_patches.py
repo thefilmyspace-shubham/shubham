@@ -4,8 +4,10 @@ import json, os
 import numpy as np
 from PIL import Image, ImageFilter
 HERE = os.path.dirname(os.path.abspath(__file__)); A = f'{HERE}/ai'
-HINT = {'gesture_open': (0.12, 0.39), 'wide_wtalk': (0.085, 0.415)}                                    # face centre when the diff is noisy
-PAIRS = [('wide2', 'wide_wtalk'), ('wide_gesture', 'gesture_open'), ('waiter', 'waiter_open'), ('close', 'close_open'), ('close', 'close_laugh'), ('delight', 'delight_open')]
+HINT = {'gesture_open': (0.12, 0.39), 'wide_wtalk': (0.085, 0.415),
+        'pov_secret_open': (0.31, 0.40), 'pov_resolve_open': (0.5, 0.44), 'pov_proud_open': (0.77, 0.385)}                                    # face centre when the diff is noisy
+PAIRS = [('wide2', 'wide_wtalk'), ('wide_gesture', 'gesture_open'), ('waiter', 'waiter_open'), ('close', 'close_open'), ('close', 'close_laugh'), ('delight', 'delight_open'),
+         ('pov_secret', 'pov_secret_open'), ('pov_resolve', 'pov_resolve_open'), ('pov_proud', 'pov_proud_open')]
 out = {}
 for base, var in PAIRS:
     a = Image.open(f'{A}/{base}.png').convert('RGB'); b = Image.open(f'{A}/{var}.png').convert('RGB').resize(a.size)
@@ -14,7 +16,7 @@ for base, var in PAIRS:
     d = np.asarray(Image.fromarray(np.clip(d, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(W * 0.006)), float)
     ys, xs = np.where(d > 28)
     cx, cy = np.median(xs), np.median(ys); r = 0.16
-    if var in HINT: cx, cy, r = HINT[var][0] * W, HINT[var][1] * H, 0.07
+    if var in HINT: cx, cy, r = HINT[var][0] * W, HINT[var][1] * H, (0.11 if var.startswith('pov') else 0.07)
     near = (np.abs(xs - cx) < W * r) & (np.abs(ys - cy) < W * r)
     xs, ys = xs[near], ys[near]
     x0, x1, y0, y1 = np.percentile(xs, 1), np.percentile(xs, 99), np.percentile(ys, 1), np.percentile(ys, 99)

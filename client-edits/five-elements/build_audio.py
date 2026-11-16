@@ -1,9 +1,9 @@
 """Lay the AI voice lines (vo/waiter_raw.mp3, vo/guest_raw.mp3) on the timeline and write the lip-sync envelope.
-   timeline.json 'voice' rows: [file, clip_in, clip_out, place_at].   python3 build_audio.py"""
-import json, os, subprocess, wave
+   timeline.json 'voice' rows: [file, clip_in, clip_out, place_at].   python3 build_audio.py [timeline_pov.json]"""
+import json, os, subprocess, sys, wave
 import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__)); SR = 48000
-tl = json.load(open(f'{HERE}/timeline.json')); total = tl['total']
+tl = json.load(open(f"{HERE}/{sys.argv[1] if len(sys.argv) > 1 else 'timeline.json'}")); total = tl['total']
 os.makedirs(f'{HERE}/build', exist_ok=True)
 def load(f):
     raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', f'{HERE}/vo/{f}_raw.mp3', '-ac', '1', '-ar', str(SR), '-f', 's16le', '-'], capture_output=True, check=True).stdout
