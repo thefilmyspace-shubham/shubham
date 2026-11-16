@@ -1,7 +1,8 @@
 # English assembly text for the client's ride-on assembly video (Drive, 2160x3840 HEVC 60 fps, 43.6 s, "src").
 # Each step gets a card at the top of the frame: a red "STEP n" chip + a white rounded card with the instruction and
 # progress dots. The cards fade and slide in on the step's own shot (step times were read from the footage).
-# The video is not re-cut; the original sound is kept. The footage is brightened slightly (BRIGHT) and carries a
+# The video is not re-cut; the original sound is kept. The footage gets the approved colour grade (tools/grade.py:
+# per-shot white balance, even exposure, cloth ~200) and carries a
 # semi-transparent Funhoods logo watermark top-left, as in the animated reels (hidden on the closing logo card).
 # -> exports/*_4K60.mp4 + *_1080p.mp4
 # usage: python3 tools/overlay.py <src video>            (or: --still <t> <out.png> to preview one frame)
@@ -88,7 +89,8 @@ def build(src, outp):
     cs = cards(); args = ['ffmpeg', '-v', 'error', '-y', '-i', src]
     for p, a, b, cx, ty in cs: args += ['-loop', '1', '-framerate', '60', '-t', '44', '-i', p]
     wp, wm = watermark(); args += ['-loop', '1', '-framerate', '60', '-t', '44', '-i', wp]; nw = len(cs) + 1
-    fl = ['[0:v]%s[b0]' % BRIGHT,
+    from grade import full_graph                                       # the approved grade, shot by shot
+    fl = [full_graph(src).replace('[graded]', '[b0]'),
           '[%d:v]format=rgba,fade=t=out:st=%.2f:d=0.2:alpha=1[wm]' % (nw, WM['end'] - 0.2),
           "[b0][wm]overlay=x=%d:y=%d:shortest=1:enable='lte(t\\,%.2f)'[base]" % (WM['cx'] - wm.width // 2, WM['cy'] - wm.height // 2, WM['end'])]
     last = 'base'
@@ -105,7 +107,10 @@ def build(src, outp):
 
 def still(src, t, outp):
     """preview one frame: the brightened source frame + the watermark + whichever card is on screen (fully in)"""
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', str(t), '-i', src, '-frames:v', '1', '-vf', BRIGHT, outp], check=True)
+    from grade import SHOTS, gains_all, shot_filter
+    i = max(k for k, c in enumerate(SHOTS) if c <= t); g = gains_all(src)[i]
+    vf = shot_filter(g) if i < len(SHOTS) - 2 else 'null'
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', str(t), '-i', src, '-frames:v', '1', '-vf', vf, outp], check=True)
     fr = Image.open(outp).convert('RGBA')
     if t <= WM['end']:
         wp, wm = watermark(); fr.alpha_composite(wm, (WM['cx'] - wm.width // 2, WM['cy'] - wm.height // 2))
