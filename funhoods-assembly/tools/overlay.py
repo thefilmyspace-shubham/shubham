@@ -81,7 +81,7 @@ def build(src, outp):
         w_ = Image.open(p).width
         fl.append('[%d:v]format=rgba,fade=t=in:st=%.2f:d=0.22:alpha=1,fade=t=out:st=%.2f:d=0.2:alpha=1[c%d]' % (k + 1, a, b - 0.2, k))
         y = '%d+60*max(0\\,1-(t-%.2f)/0.25)' % (ty - 70, a)
-        fl.append("[%s][c%d]overlay=x=%d:y='%s':enable='between(t\\,%.2f\\,%.2f)'[v%d]" % (last, k, int(cx - w_ / 2), y, a, b, k))
+        fl.append("[%s][c%d]overlay=x=%d:y='%s':shortest=1:enable='between(t\\,%.2f\\,%.2f)'[v%d]" % (last, k, int(cx - w_ / 2), y, a, b, k))
         last = 'v%d' % k
     args += ['-filter_complex', ';'.join(fl), '-map', '[%s]' % last, '-map', '0:a', '-c:a', 'copy',
              '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-level', '5.2',
