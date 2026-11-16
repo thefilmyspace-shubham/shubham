@@ -247,8 +247,8 @@ button.ghost{background:var(--card2);border:1px solid var(--line)}h1{font-family
 
 NAV = [
     ("/", "Dashboard", "dash", None), ("/members", "Members", "users", None), ("/bill", "New Bill", "bill", None),
-    ("/soon?p=Attendance", "Attendance", "finger", None), ("/today", "Renewals", "renew", "renewals"),
-    ("/members?f=pending", "Pending Payments", "rupee", "pending"), ("/soon?p=Absent", "Absent Members", "alert", "absent"),
+    ("/attendance", "Attendance", "finger", None), ("/renewals", "Renewals", "renew", "renewals"),
+    ("/pending", "Pending Payments", "rupee", "pending"), ("/absent", "Absent Members", "alert", "absent"),
     ("/soon?p=Inquiries", "Inquiries", "chat", None), ("/soon?p=Packages", "Packages", "box", None),
     ("/soon?p=Staff", "Staff & Trainers", "staff", None), ("/soon?p=Reports", "Reports", "chart", None),
 ]
@@ -348,13 +348,13 @@ def dashboard(conn, sn, q):
 <div class="kpi"><div class="l">Today's check-ins</div><div class="v">%d</div><div class="s">%s</div></div>
 <div class="kpi"><div class="l">Collection this month</div><div class="v">%s</div><div class="s">%d bills since 1 %s</div></div>
 <a class="kpi" href="/members?f=pending"><div class="l">Pending dues</div><div class="v">%s</div><div class="s">%d members</div></a></div>
-<div class="two"><div class="panel"><div class="ph"><h2>Check-ins by hour · today</h2><a href="/gate">Open gate</a></div>%s</div>
+<div class="two"><div class="panel"><div class="ph"><h2>Check-ins by hour · today</h2><a href="/attendance">Open attendance</a></div>%s</div>
 <div class="panel"><div class="ph"><h2>Collection · last 6 months</h2><span class="dim">₹ thousand</span></div>%s</div></div>
-<div class="two"><div class="panel"><div class="ph"><h2>Renewals due this week</h2><a href="/today">View all %d</a></div>
+<div class="two"><div class="panel"><div class="ph"><h2>Renewals due this week</h2><a href="/renewals">View all %d</a></div>
 <div class="tw"><table><tr><th>Member</th><th>Package</th><th>Expiry</th><th>Due</th><th></th></tr>%s</table></div></div>
 <div style="display:flex;flex-direction:column;gap:20px"><div class="panel"><div class="ph"><h2>Quick actions</h2></div><div class="qa">
-<a href="/bill">%sNew membership bill</a><a href="/member">%sAdd member</a><a href="/soon?p=Inquiries">%sAdd inquiry</a><a href="/today">%sSend reminders</a></div></div>
-<div class="panel"><div class="ph"><h2>Not seen for 7+ days</h2><span class="dim">%d</span></div><table>%s</table></div></div></div>""" % (
+<a href="/bill">%sNew membership bill</a><a href="/member">%sAdd member</a><a href="/soon?p=Inquiries">%sAdd inquiry</a><a href="/renewals">%sSend reminders</a></div></div>
+<div class="panel"><div class="ph"><h2>Not seen for 7+ days</h2><a href="/absent">View all %d</a></div><table>%s</table></div></div></div>""" % (
         active, total - active, total, today_in,
         "Peak %s" % ("%d %s" % ((peak - 1) % 12 + 1, "AM" if peak < 12 else "PM")) if peak is not None else "From the gate",
         money(col_m[0]), col_m[1], t.strftime("%b"), money(pend[0]), pend[1] or 0,
@@ -802,16 +802,381 @@ def import_attendance(conn, sn, text):
     return added, skipped, ""
 
 
+# ---------------- part B: attendance, renewals, pending, absent ----------------
+
+def staff_names(conn, sn):
+    return {p: n for p, n in M.machine_names(conn, sn).items() if p.isdigit() and int(p) >= STAFF_FROM}
+
+
+def member_names(conn):
+    return {str(r[0]): r[1] for r in conn.execute("SELECT client_id, name FROM members")}
+
+
+def log_reminder(conn, cid, kind):
+    conn.execute("CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY, client_id INTEGER, kind TEXT, at TEXT)")
+    conn.execute("INSERT INTO reminders (client_id, kind, at) VALUES (?,?,?)", (cid, kind, M.stamp()))
+
+
+def last_reminders(conn, kind):
+    conn.execute("CREATE TABLE IF NOT EXISTS reminders (id INTEGER PRIMARY KEY, client_id INTEGER, kind TEXT, at TEXT)")
+    return {r[0]: r[1] for r in conn.execute("SELECT client_id, MAX(at) FROM reminders WHERE kind=? GROUP BY client_id", (kind,))}
+
+
+def remind_link(cid, kind):
+    """Through our server so the reminder is logged, then on to WhatsApp."""
+    return "/r?" + urlencode({"id": cid, "k": kind})
+
+
+def remind_redirect(conn, q):
+    cid = q.get("id", "")
+    m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone() if cid.isdigit() else None
+    if not m:
+        return "/members"
+    kind = q.get("k", "renew")
+    text = {"renew": renew_msg, "absent": absent_msg, "due": due_msg}.get(kind, renew_msg)(m)
+    link = wa(m["phone"], text)
+    if not link:
+        return "/m?" + urlencode({"id": cid, "m": "No valid phone number for this member."})
+    log_reminder(conn, m["client_id"], kind)
+    return link
+
+
+def due_msg(m):
+    return ("Hi %s, House of Strength me aapka %s baaki hai. Agli visit pe reception pe clear kar dijiye. "
+            "Thank you!") % (nice(m["name"]), money(m["pending"]))
+
+
+def remind_btn(m, kind):
+    return ('<a class="ibtn wa" href="%s" target="_blank" rel="noopener" aria-label="WhatsApp %s">%s</a>'
+            % (remind_link(m["client_id"], kind), e(m["name"] or ""), icon("chat", 16))) if m["phone"] else ""
+
+
+def sel_box(cid):
+    return '<input type="checkbox" name="id" value="%d" aria-label="Select" style="width:18px;height:18px;min-height:0;accent-color:#e10600">' % cid
+
+
+# ---------- attendance ----------
+
+def attendance(conn, sn, q):
+    t = M.today()
+    ti = M.iso(t)
+    tab = q.get("t", "members")
+    mn = member_names(conn)
+    sn_names = staff_names(conn, sn)
+    today_rows = conn.execute("SELECT pin, ts, status FROM punches WHERE sn=? AND substr(ts,1,10)=? ORDER BY ts DESC",
+                              (sn, ti)).fetchall()
+    mem_today = {r[0] for r in today_rows if is_member(r[0])}
+    staff_today = {r[0] for r in today_rows if not is_member(r[0])}
+    now = datetime.datetime.now()
+    recent = {r[0] for r in today_rows if is_member(r[0]) and r[2] != "1" and
+              (now - datetime.datetime.strptime(r[1], "%Y-%m-%d %H:%M:%S")).total_seconds() <= 5400}
+    staff_30 = {r[0] for r in conn.execute("SELECT DISTINCT pin FROM punches WHERE CAST(pin AS INT) >= ? AND ts >= ?",
+                                           (STAFF_FROM, M.iso(t - datetime.timedelta(days=30))))}
+    month_n = conn.execute("SELECT COUNT(DISTINCT pin || substr(ts,1,10)) FROM punches WHERE substr(ts,1,7)=? AND CAST(pin AS INT) < ?",
+                           (ti[:7], STAFF_FROM)).fetchone()[0]
+    live = "".join(
+        '<tr><td><a class="mem" href="%s"><span class="av">%s</span>%s</a></td><td class="dim">%s</td><td style="text-align:right"><b>%s</b></td></tr>' % (
+            "/m?id=%s" % r[0] if is_member(r[0]) else "#", initials(mn.get(r[0]) or sn_names.get(r[0], r[0])),
+            e(nice(mn.get(r[0]) or sn_names.get(r[0]) or "ID %s" % r[0])),
+            "Out" if r[2] == "1" else ("In" if is_member(r[0]) else "Staff"),
+            datetime.datetime.strptime(r[1], "%Y-%m-%d %H:%M:%S").strftime("%I:%M %p").lstrip("0"))
+        for r in today_rows[:14]) or '<tr><td class="dim">No check-ins yet today.</td></tr>'
+    # busy hours: last 28 days, weekday x hour, distinct member visits
+    heat = {}
+    for wd, h, n in conn.execute(
+            "SELECT CAST(strftime('%w', substr(ts,1,10)) AS INT), CAST(substr(ts,12,2) AS INT), COUNT(DISTINCT pin || substr(ts,1,10)) "
+            "FROM punches WHERE ts >= ? AND CAST(pin AS INT) < ? AND status != '1' GROUP BY 1, 2",
+            (M.iso(t - datetime.timedelta(days=28)), STAFF_FROM)):
+        heat[(wd, h)] = n
+    top = max(heat.values() or [1])
+    hours = list(range(6, 23))
+    days = [(1, "Mon"), (2, "Tue"), (3, "Wed"), (4, "Thu"), (5, "Fri"), (6, "Sat"), (0, "Sun")]
+    grid = '<div style="display:grid;grid-template-columns:40px repeat(%d,minmax(0,1fr));gap:4px;font-size:11px;color:var(--muted)"><span></span>%s%s</div>' % (
+        len(hours), "".join('<span style="text-align:center">%d%s</span>' % ((h - 1) % 12 + 1, "a" if h < 12 else "p") for h in hours),
+        "".join('<span>%s</span>%s' % (dn, "".join(
+            '<i title="%s %d:00 · %d" style="height:26px;border-radius:5px;background:rgba(225,6,0,%.2f)"></i>' % (
+                dn, h, heat.get((wd, h), 0), 0.08 + 0.92 * heat.get((wd, h), 0) / top) for h in hours)) for wd, dn in days))
+    # per month
+    if tab == "members":
+        rows = conn.execute("SELECT substr(ts,1,7) m, COUNT(DISTINCT pin || substr(ts,1,10)) FROM punches "
+                            "WHERE CAST(pin AS INT) < ? AND status != '1' GROUP BY m ORDER BY m", (STAFF_FROM,)).fetchall()[-12:]
+        lower = '<div class="panel"><div class="ph"><h2>Member check-ins per month</h2></div>%s</div>' % bars(
+            [(datetime.datetime.strptime(m + "-01", "%Y-%m-%d").strftime("%b"), n) for m, n in rows], lambda l, v: True)
+    else:
+        staff_rows = []
+        for pin, name in sorted(sn_names.items(), key=lambda x: x[1].lower()):
+            n30 = conn.execute("SELECT COUNT(DISTINCT substr(ts,1,10)) FROM punches WHERE pin=? AND ts >= ?",
+                               (pin, M.iso(t - datetime.timedelta(days=30)))).fetchone()[0]
+            if n30 == 0 and tab != "all":
+                continue
+            first = conn.execute("SELECT MIN(ts), MAX(ts) FROM punches WHERE pin=? AND substr(ts,1,10)=?", (pin, ti)).fetchone()
+            staff_rows.append('<tr><td><span class="mem"><span class="av">%s</span>%s</span></td><td class="dim">ID %s</td>'
+                              '<td>%d / 30</td><td>%s</td></tr>' % (
+                                  initials(name), e(nice(name)), pin, n30,
+                                  ('<span class="pill p-ok">In %s</span>' % first[0][11:16]) if first[0] else '<span class="pill p-dim">Not in</span>'))
+        lower = ('<div class="panel"><div class="ph"><h2>Staff &amp; trainers · last 30 days</h2><a href="/attendance?t=all">Show all</a></div>'
+                 '<div class="tw"><table><tr><th>Name</th><th>ID</th><th>Present</th><th>Today</th></tr>%s</table></div></div>'
+                 % ("".join(staff_rows) or '<tr><td class="dim">No staff check-ins in the last 30 days.</td></tr>'))
+    tabs = "".join('<a href="/attendance?t=%s"%s>%s</a>' % (k, ' class="on"' if tab == k or (k == "staff" and tab == "all") else "", l)
+                   for k, l in (("members", "Members"), ("staff", "Staff & trainers")))
+    body = """<div class="kpis">
+<div class="kpi hot"><div class="l">Inside now</div><div class="v">%d</div><div class="s">checked in during the last 90 min</div></div>
+<div class="kpi"><div class="l">Today</div><div class="v">%d</div><div class="s">member check-ins</div></div>
+<div class="kpi"><div class="l">Staff present</div><div class="v">%d / %d</div><div class="s">came in the last 30 days</div></div>
+<div class="kpi"><div class="l">This month</div><div class="v">%s</div><div class="s">member visits since 1 %s</div></div></div>
+<div class="two" style="grid-template-columns:minmax(320px,1fr) minmax(0,1.6fr)"><div class="panel"><div class="ph"><h2>Live check-ins</h2><span class="pill p-ok">%s</span></div>
+<table>%s</table></div><div class="panel"><div class="ph"><h2>Busy hours · last 4 weeks</h2></div>%s
+<p class="dim" style="margin:12px 0 0;font-size:12px">Darker = more members.</p></div></div>
+<div class="tabs">%s</div>%s
+<details class="panel"><summary style="cursor:pointer;font-weight:600">Manual check-in</summary>
+<form method="post" action="/attendance/manual" class="row" style="margin-top:12px"><input name="member" list="mlist2" placeholder="Member name or ID" required style="min-width:280px">
+<datalist id="mlist2">%s</datalist><button>Check in now</button></form>
+<p class="dim" style="font-size:12px">Use when the finger does not read. It is saved as a manual entry.</p></details>""" % (
+        len(recent), len(mem_today), len(staff_today), len(staff_30) or len(sn_names), inr(month_n), t.strftime("%b"),
+        "Biometric connected" if gate_online(conn) else "Gate offline", live, grid, tabs, lower,
+        "".join('<option value="%s · %s">' % (e(nice(n)), member_id(c)) for c, n in conn.execute(
+            "SELECT client_id, name FROM members WHERE expiry >= ? ORDER BY name", (ti,))))
+    actions = '<a class="btn red" href="/attendance.csv">%sExport</a>' % icon("down")
+    return shell("Attendance", "/attendance", body, sub="Live from the biometric device", actions=actions,
+                 msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
+def gate_online(conn):
+    row = conn.execute("SELECT MAX(last_seen) FROM devices").fetchone()
+    if not row or not row[0]:
+        return False
+    return (datetime.datetime.now() - datetime.datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S")).total_seconds() < 300
+
+
+def attendance_csv(conn, sn, q):
+    mn = member_names(conn)
+    sname = staff_names(conn, sn)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Date", "Time", "ID", "Name", "Type", "In/Out", "Source"])
+    for pin, ts, st, ver in conn.execute("SELECT pin, ts, status, verify FROM punches ORDER BY ts DESC"):
+        w.writerow([ts[:10], ts[11:19], pin, nice(mn.get(pin) or sname.get(pin, "")),
+                    "Member" if is_member(pin) else "Staff", "Out" if st == "1" else "In",
+                    {"old": "Old software", "manual": "Manual"}.get(ver, "Gate")])
+    return "﻿" + buf.getvalue()
+
+
+def manual_checkin(conn, sn, f):
+    m = resolve_member(conn, f.get("member"))
+    if not m:
+        return "Member not found."
+    conn.execute("INSERT OR IGNORE INTO punches (sn, pin, ts, status, verify, raw, received_at) VALUES (?,?,?,?,?,?,?)",
+                 (sn or "manual", str(m["client_id"]), M.stamp(), "0", "manual", "manual check-in", M.stamp()))
+    return "Checked in %s." % nice(m["name"])
+
+
+# ---------- renewals ----------
+
+def pkg_price(conn):
+    return {r[0].lower(): r[1] for r in conn.execute("SELECT name, price FROM packages")}
+
+
+def renewals(conn, sn, q):
+    t = M.today()
+    ti = M.iso(t)
+    tab = q.get("t", "week")
+    prices = pkg_price(conn)
+    sent = last_reminders(conn, "renew")
+    rng = {"today": (t, t), "week": (t, t + datetime.timedelta(days=7)), "month": (t, t + datetime.timedelta(days=30)),
+           "expired": (t - datetime.timedelta(days=30), t - datetime.timedelta(days=1))}
+
+    def members_in(a, b):
+        return conn.execute("SELECT * FROM members WHERE expiry BETWEEN ? AND ? ORDER BY expiry", (M.iso(a), M.iso(b))).fetchall()
+
+    def value(ms):
+        return sum(prices.get((m["package"] or "").lower(), 0) for m in ms)
+
+    sets = {k: members_in(*v) for k, v in rng.items()}
+    cut = M.iso(t - datetime.timedelta(days=30))
+    total = conn.execute("SELECT COUNT(*) FROM members WHERE registration != '' AND registration <= ?", (cut,)).fetchone()[0]
+    renewed = conn.execute("SELECT COUNT(*) FROM members WHERE registration != '' AND registration <= ? AND expiry >= ?",
+                           (cut, ti)).fetchone()[0]
+    rows = sets.get(tab, sets["week"])
+    trs = "".join(
+        '<tr><td>%s</td><td><a class="mem" href="/m?id=%d"><span class="av">%s</span>%s</a></td><td>%s</td><td>%s</td><td>%s</td>'
+        '<td>%s</td><td class="dim">%s</td><td style="display:flex;gap:6px;justify-content:flex-end">%s<a class="btn red sm" href="/bill?id=%d">Renew</a></td></tr>' % (
+            sel_box(m["client_id"]), m["client_id"], initials(m["name"]), e(nice(m["name"])), e(m["package"] or ""),
+            short_date(m["expiry"])[:6], due_pill(m["expiry"]),
+            money(prices.get((m["package"] or "").lower(), 0)) if prices.get((m["package"] or "").lower()) else "—",
+            ("Sent %s" % M.parse_date(sent[m["client_id"]][:10]).strftime("%d %b")) if m["client_id"] in sent else "Not sent",
+            remind_btn(m, "renew"), m["client_id"]) for m in rows) or '<tr><td colspan="8" class="dim">Nobody in this list.</td></tr>'
+    tabs = "".join('<a href="/renewals?t=%s"%s>%s %d</a>' % (k, ' class="on"' if k == tab else "", l, len(sets[k]))
+                   for k, l in (("today", "Today"), ("week", "This week"), ("month", "This month"), ("expired", "Expired")))
+    body = """<div class="kpis">
+<a class="kpi hot" href="/renewals?t=today"><div class="l">Due today</div><div class="v">%d</div><div class="s">%s</div></a>
+<a class="kpi" href="/renewals?t=week"><div class="l">Next 7 days</div><div class="v">%d</div><div class="s">%s value</div></a>
+<a class="kpi" href="/renewals?t=expired"><div class="l">Expired last 30 days</div><div class="v">%d</div><div class="s">not renewed yet</div></a>
+<div class="kpi"><div class="l">Retention</div><div class="v">%d%%</div><div class="s">%d of %d who joined 30+ days ago are active</div></div></div>
+<form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="renew"><div class="ph"><div class="tabs">%s</div>
+<div class="acts"><button class="btn red sm">Remind selected on WhatsApp</button><a class="btn sm" href="/renewals.csv?t=%s">%sExport Excel</a></div></div>
+<div class="tw"><table><tr><th></th><th>Member</th><th>Package</th><th>Expiry</th><th>Due in</th><th>Renewal value</th><th>Reminder</th><th></th></tr>%s</table></div></form>""" % (
+        len(sets["today"]), money(value(sets["today"])), len(sets["week"]), money(value(sets["week"])), len(sets["expired"]),
+        round(100 * renewed / max(1, total)), renewed, total, tabs, tab, icon("down", 16), trs)
+    return shell("Renewals", "/renewals", body, sub="Who needs to renew, and one-tap reminders", msg=q.get("m", ""),
+                 cnt=counts(conn, sn))
+
+
+def remind_queue(conn, sn, q, ids):
+    """Selected members, one WhatsApp button each (WhatsApp opens one chat at a time)."""
+    kind = q.get("k", "renew")
+    ms = [conn.execute("SELECT * FROM members WHERE client_id=?", (i,)).fetchone() for i in ids if str(i).isdigit()]
+    ms = [m for m in ms if m]
+    rows = "".join(
+        '<tr><td>%d</td><td><span class="mem"><span class="av">%s</span>%s</span></td><td class="dim">%s</td>'
+        '<td style="text-align:right"><a class="btn sm red" href="%s" target="_blank" rel="noopener" onclick="this.textContent=\'Opened\';this.classList.remove(\'red\')">%sSend</a></td></tr>' % (
+            i + 1, initials(m["name"]), e(nice(m["name"])), e(m["phone"] or "no phone"), remind_link(m["client_id"], kind),
+            icon("chat", 16)) for i, m in enumerate(ms) if m["phone"]) or '<tr><td class="dim">Nobody selected.</td></tr>'
+    body = ('<div class="panel"><p class="dim">Tap Send on each row: WhatsApp opens with the message ready, press send there, '
+            'come back and tap the next one.</p><table>%s</table></div>' % rows)
+    back = {"renew": "/renewals", "absent": "/absent", "due": "/pending"}.get(kind, "/")
+    return shell("Send reminders", back, body, sub="%d members" % len(ms), cnt=counts(conn, sn))
+
+
+def renewals_csv(conn, sn, q):
+    t = M.today()
+    tab = q.get("t", "week")
+    a, b = {"today": (t, t), "week": (t, t + datetime.timedelta(days=7)), "month": (t, t + datetime.timedelta(days=30)),
+            "expired": (t - datetime.timedelta(days=30), t - datetime.timedelta(days=1))}.get(tab, (t, t + datetime.timedelta(days=7)))
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Member ID", "Name", "Phone", "Package", "Expiry"])
+    for m in conn.execute("SELECT * FROM members WHERE expiry BETWEEN ? AND ? ORDER BY expiry", (M.iso(a), M.iso(b))):
+        w.writerow([member_id(m["client_id"]), nice(m["name"]), m["phone"], m["package"], short_date(m["expiry"])])
+    return "﻿" + buf.getvalue()
+
+
+# ---------- pending ----------
+
+def pending_since(conn):
+    out = {}
+    for cid, d in conn.execute("SELECT client_id, MIN(paid_on) FROM payments WHERE balance > 0 GROUP BY client_id"):
+        out[cid] = M.parse_date(d)
+    return out
+
+
+def pending(conn, sn, q):
+    t = M.today()
+    since = pending_since(conn)
+    ms = conn.execute("SELECT * FROM members WHERE pending > 0").fetchall()
+    ms = sorted(ms, key=lambda m: since.get(m["client_id"]) or t)
+    total = sum(m["pending"] for m in ms)
+    old = [m for m in ms if since.get(m["client_id"]) and (t - since[m["client_id"]]).days > 90]
+    col = conn.execute("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM payments WHERE substr(paid_on,1,7)=?", (M.iso(t)[:7],)).fetchone()
+    trs = ""
+    for m in ms:
+        s = since.get(m["client_id"])
+        od = (t - s).days if s else None
+        cls = "p-bad" if od and od > 90 else ("p-warn" if od and od > 30 else "p-dim")
+        trs += ('<tr><td>%s</td><td><a class="mem" href="/m?id=%d"><span class="av">%s</span>%s</a></td><td>%s</td><td>%s</td>'
+                '<td><b>%s</b></td><td><span class="pill %s">%s</span></td><td style="display:flex;gap:6px;justify-content:flex-end">%s'
+                '<a class="btn red sm" href="/collect?id=%d">Collect</a></td></tr>') % (
+            sel_box(m["client_id"]), m["client_id"], initials(m["name"]), e(nice(m["name"])), short_date(M.iso(s)) if s else "—",
+            e(m["package"] or ""), money(m["pending"]), cls, ("%d days" % od) if od is not None else "—",
+            remind_btn(m, "due"), m["client_id"])
+    body = """<div class="kpis"><div class="kpi hot"><div class="l">Total pending</div><div class="v">%s</div><div class="s">%d members</div></div>
+<div class="kpi"><div class="l">Older than 90 days</div><div class="v">%s</div><div class="s">%d members</div></div>
+<div class="kpi"><div class="l">Collected this month</div><div class="v">%s</div><div class="s">%d bills</div></div></div>
+<form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="due"><div class="ph"><h2>Pending dues</h2>
+<div class="acts"><button class="btn red sm">Remind selected</button><a class="btn sm" href="/pending.csv">%sExport Excel</a></div></div>
+<div class="tw"><table><tr><th></th><th>Member</th><th>Since</th><th>Package</th><th>Amount due</th><th>Overdue</th><th></th></tr>%s</table></div></form>""" % (
+        money(total), len(ms), money(sum(m["pending"] for m in old)), len(old), money(col[0]), col[1], icon("down", 16),
+        trs or '<tr><td colspan="7" class="dim">No pending dues.</td></tr>')
+    return shell("Pending payments", "/pending", body, sub="Balance left on bills, oldest first", msg=q.get("m", ""),
+                 cnt=counts(conn, sn))
+
+
+def pending_csv(conn, sn, q):
+    since = pending_since(conn)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Member ID", "Name", "Phone", "Package", "Pending", "Since"])
+    for m in conn.execute("SELECT * FROM members WHERE pending > 0 ORDER BY pending DESC"):
+        s = since.get(m["client_id"])
+        w.writerow([member_id(m["client_id"]), nice(m["name"]), m["phone"], m["package"], "%g" % m["pending"],
+                    s.strftime("%d-%m-%Y") if s else ""])
+    return "﻿" + buf.getvalue()
+
+
+def collect_page(conn, sn, q):
+    cid = q.get("id", "")
+    m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone() if cid.isdigit() else None
+    if not m:
+        return shell("Collect", "/pending", '<div class="panel">Member not found.</div>', cnt=counts(conn, sn))
+    body = """<form class="panel" method="post" action="/collect" style="max-width:560px;display:flex;flex-direction:column;gap:16px">
+<input type="hidden" name="id" value="%d"><div class="mem" style="font-size:16px"><span class="av">%s</span>%s · %s</div>
+<p style="margin:0">Pending: <b>%s</b></p><div class="grid">
+<label>Amount received (₹)<input name="amount" inputmode="decimal" value="%g" required></label>
+<label>Payment mode<select name="mode"><option>UPI</option><option>Cash</option><option>Card</option><option>Online</option></select></label></div>
+<button class="btn red">Save payment</button></form>""" % (m["client_id"], initials(m["name"]), e(nice(m["name"])),
+                                                           member_id(m["client_id"]), money(m["pending"]), m["pending"] or 0)
+    return shell("Collect payment", "/pending", body, sub="Clear a pending balance", cnt=counts(conn, sn))
+
+
+def save_collect(conn, f):
+    cid = f.get("id", "")
+    m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone() if cid.isdigit() else None
+    amt = num(f.get("amount"))
+    if not m or amt <= 0:
+        return None, "Enter an amount."
+    n = int(M.setting(conn, "next_invoice", "1242"))
+    inv = "%s%05d" % (M.setting(conn, "invoice_prefix", "HOS-"), n)
+    M.set_setting(conn, "next_invoice", n + 1)
+    left = max(0.0, (m["pending"] or 0) - amt)
+    conn.execute(
+        "INSERT INTO payments (client_id, paid_on, amount, mode, package, start, expiry, note, created_at, invoice, "
+        "list_price, discount, admission, gst, payable, balance, trainer, kind, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (m["client_id"], M.iso(M.today()), amt, f.get("mode", ""), "Due payment", "", "", "pending cleared", M.stamp(), inv,
+         m["pending"] or 0, 0, 0, 0, m["pending"] or 0, left, "", "due", "Admin"))
+    conn.execute("UPDATE payments SET balance=0 WHERE client_id=? AND balance > 0 AND invoice IS NOT ?", (m["client_id"], inv))
+    conn.execute("UPDATE members SET pending=?, updated_at=? WHERE client_id=?", (left, M.stamp(), m["client_id"]))
+    return inv, "Received %s from %s. Left: %s." % (money(amt), nice(m["name"]), money(left))
+
+
+# ---------- absent ----------
+
+def absent(conn, sn, q):
+    d = q.get("d", "7")
+    d = int(d) if d.isdigit() else 7
+    lists = {n: absent_list(conn, sn, n) for n in (3, 7, 14, 30)}
+    rows = lists.get(d) or absent_list(conn, sn, d)
+    trs = "".join(
+        '<tr><td>%s</td><td><a class="mem" href="/m?id=%d"><span class="av">%s</span>%s</a></td><td>%s</td><td>%s</td><td>%s</td>'
+        '<td>%s</td><td style="display:flex;gap:6px;justify-content:flex-end">%s<a class="ibtn" href="tel:%s" aria-label="Call">%s</a></td></tr>' % (
+            sel_box(m["client_id"]), m["client_id"], initials(m["name"]), e(nice(m["name"])), e(m["package"] or ""),
+            ("%d days ago" % days) if last else "No visit since %s" % tracking_start(conn).strftime("%d %b"),
+            status_pill(m["expiry"]), '<span class="pill %s">%s</span>' % (("p-bad", "At risk") if days >= 14 else ("p-warn", "Check in")),
+            remind_btn(m, "absent"), e(m["phone"] or ""), icon("phone", 16)) for days, last, m in rows
+    ) or '<tr><td colspan="7" class="dim">Nobody.</td></tr>'
+    tabs = "".join('<a href="/absent?d=%d"%s>%d+ days</a>' % (n, ' class="on"' if n == d else "", n) for n in (3, 7, 14, 30))
+    body = """<div class="kpis"><a class="kpi hot" href="/absent?d=3"><div class="l">Absent 3+ days</div><div class="v">%d</div><div class="s">active members</div></a>
+<a class="kpi" href="/absent?d=7"><div class="l">Absent 7+ days</div><div class="v">%d</div><div class="s">message them</div></a>
+<a class="kpi" href="/absent?d=14"><div class="l">Absent 14+ days</div><div class="v">%d</div><div class="s">likely to quit</div></a></div>
+<form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="absent"><div class="ph"><div class="tabs">%s</div>
+<button class="btn red sm">Message selected on WhatsApp</button></div>
+<div class="tw"><table><tr><th></th><th>Member</th><th>Package</th><th>Last visit</th><th>Plan</th><th>Risk</th><th></th></tr>%s</table></div></form>""" % (
+        len(lists[3]), len(lists[7]), len(lists[14]), tabs, trs)
+    return shell("Absent members", "/absent", body, sub="Active members who stopped coming, from biometric data",
+                 msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
 # ---------------- routing ----------------
 
 GET_PAGES = {"/": dashboard, "/members": members_list, "/m": profile, "/bill": bill_page, "/receipt": receipt,
-             "/soon": soon}
+             "/soon": soon, "/attendance": attendance, "/renewals": renewals, "/pending": pending, "/absent": absent,
+             "/collect": collect_page}
+CSV_PAGES = {"/members.csv": members_csv, "/attendance.csv": attendance_csv, "/renewals.csv": renewals_csv,
+             "/pending.csv": pending_csv}
 
 
 def handle_get(path, q, conn, sn):
     """Return (content_type, body) or None when the path is not ours."""
     if path in GET_PAGES:
         return "text/html", GET_PAGES[path](conn, sn, q)
-    if path == "/members.csv":
-        return "text/csv", members_csv(conn, sn, q)
+    if path in CSV_PAGES:
+        return "text/csv", CSV_PAGES[path](conn, sn, q)
     return None

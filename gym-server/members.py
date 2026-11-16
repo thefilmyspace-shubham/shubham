@@ -155,11 +155,16 @@ def import_bills(conn, text):
             r.get("price", ""), r.get("discount", ""), r.get("pending", ""),
             "; trainer " + r["trainer"] if r.get("trainer") else "",
             "; by " + r["created_by"] if r.get("created_by") else "")
+        price, disc = float(r.get("price") or 0), float(r.get("discount") or 0)
+        item = r.get("item", "")
         conn.execute(
-            "INSERT INTO payments (client_id, paid_on, amount, mode, package, start, expiry, note, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?)",
-            (int(cid), iso(paid_on), float(r.get("paid") or 0), "", r.get("item", ""),
-             iso(parse_date(r.get("start"))), iso(parse_date(r.get("end"))), note, stamp()))
+            "INSERT INTO payments (client_id, paid_on, amount, mode, package, start, expiry, note, created_at, "
+            "list_price, discount, admission, gst, payable, balance, trainer, kind, created_by) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (int(cid), iso(paid_on), float(r.get("paid") or 0), "", item,
+             iso(parse_date(r.get("start"))), iso(parse_date(r.get("end"))), note, stamp(),
+             price, disc, 0, 0, max(0.0, price - disc), float(r.get("pending") or 0), r.get("trainer", ""),
+             "pt" if "pt" in item.lower() else "gym", r.get("created_by", "")))
         n += 1
     return n, skipped
 

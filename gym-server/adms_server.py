@@ -191,7 +191,16 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
-        if path in U.GET_PAGES or path == "/members.csv":
+        if path in ("/r", "/remind"):
+            if not self.authorized():
+                return self.ask_auth()
+            with DB_LOCK, db() as conn:
+                if path == "/r":
+                    return self.redirect(U.remind_redirect(conn, q))
+                ids = parse_qs(urlparse(self.path).query).get("id", [])
+                out = U.remind_queue(conn, M.default_sn(conn), q, ids)
+            return self.send_text(out, ctype="text/html")
+        if path in U.GET_PAGES or path in U.CSV_PAGES:
             if not self.authorized():
                 return self.ask_auth()
             with DB_LOCK, db() as conn:
@@ -200,7 +209,8 @@ class Handler(BaseHTTPRequestHandler):
                 data = out.encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/csv; charset=utf-8")
-                self.send_header("Content-Disposition", 'attachment; filename="hos-members.csv"')
+                self.send_header("Content-Disposition", 'attachment; filename="hos-%s-%s.csv"' % (
+                    path.strip("/").split(".")[0], datetime.date.today().isoformat()))
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -266,6 +276,18 @@ class Handler(BaseHTTPRequestHandler):
             with DB_LOCK, db() as conn:
                 n, skipped, err = U.import_attendance(conn, M.default_sn(conn), body)
             return self.send_text(err or "Imported %d check-ins, %d rows skipped" % (n, skipped))
+        if path in ("/attendance/manual", "/collect"):
+            if not self.authorized():
+                return self.ask_auth()
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                if path == "/collect":
+                    inv, msg = U.save_collect(conn, f)
+                    if inv:
+                        return self.redirect("/receipt?" + urlencode({"inv": inv, "m": msg}))
+                    return self.redirect("/collect?" + urlencode({"id": f.get("id", ""), "m": msg}))
+                msg = U.manual_checkin(conn, M.default_sn(conn), f)
+            return self.redirect("/attendance?" + urlencode({"m": msg}))
         if path == "/bill/save":
             if not self.authorized():
                 return self.ask_auth()
