@@ -29,6 +29,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlencode, urlparse
 
+import auth as A
 import members as M
 import ui as U
 
@@ -39,6 +40,7 @@ ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "")
 
 DB_LOCK = threading.Lock()
+PUBLIC = {"/login", "/login/send", "/login/verify", "/login/owner", "/logo.jpg", "/logout"}
 BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), "backups")
 KEEP_BACKUPS = 14
 
@@ -81,6 +83,7 @@ def init_db():
         conn.executescript(SCHEMA)
         M.init(conn)
         U.init(conn)
+        A.init(conn)
 
 
 def kv_fields(text):
@@ -141,19 +144,51 @@ class Handler(BaseHTTPRequestHandler):
                 (sn, self.client_address[0], info, now(), now()),
             )
 
-    def authorized(self):
+    def current_user(self):
+        """Session cookie (email code or owner password), or the old Basic login as owner."""
+        token = A.cookie_token(self.headers.get("Cookie", ""))
+        if token:
+            with DB_LOCK, db() as conn:
+                u = A.session_user(conn, token)
+            if u:
+                return u
         header = self.headers.get("Authorization", "")
         if header.startswith("Basic "):
             try:
                 user, _, pw = base64.b64decode(header[6:]).decode().partition(":")
             except Exception:
-                return False
-            return hmac.compare_digest(user, ADMIN_USER) and hmac.compare_digest(pw, ADMIN_PASS)
-        return False
+                return None
+            if hmac.compare_digest(user, ADMIN_USER) and hmac.compare_digest(pw, ADMIN_PASS):
+                return dict(A.OWNER)
+        return None
+
+    def authorized(self):
+        return bool(getattr(A.CURRENT, "user", None))
 
     def ask_auth(self):
-        self.send_response(401)
-        self.send_header("WWW-Authenticate", 'Basic realm="House of Strength"')
+        return self.redirect("/login")
+
+    def gate(self, path):
+        """Login and role check for every page. Returns True when the request may go on."""
+        A.CURRENT.user = None
+        if path.startswith("/iclock/") or path in PUBLIC:
+            return True
+        u = self.current_user()
+        if not u:
+            self.redirect("/login")
+            return False
+        A.CURRENT.user = u
+        if not A.allowed(u, path):
+            self.send_text(U.shell("Not allowed", "", '<div class="panel">Your login cannot open this page. '
+                                   'Ask the owner if you need it.</div>'), code=403, ctype="text/html")
+            return False
+        return True
+
+    def set_session(self, token, location):
+        self.send_response(303)
+        self.send_header("Set-Cookie", "%s=%s; Path=/; HttpOnly; SameSite=Lax; Max-Age=%d" % (
+            A.COOKIE, token, A.SESSION_DAYS * 86400))
+        self.send_header("Location", location)
         self.send_header("Content-Length", "0")
         self.end_headers()
 
@@ -169,6 +204,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path, q = self.route()
+        if not self.gate(path):
+            return
         sn = q.get("SN", "")
         if path.startswith("/iclock/"):
             self.rawlog("GET")
@@ -191,6 +228,27 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
+        if path == "/login":
+            return self.send_text(A.login_page(q.get("step", "email"), q.get("email", ""), q.get("m", ""), q.get("err", "")),
+                                  ctype="text/html")
+        if path == "/logout":
+            with DB_LOCK, db() as conn:
+                A.end_session(conn, A.cookie_token(self.headers.get("Cookie", "")))
+            self.send_response(303)
+            self.send_header("Set-Cookie", "%s=; Path=/; Max-Age=0" % A.COOKIE)
+            self.send_header("Location", "/login")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if path == "/" and A.role() == "trainer":
+            return self.redirect("/trainer")
+        if path in ("/users", "/activity"):
+            with DB_LOCK, db() as conn:
+                body_ = (A.users_page(conn, U.trainers(conn)) if path == "/users" else A.activity_page(conn, q))
+                cnt = U.counts(conn, M.default_sn(conn))
+            title = "Staff logins" if path == "/users" else "Activity log"
+            return self.send_text(U.shell(title, path, body_, sub="Who can sign in" if path == "/users" else
+                                          "Who did what, and when", msg=q.get("m", ""), cnt=cnt), ctype="text/html")
         if path in ("/r", "/remind"):
             if not self.authorized():
                 return self.ask_auth()
@@ -258,6 +316,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path, q = self.route()
+        if not self.gate(path):
+            return
         sn = q.get("SN", "")
         body = self.read_body()
         if path.startswith("/iclock/"):
@@ -275,7 +335,32 @@ class Handler(BaseHTTPRequestHandler):
                 return self.ask_auth()
             with DB_LOCK, db() as conn:
                 n, skipped, err = U.import_attendance(conn, M.default_sn(conn), body)
+                A.log(conn, "import attendance", "%d check-ins" % n)
             return self.send_text(err or "Imported %d check-ins, %d rows skipped" % (n, skipped))
+        if path.startswith("/login/") or path == "/users/save":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                if path == "/users/save":
+                    return self.redirect("/users?" + urlencode({"m": A.save_user(conn, f)}))
+                if path == "/login/send":
+                    ok, msg = A.send_code(conn, f.get("email"))
+                    if ok:
+                        return self.redirect("/login?" + urlencode({"step": "code", "email": f.get("email", ""), "m": msg}))
+                    return self.redirect("/login?" + urlencode({"email": f.get("email", ""), "err": msg}))
+                if path == "/login/verify":
+                    token, err = A.verify_code(conn, f.get("email"), f.get("code"))
+                    if token:
+                        A.CURRENT.user = A.user_row(conn, f.get("email"))
+                        A.log(conn, "login", "email code")
+                        return self.set_session(token, "/")
+                    return self.redirect("/login?" + urlencode({"step": "code", "email": f.get("email", ""), "err": err}))
+                if path == "/login/owner":
+                    if ADMIN_PASS and hmac.compare_digest(f.get("password", ""), ADMIN_PASS):
+                        A.CURRENT.user = dict(A.OWNER)
+                        A.log(conn, "login", "owner password")
+                        return self.set_session(A.new_session(conn, "owner"), "/")
+                    return self.redirect("/login?" + urlencode({"err": "Wrong owner password."}))
+            return self.redirect("/login")
         if path in ("/attendance/manual", "/collect"):
             if not self.authorized():
                 return self.ask_auth()
@@ -283,10 +368,12 @@ class Handler(BaseHTTPRequestHandler):
             with DB_LOCK, db() as conn:
                 if path == "/collect":
                     inv, msg = U.save_collect(conn, f)
+                    A.log(conn, "payment collected" if inv else "collect failed", msg)
                     if inv:
                         return self.redirect("/receipt?" + urlencode({"inv": inv, "m": msg}))
                     return self.redirect("/collect?" + urlencode({"id": f.get("id", ""), "m": msg}))
                 msg = U.manual_checkin(conn, M.default_sn(conn), f)
+                A.log(conn, "manual check-in", msg)
             return self.redirect("/attendance?" + urlencode({"m": msg}))
         if path == "/bill/save":
             if not self.authorized():
@@ -294,6 +381,8 @@ class Handler(BaseHTTPRequestHandler):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
                 inv, msg = U.save_bill(conn, M.default_sn(conn), f)
+                A.log(conn, "bill saved" if inv else "bill refused", "%s · %s · discount %s" % (
+                    msg, f.get("member", ""), f.get("discount", "0")))
             if not inv:
                 return self.redirect("/bill?" + urlencode({"m": msg}))
             return self.redirect("/receipt?" + urlencode({"inv": inv, "m": msg, "wa": f.get("send_wa", ""),
@@ -306,6 +395,8 @@ class Handler(BaseHTTPRequestHandler):
             if not self.authorized():
                 return self.ask_auth()
             msg = self.handle_admin_form(parse_qs(body))
+            with DB_LOCK, db() as conn:
+                A.log(conn, "gate command", msg)
             # Back to the main page so the auto-refresh never re-posts or 404s.
             return self.redirect("/gate?" + urlencode({"m": msg}))
         return self.send_text("OK")
@@ -316,12 +407,15 @@ class Handler(BaseHTTPRequestHandler):
             sn = M.default_sn(conn)
             if path == "/members/import":
                 a, u, s = M.import_csv(conn, body)
+                A.log(conn, "import members", "%d new, %d updated" % (a, u))
                 return self.send_text("Imported: %d new, %d updated, %d skipped" % (a, u, s))
             if path == "/payments/import":
                 n, skipped = M.import_bills(conn, body)
+                A.log(conn, "import bills", "%d bills" % n)
                 return self.send_text("Imported %d old bills, %d skipped" % (n, skipped))
             if path == "/member/save":
                 ok, msg = M.save_member(conn, sn, f)
+                A.log(conn, "member saved", msg)
                 cid = f.get("client_id", "")
                 return self.redirect("/m?" + urlencode({"id": cid, "m": msg}) if ok
                                      else "/member?" + urlencode({"m": msg}))
@@ -331,6 +425,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.redirect("/members")
                 ok, msg = (M.unblock(conn, sn, cid) if f.get("do") == "unblock"
                            else M.block(conn, sn, cid, "manual"))
+                A.log(conn, "door " + (f.get("do") or "block"), msg)
                 return self.redirect("/m?" + urlencode({"id": cid, "m": msg}))
             # /sync
             do = f.get("do")
@@ -344,6 +439,7 @@ class Handler(BaseHTTPRequestHandler):
                 msg = "Automatic sync is OFF."
             elif do == "run" and sn:
                 b, r = M.run_sync(conn, sn)
+                A.log(conn, "door sync run", "%d blocked, %d restored" % (b, r))
                 msg = "Sync queued: %d blocked, %d restored." % (b, r)
             else:
                 msg = "Saved."

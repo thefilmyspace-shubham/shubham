@@ -11,6 +11,7 @@ import io
 import re
 from urllib.parse import quote, urlencode
 
+import auth as A
 import members as M
 
 e = M.e
@@ -135,6 +136,38 @@ def wa(phone, text):
     return M.wa_link(phone, text)
 
 
+def phone_ok(m):
+    """Admin sees every number; reception only members with a due (renewal soon/just missed, or money owed)."""
+    if A.is_admin():
+        return True
+    if A.role() != "reception":
+        return False
+    if (m["pending"] or 0) > 0:
+        return True
+    d = M.parse_date(m["expiry"])
+    return bool(d and -30 <= (d - M.today()).days <= 7)
+
+
+def show_phone(m):
+    p = m["phone"] or ""
+    if phone_ok(m) or not p:
+        return p
+    return p[:2] + "XXX XXX" + p[-2:] if len(p) >= 6 else "hidden"
+
+
+def call_btn(m):
+    return ('<a class="ibtn" href="tel:%s" aria-label="Call">%s</a>' % (e(m["phone"] or ""), icon("phone", 16))
+            if phone_ok(m) and m["phone"] else "")
+
+
+def admin_only(html_):
+    return html_ if A.is_admin() else ""
+
+
+def staff_name():
+    return A.me().get("name") or "Admin"
+
+
 # ---------------- icons (inline stroke svg) ----------------
 
 def icon(name, size=18):
@@ -252,31 +285,39 @@ NAV = [
     ("/soon?p=Inquiries", "Inquiries", "chat", None), ("/soon?p=Packages", "Packages", "box", None),
     ("/soon?p=Staff", "Staff & Trainers", "staff", None), ("/soon?p=Reports", "Reports", "chart", None),
 ]
-SYSTEM = [("/sync", "Door sync", "door"), ("/gate", "Gate machine", "server"), ("/backup", "Backup", "down")]
+SYSTEM = [("/users", "Staff logins", "staff"), ("/activity", "Activity log", "chart"), ("/sync", "Door sync", "door"),
+          ("/gate", "Gate machine", "server"), ("/backup", "Backup", "down")]
+TRAINER_NAV = [("/trainer", "My PT clients", "users", None)]
 
 
 def shell(title, active, body, sub="", actions="", msg="", cnt=None, warn=""):
     cnt = cnt or {}
     links = []
-    for href, label, ic, key in NAV:
+    user = A.me()
+    nav = NAV if A.is_admin() else (TRAINER_NAV if A.role() == "trainer" else
+                                    [n for n in NAV if n[0].split("?")[0] in A.RECEPTION_PATHS])
+    for href, label, ic, key in nav:
         badge = '<span class="badge">%d</span>' % cnt[key] if key and cnt.get(key) else ""
         links.append('<a href="%s"%s>%s<span>%s</span>%s</a>' % (href, ' class="on"' if href == active else "",
                                                                   icon(ic), label, badge))
     sys_links = "".join('<a href="%s"%s>%s<span>%s</span></a>' % (h, ' class="on"' if h == active else "", icon(i), l)
-                        for h, l, i in SYSTEM)
+                        for h, l, i in SYSTEM) if A.is_admin() else ""
     return """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>%s · House of Strength</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>%s</style></head><body><div class="app">
 <aside class="side"><div class="brand"><img src="/logo.jpg" alt=""><b>HOUSE OF<br><span>STRENGTH</span></b></div>
-<nav class="nav">%s<div class="navsec">System</div>%s</nav>
-<div class="who"><div class="av">AD</div><div><b>Admin</b><div class="dim" style="font-size:12px">Owner</div></div></div></aside>
+<nav class="nav">%s%s%s</nav>
+<div class="who"><div class="av">%s</div><div style="flex:1;min-width:0"><b>%s</b><div class="dim" style="font-size:12px">%s</div></div>
+<a class="ibtn" href="/logout" aria-label="Log out">%s</a></div></aside>
 <div class="main"><div class="top"><div><h1>%s</h1><div class="sub">%s</div></div>
 <div class="acts"><form action="/members" method="get" class="search">%s<input name="q" placeholder="Search name, phone or member ID" aria-label="Search members"></form>%s</div></div>
 <div class="content">%s%s%s</div>
 <div class="foot"><span>House of Strength · Ratlam</span><span>Powered by <b>TFS · The First Solutions</b></span></div>
 </div></div></body></html>""" % (
-        e(title), CSS, "".join(links), sys_links, e(title), sub, icon("search"), actions,
+        e(title), CSS, "".join(links), '<div class="navsec">System</div>' if sys_links else "", sys_links,
+        initials(user.get("name") or "?"), e(user.get("name") or ""), e((user.get("role") or "").title()), icon("logout", 16),
+        e(title), sub, icon("search") if A.role() != "trainer" else "", actions,
         '<div class="msg">%s</div>' % e(msg) if msg else "", '<div class="warn">%s</div>' % warn if warn else "", body)
 
 
@@ -346,10 +387,10 @@ def dashboard(conn, sn, q):
     body = """<div class="kpis">
 <a class="kpi hot" href="/members?f=active"><div class="l">Active members</div><div class="v">%d</div><div class="s">%d expired · %d total</div></a>
 <div class="kpi"><div class="l">Today's check-ins</div><div class="v">%d</div><div class="s">%s</div></div>
-<div class="kpi"><div class="l">Collection this month</div><div class="v">%s</div><div class="s">%d bills since 1 %s</div></div>
+%s
 <a class="kpi" href="/members?f=pending"><div class="l">Pending dues</div><div class="v">%s</div><div class="s">%d members</div></a></div>
 <div class="two"><div class="panel"><div class="ph"><h2>Check-ins by hour · today</h2><a href="/attendance">Open attendance</a></div>%s</div>
-<div class="panel"><div class="ph"><h2>Collection · last 6 months</h2><span class="dim">₹ thousand</span></div>%s</div></div>
+<div class="panel"><div class="ph"><h2>%s</h2><span class="dim">%s</span></div>%s</div></div>
 <div class="two"><div class="panel"><div class="ph"><h2>Renewals due this week</h2><a href="/renewals">View all %d</a></div>
 <div class="tw"><table><tr><th>Member</th><th>Package</th><th>Expiry</th><th>Due</th><th></th></tr>%s</table></div></div>
 <div style="display:flex;flex-direction:column;gap:20px"><div class="panel"><div class="ph"><h2>Quick actions</h2></div><div class="qa">
@@ -357,13 +398,32 @@ def dashboard(conn, sn, q):
 <div class="panel"><div class="ph"><h2>Not seen for 7+ days</h2><a href="/absent">View all %d</a></div><table>%s</table></div></div></div>""" % (
         active, total - active, total, today_in,
         "Peak %s" % ("%d %s" % ((peak - 1) % 12 + 1, "AM" if peak < 12 else "PM")) if peak is not None else "From the gate",
-        money(col_m[0]), col_m[1], t.strftime("%b"), money(pend[0]), pend[1] or 0,
+        money_kpi(conn, col_m, t), money(pend[0]), pend[1] or 0,
         bars(hour_items, lambda l, v: v and v >= max(hmap.values() or [1]) * 0.6),
-        bars(col6, lambda l, v: True), cnt["renewals"], ren_rows,
+        "Collection · last 6 months" if A.is_admin() else "My collection today", "₹ thousand" if A.is_admin() else "",
+        bars(col6, lambda l, v: True) if A.is_admin() else my_collection_table(conn), cnt["renewals"], ren_rows,
         icon("bill", 22), icon("users", 22), icon("chat", 22), icon("chat", 22), cnt["absent"], abs_rows)
     actions = ('<a class="btn" href="/gate">%sGate</a><a class="btn red" href="/bill">%sNew bill</a>'
                % (icon("finger"), icon("plus")))
     return shell("Dashboard", "/", body, sub=t.strftime("%A, %d %B %Y"), actions=actions, msg=q.get("m", ""), cnt=cnt)
+
+
+def money_kpi(conn, col_m, t):
+    if A.is_admin():
+        return ('<div class="kpi"><div class="l">Collection this month</div><div class="v">%s</div>'
+                '<div class="s">%d bills since 1 %s</div></div>' % (money(col_m[0]), col_m[1], t.strftime("%b")))
+    mine = conn.execute("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM payments WHERE paid_on=? AND created_by=?",
+                        (M.iso(t), staff_name())).fetchone()
+    return ('<div class="kpi"><div class="l">My collection today</div><div class="v">%s</div>'
+            '<div class="s">%d bills by you</div></div>' % (money(mine[0]), mine[1]))
+
+
+def my_collection_table(conn):
+    rows = conn.execute("SELECT * FROM payments WHERE paid_on=? AND created_by=? ORDER BY id DESC",
+                        (M.iso(M.today()), staff_name())).fetchall()
+    return '<table>%s</table>' % ("".join('<tr><td>%s</td><td>%s</td><td style="text-align:right">%s · %s</td></tr>' % (
+        e(r["invoice"] or ""), e(r["package"] or ""), money(r["amount"]), e(r["mode"] or "")) for r in rows)
+        or '<tr><td class="dim">No bills by you today.</td></tr>')
 
 
 def due_pill(exp_iso):
@@ -402,6 +462,8 @@ def absent_msg(m):
 
 
 def wa_btn(m, text):
+    if not phone_ok(m):
+        return ""
     link = wa(m["phone"], text)
     return ('<a class="ibtn wa" href="%s" target="_blank" rel="noopener" aria-label="WhatsApp %s">%s</a>'
             % (e(link), e(m["name"] or ""), icon("chat", 16))) if link else ""
@@ -454,11 +516,11 @@ def members_list(conn, sn, q):
     trs = "".join(
         '<tr><td><a class="mem" href="/m?id=%d"><span class="av">%s</span>%s</a></td><td class="dim">%s</td><td>%s</td>'
         '<td>%s</td><td>%s</td><td>%s</td><td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">%s'
-        '<a class="ibtn" href="tel:%s" aria-label="Call">%s</a><a class="ibtn" href="/member?id=%d" aria-label="Edit">%s</a></td></tr>' % (
+        '%s<a class="ibtn" href="/member?id=%d" aria-label="Edit">%s</a></td></tr>' % (
             m["client_id"], initials(m["name"]), e(nice(m["name"])), member_id(m["client_id"]), e(m["package"] or ""),
             short_date(m["expiry"]), status_pill(m["expiry"]),
             '<span class="pill p-warn">%s</span>' % money(m["pending"]) if (m["pending"] or 0) > 0 else "₹0",
-            wa_btn(m, renew_msg(m)), e(m["phone"] or ""), icon("phone", 16), m["client_id"], icon("edit", 16))
+            wa_btn(m, renew_msg(m)), call_btn(m), m["client_id"], icon("edit", 16))
         for m in shown) or '<tr><td colspan="7" class="dim">No members match.</td></tr>'
     tabs = "".join('<a href="/members?%s"%s>%s %d</a>' % (urlencode({"f": k, "q": term}), ' class="on"' if k == f else "",
                                                           lbl, tab_n[k]) for k, lbl in TABS)
@@ -478,9 +540,9 @@ def members_list(conn, sn, q):
 <a class="kpi" href="/members?f=expired"><div class="l">Expired</div><div class="v">%d</div><div class="s">win-back list</div></a></div>
 %s<div class="panel"><div class="ph"><div class="tabs">%s</div><div class="acts">
 <a class="btn sm" href="/members?f=expired_on_machine">Door: expired inside</a><a class="btn sm" href="/members?f=active_missing">Door: not enrolled</a>
-<a class="btn sm" href="/members.csv?%s">%sExport Excel</a></div></div>
+%s</div></div>
 <div class="tw"><table><tr><th>Member</th><th>ID</th><th>Package</th><th>Expiry</th><th>Status</th><th>Due</th><th></th></tr>%s</table></div>%s</div>
-<details class="panel"><summary style="cursor:pointer;font-weight:600">Import from old software</summary>
+%s<details class="panel"><summary style="cursor:pointer;font-weight:600">Import from old software</summary>
 <p class="dim">CSV files made from the old software. Re-importing updates, it never duplicates.</p>
 <p>Members: <input type="file" id="csv" accept=".csv,text/csv"> <button type="button" onclick="up('csv','/members/import','st')">Import members</button> <span id="st"></span></p>
 <p>Old bills: <input type="file" id="bills" accept=".csv,text/csv"> <button type="button" onclick="up('bills','/payments/import','st2')">Import bills</button> <span id="st2"></span></p>
@@ -488,9 +550,10 @@ def members_list(conn, sn, q):
 <script>function up(id,url,sid){var f=document.getElementById(id).files[0];if(!f){return}
 var s=document.getElementById(sid);s.textContent='Uploading…';f.text().then(function(t){
 return fetch(url,{method:'POST',headers:{'Content-Type':'text/csv'},body:t})}).then(function(r){return r.text()})
-.then(function(t){s.textContent=t;setTimeout(function(){location.href='/members'},2500)})}</script></details>""" % (
+.then(function(t){s.textContent=t;setTimeout(function(){location.href='/members'},2500)})}</script></details>%s""" % (
         len(allm), n_active, round(100 * n_active / max(1, len(allm))), n_soon, len(allm) - n_active,
-        door_issues, tabs, urlencode({"f": f, "q": term}), icon("down", 16), trs, pager)
+        door_issues, tabs, admin_only('<a class="btn sm" href="/members.csv?%s">%sExport Excel</a>' % (urlencode({"f": f, "q": term}), icon("down", 16))), trs, pager,
+        "" if A.is_admin() else "<div hidden>", "" if A.is_admin() else "</div>")
     actions = '<a class="btn red" href="/member">%sAdd member</a>' % icon("plus")
     return shell("Members", "/members" if f != "pending" else "/members?f=pending", body,
                  sub="Every member, their package and status", actions=actions, msg=q.get("m", ""), cnt=counts(conn, sn))
@@ -567,7 +630,7 @@ def profile(conn, sn, q):
         e(m["package"] or "—"), short_date(m["expiry"]),
         ("%d days left" % left) if left >= 0 else ("expired %d days ago" % -left), pct,
         m["client_id"], icon("renew"), wa_btn_big(m), m["client_id"], icon("edit"),
-        member_id(m["client_id"]), e(m["phone"] or "—"), e(m["gender"] or "—"),
+        member_id(m["client_id"]), e(show_phone(m) or "—"), e(m["gender"] or "—"),
         short_date(m["registration"] or (first["paid_on"] if first else "")), m["client_id"], door,
         money(m["pending"]), e(m["package"] or "—"),
         len(days_in), last_txt, last[11:16] if last else "", heat, tracking_start(conn).strftime("%d %b %Y"),
@@ -580,6 +643,8 @@ def profile(conn, sn, q):
 
 
 def wa_btn_big(m):
+    if not phone_ok(m):
+        return ""
     link = wa(m["phone"], "Hi %s, House of Strength se." % nice(m["name"]))
     return '<a class="btn" href="%s" target="_blank" rel="noopener">%sWhatsApp</a>' % (e(link), icon("chat")) if link else ""
 
@@ -635,7 +700,7 @@ def bill_page(conn, sn, q):
 <label class="chk"><input type="checkbox" name="send_wa" value="1" checked>Send receipt on WhatsApp</label>
 <label class="chk"><input type="checkbox" name="print" value="1">Print receipt (A4)</label>
 <button class="btn red" style="font-family:Oswald,sans-serif;font-size:18px;letter-spacing:.04em;min-height:52px" id="savebtn">SAVE BILL</button>
-<span class="dim" style="font-size:12px">Invoice %s · prepared by Admin</span></div></div></form>
+<span class="dim" style="font-size:12px">Invoice %s · prepared by %s</span></div></div></form>
 <script>
 (function(){var f=document.getElementById('bf');function n(v){v=parseFloat((v||'').toString().replace(/,/g,''));return isNaN(v)?0:v}
 function r(v){return '₹'+Math.round(v).toLocaleString('en-IN')}
@@ -655,7 +720,7 @@ f.start.addEventListener('input',function(){delete f.end.dataset.touched});f.que
 document.getElementById('kind').addEventListener('change',function(){kindFilter();upd()});kindFilter();upd()})();
 </script>""" % (
         e("%s · %s" % (nice(m["name"]), member_id(m["client_id"]))) if m else "", options, cards,
-        M.iso(start), tr, inv)
+        M.iso(start), tr, inv, e(staff_name()))
     return shell("New bill", "/bill", body, sub="Membership or PT bill in under a minute", msg=q.get("m", ""),
                  cnt=counts(conn, sn))
 
@@ -688,6 +753,9 @@ def save_bill(conn, sn, f):
     if end < start:
         return None, "End date is before start date."
     disc, adm, rate = num(f.get("discount")), num(f.get("admission")), num(f.get("gst"))
+    if not A.is_admin() and disc > p["price"] * A.RECEPTION_MAX_DISCOUNT / 100:
+        return None, ("Discount above %d%% (%s) needs the owner. Ask the owner to make this bill."
+                      % (A.RECEPTION_MAX_DISCOUNT, money(p["price"] * A.RECEPTION_MAX_DISCOUNT / 100)))
     base = max(0.0, p["price"] - disc + adm)
     gst = round(base * rate / 100, 2)
     total = base + gst
@@ -701,7 +769,7 @@ def save_bill(conn, sn, f):
         "list_price, discount, admission, gst, payable, balance, trainer, kind, created_by, next_due) "
         "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (m["client_id"], M.iso(M.today()), paid, f.get("mode", ""), p["name"], M.iso(start), M.iso(end), "",
-         M.stamp(), inv, p["price"], disc, adm, gst, total, balance, f.get("trainer", ""), p["kind"], "Admin",
+         M.stamp(), inv, p["price"], disc, adm, gst, total, balance, f.get("trainer", ""), p["kind"], staff_name(),
          M.iso(M.parse_date(f.get("next_due")))))
     old_exp = M.parse_date(m["expiry"])
     new_exp = max(end, old_exp) if old_exp else end
@@ -743,14 +811,14 @@ def receipt(conn, sn, q):
 <div style="display:flex;align-items:center;gap:12px"><img src="/logo.jpg" alt="" style="width:64px;height:64px;border-radius:10px">
 <div><div style="font:700 24px Oswald,sans-serif">HOUSE OF STRENGTH</div><div style="color:#555;font-size:12px">%s</div></div></div>
 <div style="text-align:right"><div style="font:600 20px Oswald,sans-serif">RECEIPT</div><div>%s</div><div style="color:#555">%s</div></div></div>
-<p style="margin:16px 0"><b>%s</b> · %s · %s</p>
+<p style="margin:16px 0"><b>%s</b> · %s · %s</p><p style="margin:-8px 0 12px;color:#555;font-size:12px">Prepared by %s</p>
 <table style="color:#111">%s</table>
 <p style="color:#555;font-size:12px;margin-top:20px">Payment non-refundable and non-transferable. Thank you for training with us. Get better, together.</p>
 <p style="color:#888;font-size:11px">Powered by TFS · The First Solutions</p></div>
 <div class="acts noprint"><button class="btn" onclick="window.print()">%sPrint (A4)</button>%s
 <a class="btn" href="/m?id=%d">Open member</a><a class="btn red" href="/bill">New bill</a></div>%s""" % (
         e(M.setting(conn, "gym_address", "")), e(inv), short_date(p["paid_on"]), e(name), member_id(p["client_id"]),
-        e(m["phone"] if m else ""),
+        e(m["phone"] if m else ""), e(p["created_by"] or "—"),
         "".join('<tr><td style="color:#444;border-color:#eee">%s</td><td style="text-align:right;border-color:#eee">%s</td></tr>' % r for r in rows),
         icon("print", 16), ('<a class="btn" href="%s" target="_blank" rel="noopener">%sSend on WhatsApp</a>' % (e(link), icon("chat", 16))) if link else "",
         p["client_id"], auto)
@@ -847,6 +915,8 @@ def due_msg(m):
 
 
 def remind_btn(m, kind):
+    if not phone_ok(m):
+        return ""
     return ('<a class="ibtn wa" href="%s" target="_blank" rel="noopener" aria-label="WhatsApp %s">%s</a>'
             % (remind_link(m["client_id"], kind), e(m["name"] or ""), icon("chat", 16))) if m["phone"] else ""
 
@@ -936,7 +1006,7 @@ def attendance(conn, sn, q):
         "Biometric connected" if gate_online(conn) else "Gate offline", live, grid, tabs, lower,
         "".join('<option value="%s · %s">' % (e(nice(n)), member_id(c)) for c, n in conn.execute(
             "SELECT client_id, name FROM members WHERE expiry >= ? ORDER BY name", (ti,))))
-    actions = '<a class="btn red" href="/attendance.csv">%sExport</a>' % icon("down")
+    actions = admin_only('<a class="btn red" href="/attendance.csv">%sExport</a>' % icon("down"))
     return shell("Attendance", "/attendance", body, sub="Live from the biometric device", actions=actions,
                  msg=q.get("m", ""), cnt=counts(conn, sn))
 
@@ -1013,10 +1083,11 @@ def renewals(conn, sn, q):
 <a class="kpi" href="/renewals?t=expired"><div class="l">Expired last 30 days</div><div class="v">%d</div><div class="s">not renewed yet</div></a>
 <div class="kpi"><div class="l">Retention</div><div class="v">%d%%</div><div class="s">%d of %d who joined 30+ days ago are active</div></div></div>
 <form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="renew"><div class="ph"><div class="tabs">%s</div>
-<div class="acts"><button class="btn red sm">Remind selected on WhatsApp</button><a class="btn sm" href="/renewals.csv?t=%s">%sExport Excel</a></div></div>
+<div class="acts"><button class="btn red sm">Remind selected on WhatsApp</button>%s</div></div>
 <div class="tw"><table><tr><th></th><th>Member</th><th>Package</th><th>Expiry</th><th>Due in</th><th>Renewal value</th><th>Reminder</th><th></th></tr>%s</table></div></form>""" % (
         len(sets["today"]), money(value(sets["today"])), len(sets["week"]), money(value(sets["week"])), len(sets["expired"]),
-        round(100 * renewed / max(1, total)), renewed, total, tabs, tab, icon("down", 16), trs)
+        round(100 * renewed / max(1, total)), renewed, total, tabs,
+        admin_only('<a class="btn sm" href="/renewals.csv?t=%s">%sExport Excel</a>' % (tab, icon("down", 16))), trs)
     return shell("Renewals", "/renewals", body, sub="Who needs to renew, and one-tap reminders", msg=q.get("m", ""),
                  cnt=counts(conn, sn))
 
@@ -1082,9 +1153,10 @@ def pending(conn, sn, q):
 <div class="kpi"><div class="l">Older than 90 days</div><div class="v">%s</div><div class="s">%d members</div></div>
 <div class="kpi"><div class="l">Collected this month</div><div class="v">%s</div><div class="s">%d bills</div></div></div>
 <form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="due"><div class="ph"><h2>Pending dues</h2>
-<div class="acts"><button class="btn red sm">Remind selected</button><a class="btn sm" href="/pending.csv">%sExport Excel</a></div></div>
+<div class="acts"><button class="btn red sm">Remind selected</button>%s</div></div>
 <div class="tw"><table><tr><th></th><th>Member</th><th>Since</th><th>Package</th><th>Amount due</th><th>Overdue</th><th></th></tr>%s</table></div></form>""" % (
-        money(total), len(ms), money(sum(m["pending"] for m in old)), len(old), money(col[0]), col[1], icon("down", 16),
+        money(total), len(ms), money(sum(m["pending"] for m in old)), len(old), money(col[0]), col[1],
+        admin_only('<a class="btn sm" href="/pending.csv">%sExport Excel</a>' % icon("down", 16)),
         trs or '<tr><td colspan="7" class="dim">No pending dues.</td></tr>')
     return shell("Pending payments", "/pending", body, sub="Balance left on bills, oldest first", msg=q.get("m", ""),
                  cnt=counts(conn, sn))
@@ -1131,7 +1203,7 @@ def save_collect(conn, f):
         "INSERT INTO payments (client_id, paid_on, amount, mode, package, start, expiry, note, created_at, invoice, "
         "list_price, discount, admission, gst, payable, balance, trainer, kind, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (m["client_id"], M.iso(M.today()), amt, f.get("mode", ""), "Due payment", "", "", "pending cleared", M.stamp(), inv,
-         m["pending"] or 0, 0, 0, 0, m["pending"] or 0, left, "", "due", "Admin"))
+         m["pending"] or 0, 0, 0, 0, m["pending"] or 0, left, "", "due", staff_name()))
     conn.execute("UPDATE payments SET balance=0 WHERE client_id=? AND balance > 0 AND invoice IS NOT ?", (m["client_id"], inv))
     conn.execute("UPDATE members SET pending=?, updated_at=? WHERE client_id=?", (left, M.stamp(), m["client_id"]))
     return inv, "Received %s from %s. Left: %s." % (money(amt), nice(m["name"]), money(left))
@@ -1146,11 +1218,11 @@ def absent(conn, sn, q):
     rows = lists.get(d) or absent_list(conn, sn, d)
     trs = "".join(
         '<tr><td>%s</td><td><a class="mem" href="/m?id=%d"><span class="av">%s</span>%s</a></td><td>%s</td><td>%s</td><td>%s</td>'
-        '<td>%s</td><td style="display:flex;gap:6px;justify-content:flex-end">%s<a class="ibtn" href="tel:%s" aria-label="Call">%s</a></td></tr>' % (
+        '<td>%s</td><td style="display:flex;gap:6px;justify-content:flex-end">%s%s</td></tr>' % (
             sel_box(m["client_id"]), m["client_id"], initials(m["name"]), e(nice(m["name"])), e(m["package"] or ""),
             ("%d days ago" % days) if last else "No visit since %s" % tracking_start(conn).strftime("%d %b"),
             status_pill(m["expiry"]), '<span class="pill %s">%s</span>' % (("p-bad", "At risk") if days >= 14 else ("p-warn", "Check in")),
-            remind_btn(m, "absent"), e(m["phone"] or ""), icon("phone", 16)) for days, last, m in rows
+            remind_btn(m, "absent"), call_btn(m)) for days, last, m in rows
     ) or '<tr><td colspan="7" class="dim">Nobody.</td></tr>'
     tabs = "".join('<a href="/absent?d=%d"%s>%d+ days</a>' % (n, ' class="on"' if n == d else "", n) for n in (3, 7, 14, 30))
     body = """<div class="kpis"><a class="kpi hot" href="/absent?d=3"><div class="l">Absent 3+ days</div><div class="v">%d</div><div class="s">active members</div></a>
@@ -1164,11 +1236,37 @@ def absent(conn, sn, q):
                  msg=q.get("m", ""), cnt=counts(conn, sn))
 
 
+# ---------------- trainer ----------------
+
+def trainer_page(conn, sn, q):
+    me_ = A.me()
+    tname = (me_.get("trainer") or me_.get("name") or "").strip().lower()
+    t = M.today()
+    rows = conn.execute(
+        "SELECT p.client_id, MAX(p.expiry) pt_end, m.* FROM payments p JOIN members m ON m.client_id = p.client_id "
+        "WHERE lower(trim(p.trainer)) = ? AND p.trainer != '' GROUP BY p.client_id ORDER BY pt_end DESC", (tname,)).fetchall()
+    trs = ""
+    for r in rows:
+        end = M.parse_date(r["pt_end"])
+        visits = conn.execute("SELECT COUNT(DISTINCT substr(ts,1,10)) FROM punches WHERE pin=? AND ts >= ?",
+                              (str(r["client_id"]), M.iso(t - datetime.timedelta(days=30)))).fetchone()[0]
+        active = end and end >= t
+        trs += ('<tr><td><span class="mem"><span class="av">%s</span>%s</span></td><td>%s</td><td>%s</td><td>%s</td><td>%d / 30</td>'
+                '<td>%s</td></tr>') % (initials(r["name"]), e(nice(r["name"])), e(r["package"] or ""), short_date(r["pt_end"]),
+                                       '<span class="pill p-ok">Active</span>' if active else '<span class="pill p-dim">Ended</span>',
+                                       visits, ('<a class="ibtn" href="tel:%s" aria-label="Call">%s</a>' % (e(r["phone"] or ""), icon("phone", 16)))
+                                       if active and r["phone"] else "")
+    body = ('<div class="panel"><div class="ph"><h2>My PT clients</h2><span class="dim">%d</span></div><div class="tw"><table>'
+            '<tr><th>Client</th><th>Package</th><th>PT ends</th><th>Status</th><th>Visits (30 d)</th><th></th></tr>%s</table></div></div>'
+            % (len(rows), trs or '<tr><td colspan="6" class="dim">No PT clients linked to your name yet.</td></tr>'))
+    return shell("My PT clients", "/trainer", body, sub="Trainer: %s" % e(me_.get("trainer") or me_.get("name") or ""))
+
+
 # ---------------- routing ----------------
 
 GET_PAGES = {"/": dashboard, "/members": members_list, "/m": profile, "/bill": bill_page, "/receipt": receipt,
              "/soon": soon, "/attendance": attendance, "/renewals": renewals, "/pending": pending, "/absent": absent,
-             "/collect": collect_page}
+             "/collect": collect_page, "/trainer": trainer_page}
 CSV_PAGES = {"/members.csv": members_csv, "/attendance.csv": attendance_csv, "/renewals.csv": renewals_csv,
              "/pending.csv": pending_csv}
 
