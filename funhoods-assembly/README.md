@@ -32,3 +32,12 @@ ring, handlebar and centre cap). No product name, battery size or feature claims
 python3 tools/overlay.py <source.mp4>                      # 4K60 H.264 + original audio
 python3 tools/overlay.py <source.mp4> --still 9.0 out.png  # preview one frame
 ```
+
+## Editable CapCut project
+`exports/Funhoods_Assembly_CapCut.zip` is built by `tools/capcut_project.py`, using pyJianYingDraft (the open draft format CapCut and JianYing share). It contains:
+- **CapCut project:** tracks *footage* (brightened clip, no text, original sound) and *watermark* (logo 60 %, top-left), plus the text tracks *title*, *step chip* and *step text* as native, editable CapCut text.
+- **Media:** `2_Media`. The draft looks for it in `C:/Users/Public/Funhoods_Assembly/`; on other paths, CapCut asks to relink.
+- **Backup kit:** the PNG cards, the watermark and `assembly_steps.srt`, in case a CapCut version refuses third-party drafts.
+- **`HOW_TO_OPEN.txt`:** step-by-step instructions for Windows and Mac.
+
+The text layers use CapCut's default font. Positions and sizes are set in the draft, but they could not be checked inside CapCut here.
