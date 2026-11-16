@@ -26,7 +26,7 @@ TITLE = (0.0, 1.9)                    # "HOW TO ASSEMBLE" before step 1 settles
 READY = (31.95, 37.45)                # top view of the finished ride-on
 DONE = (37.75, 41.75)
 BRIGHT = 'eq=gamma=1.10:brightness=0.025:saturation=1.04'     # slight lift: about +10 % mean brightness, whites not clipped
-WM = dict(width=360, cx=300, cy=250, alpha=0.6, end=41.7)      # watermark: logo only (no white sticker), 60 % opacity
+WM = dict(width=360, cx=300, cy=250, alpha=0.85, end=41.7)     # watermark: logo only (no white sticker), 85 % opacity (60 % looked faded)
 LOGO = os.path.join(ROOT, '..', 'funhoods-dino-car', 'assets', 'logo_rgba.png')
 
 def font(p, s): return ImageFont.truetype(p, s)
