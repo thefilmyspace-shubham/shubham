@@ -1,7 +1,9 @@
 # English assembly text for the client's ride-on assembly video (Drive, 2160x3840 HEVC 60 fps, 43.6 s, "src").
 # Each step gets a card at the top of the frame: a red "STEP n" chip + a white rounded card with the instruction and
 # progress dots. The cards fade and slide in on the step's own shot (step times were read from the footage).
-# The video is not re-cut; the original sound is kept. -> exports/*_4K60.mp4 + *_1080p.mp4
+# The video is not re-cut; the original sound is kept. The footage is brightened slightly (BRIGHT) and carries a
+# semi-transparent Funhoods logo watermark top-left, as in the animated reels (hidden on the closing logo card).
+# -> exports/*_4K60.mp4 + *_1080p.mp4
 # usage: python3 tools/overlay.py <src video>            (or: --still <t> <out.png> to preview one frame)
 import os, sys, subprocess
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -22,6 +24,9 @@ STEPS = [  # (start, end, text) -- seconds on the video clock
 TITLE = (0.0, 1.9)                    # "HOW TO ASSEMBLE" before step 1 settles
 READY = (31.95, 37.45)                # top view of the finished ride-on
 DONE = (37.75, 41.75)
+BRIGHT = 'eq=gamma=1.10:brightness=0.025:saturation=1.04'     # slight lift: about +10 % mean brightness, whites not clipped
+WM = dict(width=360, cx=300, cy=250, alpha=0.6, end=41.7)      # watermark: logo only (no white sticker), 60 % opacity
+LOGO = os.path.join(ROOT, '..', 'funhoods-dino-car', 'assets', 'logo_rgba.png')
 
 def font(p, s): return ImageFont.truetype(p, s)
 
@@ -73,10 +78,20 @@ def cards():
     p, im = save(pill('EASY TO ASSEMBLE AT HOME', 84), 'done.png'); out.append((p, DONE[0], DONE[1], W / 2, 430))
     return out
 
+def watermark():
+    lg = Image.open(LOGO).convert('RGBA'); lg = lg.crop(lg.getchannel('A').getbbox())
+    lg = lg.resize((WM['width'], int(lg.height * WM['width'] / lg.width)), Image.LANCZOS)
+    lg.putalpha(lg.getchannel('A').point(lambda v: int(v * WM['alpha'])))
+    p = os.path.join(ROOT, 'build', 'watermark.png'); lg.save(p); return p, lg
+
 def build(src, outp):
     cs = cards(); args = ['ffmpeg', '-v', 'error', '-y', '-i', src]
     for p, a, b, cx, ty in cs: args += ['-loop', '1', '-framerate', '60', '-t', '44', '-i', p]
-    fl = []; last = '0:v'
+    wp, wm = watermark(); args += ['-loop', '1', '-framerate', '60', '-t', '44', '-i', wp]; nw = len(cs) + 1
+    fl = ['[0:v]%s[b0]' % BRIGHT,
+          '[%d:v]format=rgba,fade=t=out:st=%.2f:d=0.2:alpha=1[wm]' % (nw, WM['end'] - 0.2),
+          "[b0][wm]overlay=x=%d:y=%d:shortest=1:enable='lte(t\\,%.2f)'[base]" % (WM['cx'] - wm.width // 2, WM['cy'] - wm.height // 2, WM['end'])]
+    last = 'base'
     for k, (p, a, b, cx, ty) in enumerate(cs):
         w_ = Image.open(p).width
         fl.append('[%d:v]format=rgba,fade=t=in:st=%.2f:d=0.22:alpha=1,fade=t=out:st=%.2f:d=0.2:alpha=1[c%d]' % (k + 1, a, b - 0.2, k))
@@ -89,9 +104,11 @@ def build(src, outp):
     subprocess.run(args, check=True)
 
 def still(src, t, outp):
-    """preview one frame: the source frame + whichever card is on screen (fully in)"""
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', str(t), '-i', src, '-frames:v', '1', outp], check=True)
+    """preview one frame: the brightened source frame + the watermark + whichever card is on screen (fully in)"""
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', str(t), '-i', src, '-frames:v', '1', '-vf', BRIGHT, outp], check=True)
     fr = Image.open(outp).convert('RGBA')
+    if t <= WM['end']:
+        wp, wm = watermark(); fr.alpha_composite(wm, (WM['cx'] - wm.width // 2, WM['cy'] - wm.height // 2))
     for p, a, b, cx, ty in cards():
         if a <= t <= b:
             im = Image.open(p); fr.alpha_composite(im, (int(cx - im.width / 2), int(ty - 70)))

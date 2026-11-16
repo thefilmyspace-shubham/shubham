@@ -1,7 +1,9 @@
 # Funhoods — ride-on assembly guide (English text on the client's video)
 
 Source: the client's assembly video (Google Drive, 2160x3840 HEVC, 60 fps, 43.6 s). It is not stored in the repo.
-`tools/overlay.py` adds English step cards on top. The footage is not re-cut, and the original sound is kept.
+`tools/overlay.py` adds English step cards on top. It also lifts the brightness slightly (gamma 1.10, +0.025 brightness, +4 % saturation;
+about +10 % mean, whites not clipped). It adds a semi-transparent Funhoods logo watermark top-left (60 % opacity, logo only),
+as in the animated reels; the watermark is hidden on the closing logo card. The footage is not re-cut, and the original sound is kept.
 
 Master: `exports/Funhoods_RideOn_Assembly_Guide_4K60.mp4` · share copy: `exports/Funhoods_RideOn_Assembly_Guide_1080p.mp4`
 
