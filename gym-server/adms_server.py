@@ -232,7 +232,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_text("OK: %d" % n)
         if path == "/iclock/devicecmd":
             return self.send_text(self.handle_cmd_result(body))
-        if path in ("/members/import", "/member/save", "/member/door", "/sync"):
+        if path in ("/members/import", "/payments/import", "/member/save", "/member/door", "/sync"):
             if not self.authorized():
                 return self.ask_auth()
             return self.handle_member_post(path, body)
@@ -251,6 +251,9 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/members/import":
                 a, u, s = M.import_csv(conn, body)
                 return self.send_text("Imported: %d new, %d updated, %d skipped" % (a, u, s))
+            if path == "/payments/import":
+                n, skipped = M.import_bills(conn, body)
+                return self.send_text("Imported %d old bills, %d skipped" % (n, skipped))
             if path == "/member/save":
                 ok, msg = M.save_member(conn, sn, f)
                 cid = f.get("client_id", "")

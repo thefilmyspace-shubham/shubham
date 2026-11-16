@@ -139,6 +139,31 @@ def import_csv(conn, text):
     return added, updated, skipped
 
 
+def import_bills(conn, text):
+    """Load the old software's bills (CSV made from its Billing Report) as payments.
+    Re-importing replaces the earlier import, so it is safe to run twice."""
+    reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
+    conn.execute("DELETE FROM payments WHERE note LIKE 'old software%'")
+    n = skipped = 0
+    for r in reader:
+        cid = (r.get("client_id") or "").strip()
+        paid_on = parse_date(r.get("bill_date"))
+        if not cid.isdigit() or not paid_on:
+            skipped += 1
+            continue
+        note = "old software; price %s, discount %s, pending %s%s%s" % (
+            r.get("price", ""), r.get("discount", ""), r.get("pending", ""),
+            "; trainer " + r["trainer"] if r.get("trainer") else "",
+            "; by " + r["created_by"] if r.get("created_by") else "")
+        conn.execute(
+            "INSERT INTO payments (client_id, paid_on, amount, mode, package, start, expiry, note, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            (int(cid), iso(paid_on), float(r.get("paid") or 0), "", r.get("item", ""),
+             iso(parse_date(r.get("start"))), iso(parse_date(r.get("end"))), note, stamp()))
+        n += 1
+    return n, skipped
+
+
 # ---------------- machine state ----------------
 
 def machine_names(conn, sn):
@@ -377,11 +402,12 @@ def members_page(conn, sn, q, msg=""):
 <table><tr><th>ID</th><th>Name</th><th>Phone</th><th>Package</th><th>Expiry</th><th>Status</th><th>Door</th><th>Pending</th></tr>%s</table>
 <h2>Import from old software</h2>
 <p class="dim">CSV with columns client_id, name, phone, gender, registration, package, expiry. Existing IDs are updated.</p>
-<input type="file" id="csv" accept=".csv,text/csv"> <button type="button" onclick="up()">Import</button> <span id="st"></span>
-<script>function up(){var f=document.getElementById('csv').files[0];if(!f){return}
-var s=document.getElementById('st');s.textContent='Uploading…';f.text().then(function(t){
-return fetch('/members/import',{method:'POST',headers:{'Content-Type':'text/csv'},body:t})}).then(function(r){return r.text()})
-.then(function(t){s.textContent=t;setTimeout(function(){location.href='/members'},1500)})}</script>""" % (
+<p>Members: <input type="file" id="csv" accept=".csv,text/csv"> <button type="button" onclick="up('csv','/members/import','st')">Import members</button> <span id="st"></span></p>
+<p>Old bills: <input type="file" id="bills" accept=".csv,text/csv"> <button type="button" onclick="up('bills','/payments/import','st2')">Import bills</button> <span id="st2"></span></p>
+<script>function up(id,url,sid){var f=document.getElementById(id).files[0];if(!f){return}
+var s=document.getElementById(sid);s.textContent='Uploading…';f.text().then(function(t){
+return fetch(url,{method:'POST',headers:{'Content-Type':'text/csv'},body:t})}).then(function(r){return r.text()})
+.then(function(t){s.textContent=t;setTimeout(function(){location.href='/members'},2500)})}</script>""" % (
         cards, e(f), e(term), "".join(out) or '<tr><td colspan="8">No members</td></tr>')
     return layout("Members", "/members", body, msg)
 
@@ -395,9 +421,9 @@ def member_page(conn, sn, q, msg=""):
     pays = ""
     if m:
         rows = conn.execute("SELECT * FROM payments WHERE client_id=? ORDER BY id DESC", (m["client_id"],)).fetchall()
-        pays = "".join("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s → %s</td><td>%s</td></tr>" % (
+        pays = "".join("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s → %s</td><td>%s</td><td class=\"dim\">%s</td></tr>" % (
             show(p["paid_on"]), e(p["package"] or ""), "%g" % (p["amount"] or 0), show(p["start"]), show(p["expiry"]),
-            e(p["mode"] or "")) for p in rows)
+            e(p["mode"] or ""), e(p["note"] or "")) for p in rows)
     st, cls = status_of(m["expiry"]) if m else ("New member", "dim")
     pin = cid
     door = ""
@@ -426,7 +452,7 @@ def member_page(conn, sn, q, msg=""):
 <label style="flex-direction:row;align-items:center"><input type="checkbox" name="continue" value="1" checked style="min-height:auto"> Continue from current end date if renewing early</label>
 </div><p><button>Save</button></p></form>
 %s
-<h2>Payments</h2><table><tr><th>Paid on</th><th>Package</th><th>Amount</th><th>Period</th><th>Mode</th></tr>%s</table>""" % (
+<h2>Payments</h2><table><tr><th>Paid on</th><th>Package</th><th>Amount</th><th>Period</th><th>Mode</th><th>Note</th></tr>%s</table>""" % (
         e(m["name"]) if m else "Add member",
         '<p>Status: <span class="tag %s">%s</span> · Expiry %s · Package %s%s</p>' % (
             cls, e(st), show(m["expiry"]), v("package"),
@@ -434,7 +460,7 @@ def member_page(conn, sn, q, msg=""):
         '<p class="dim">Enroll the finger on the gate machine first with the same ID, then save here.</p>',
         v("client_id"), "readonly" if m else "", v("name"), v("phone"), v("gender"),
         "%g" % (m["pending"] or 0) if m else "0", opts, iso(today()),
-        door, pays or '<tr><td colspan="5">—</td></tr>')
+        door, pays or '<tr><td colspan="6">—</td></tr>')
     return layout("Member", "/member", body, msg)
 
 
