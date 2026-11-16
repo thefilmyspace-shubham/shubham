@@ -30,6 +30,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import members as M
+import ui as U
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8081"))
@@ -79,6 +80,7 @@ def init_db():
     with DB_LOCK, db() as conn:
         conn.executescript(SCHEMA)
         M.init(conn)
+        U.init(conn)
 
 
 def kv_fields(text):
@@ -179,12 +181,38 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/iclock/ping":
             self.touch_device(sn)
             return self.send_text("OK")
-        if path in ("/members", "/member", "/sync", "/today"):
+        if path == "/logo.jpg":
+            with open(os.path.join(HERE, "logo.jpg"), "rb") as fh:
+                data = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Cache-Control", "max-age=86400")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        if path in U.GET_PAGES or path == "/members.csv":
+            if not self.authorized():
+                return self.ask_auth()
+            with DB_LOCK, db() as conn:
+                ctype, out = U.handle_get(path, q, conn, M.default_sn(conn))
+            if ctype == "text/csv":
+                data = out.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv; charset=utf-8")
+                self.send_header("Content-Disposition", 'attachment; filename="hos-members.csv"')
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            return self.send_text(out, ctype=ctype)
+        if path in ("/member", "/sync", "/today"):
             if not self.authorized():
                 return self.ask_auth()
             with DB_LOCK, db() as conn:
                 sn = M.default_sn(conn)
-                page = {"/members": M.members_page, "/member": M.member_page}.get(path)
+                M.layout = U.legacy_layout(conn, sn)
+                page = {"/member": M.member_page}.get(path)
                 if page:
                     html_ = page(conn, sn, q, q.get("m", ""))
                 elif path == "/today":
@@ -204,11 +232,11 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
-        if path in ("/", "/admin", "/admin/command"):
+        if path in ("/gate", "/admin", "/admin/command"):
             if not self.authorized():
                 return self.ask_auth()
-            if path != "/":
-                return self.redirect("/")
+            if path != "/gate":
+                return self.redirect("/gate")
             return self.send_text(self.admin_page(q.get("m", "")), ctype="text/html")
         return self.send_text("Not found", 404)
 
@@ -232,6 +260,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_text("OK: %d" % n)
         if path == "/iclock/devicecmd":
             return self.send_text(self.handle_cmd_result(body))
+        if path == "/bill/save":
+            if not self.authorized():
+                return self.ask_auth()
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                inv, msg = U.save_bill(conn, M.default_sn(conn), f)
+            if not inv:
+                return self.redirect("/bill?" + urlencode({"m": msg}))
+            return self.redirect("/receipt?" + urlencode({"inv": inv, "m": msg, "wa": f.get("send_wa", ""),
+                                                          "print": f.get("print", "")}))
         if path in ("/members/import", "/payments/import", "/member/save", "/member/door", "/sync"):
             if not self.authorized():
                 return self.ask_auth()
@@ -241,7 +279,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.ask_auth()
             msg = self.handle_admin_form(parse_qs(body))
             # Back to the main page so the auto-refresh never re-posts or 404s.
-            return self.redirect("/?" + urlencode({"m": msg}))
+            return self.redirect("/gate?" + urlencode({"m": msg}))
         return self.send_text("OK")
 
     def handle_member_post(self, path, body):
@@ -257,7 +295,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/member/save":
                 ok, msg = M.save_member(conn, sn, f)
                 cid = f.get("client_id", "")
-                return self.redirect("/member?" + urlencode({"id": cid, "m": msg}) if ok
+                return self.redirect("/m?" + urlencode({"id": cid, "m": msg}) if ok
                                      else "/member?" + urlencode({"m": msg}))
             if path == "/member/door":
                 cid = f.get("id", "")
@@ -265,7 +303,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.redirect("/members")
                 ok, msg = (M.unblock(conn, sn, cid) if f.get("do") == "unblock"
                            else M.block(conn, sn, cid, "manual"))
-                return self.redirect("/member?" + urlencode({"id": cid, "m": msg}))
+                return self.redirect("/m?" + urlencode({"id": cid, "m": msg}))
             # /sync
             do = f.get("do")
             if f.get("grace", "").isdigit():
@@ -442,7 +480,7 @@ class Handler(BaseHTTPRequestHandler):
         opts = "".join('<option value="%s">%s</option>' % (e(d["sn"]), e(d["sn"])) for d in devices)
         return """<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="refresh" content="15;url=/"><title>HOS gate test</title>
+<meta http-equiv="refresh" content="15;url=/gate"><title>HOS gate test</title>
 <style>body{font-family:system-ui,sans-serif;background:#0b0b0c;color:#f4f4f5;margin:0;padding:16px}
 h1{color:#ff5a5a;margin:0 0 8px}h2{margin:24px 0 8px;font-size:18px}
 table{border-collapse:collapse;width:100%%;font-size:13px;display:block;overflow-x:auto}
