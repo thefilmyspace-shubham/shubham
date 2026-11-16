@@ -484,6 +484,7 @@ def members_list(conn, sn, q):
 <p class="dim">CSV files made from the old software. Re-importing updates, it never duplicates.</p>
 <p>Members: <input type="file" id="csv" accept=".csv,text/csv"> <button type="button" onclick="up('csv','/members/import','st')">Import members</button> <span id="st"></span></p>
 <p>Old bills: <input type="file" id="bills" accept=".csv,text/csv"> <button type="button" onclick="up('bills','/payments/import','st2')">Import bills</button> <span id="st2"></span></p>
+<p>Old attendance: <input type="file" id="att" accept=".csv,text/csv"> <button type="button" onclick="up('att','/attendance/import','st3')">Import attendance</button> <span id="st3"></span></p>
 <script>function up(id,url,sid){var f=document.getElementById(id).files[0];if(!f){return}
 var s=document.getElementById(sid);s.textContent='Uploading…';f.text().then(function(t){
 return fetch(url,{method:'POST',headers:{'Content-Type':'text/csv'},body:t})}).then(function(r){return r.text()})
@@ -764,6 +765,41 @@ def soon(conn, sn, q):
     nav = {"Attendance": "/soon?p=Attendance", "Absent": "/soon?p=Absent", "Inquiries": "/soon?p=Inquiries",
            "Packages": "/soon?p=Packages", "Staff": "/soon?p=Staff", "Reports": "/soon?p=Reports"}.get(name, "")
     return shell(name, nav, body, sub="Coming next", cnt=counts(conn, sn))
+
+
+# ---------------- attendance import ----------------
+
+def parse_time(t):
+    t = (t or "").strip()
+    for fmt in ("%I:%M:%S %p", "%I:%M %p", "%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.datetime.strptime(t, fmt).strftime("%H:%M:%S")
+        except ValueError:
+            pass
+    return None
+
+
+def import_attendance(conn, sn, text):
+    """Old software's attendance (CSV: date, in time, out time, biometric id). Safe to re-run."""
+    if not sn:
+        return 0, 0, "No gate machine connected yet."
+    reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
+    added = skipped = 0
+    for r in reader:
+        r = {(k or "").strip().lower(): (v or "").strip() for k, v in r.items()}
+        pin = r.get("biometric / client id") or r.get("biometric id") or r.get("pin") or r.get("member id") or ""
+        d = M.parse_date(r.get("date"))
+        if not pin.isdigit() or not d:
+            skipped += 1
+            continue
+        for col, status in (("in time", "0"), ("out time", "1")):
+            tm = parse_time(r.get(col))
+            if tm:
+                cur = conn.execute("INSERT OR IGNORE INTO punches (sn, pin, ts, status, verify, raw, received_at) "
+                                   "VALUES (?,?,?,?,?,?,?)", (sn, pin, "%s %s" % (M.iso(d), tm), status, "old",
+                                                               "old software", M.stamp()))
+                added += cur.rowcount
+    return added, skipped, ""
 
 
 # ---------------- routing ----------------

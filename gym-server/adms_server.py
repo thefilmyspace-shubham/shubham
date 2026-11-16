@@ -260,6 +260,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_text("OK: %d" % n)
         if path == "/iclock/devicecmd":
             return self.send_text(self.handle_cmd_result(body))
+        if path == "/attendance/import":
+            if not self.authorized():
+                return self.ask_auth()
+            with DB_LOCK, db() as conn:
+                n, skipped, err = U.import_attendance(conn, M.default_sn(conn), body)
+            return self.send_text(err or "Imported %d check-ins, %d rows skipped" % (n, skipped))
         if path == "/bill/save":
             if not self.authorized():
                 return self.ask_auth()
