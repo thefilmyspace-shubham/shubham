@@ -1,7 +1,7 @@
 # Colour grade for the client's ride-on assembly clip (asked: "colour grade + a bit more brightness").
 # 1) per-shot white balance: the white cloth is measured in each shot (low-saturation bright pixels on a few frames) and
 #    the channel gains make it neutral -- the top-view shot is much warmer than the rest;
-# 2) a brightening curve: the cloth goes from ~150 to ~220 (clean white, not clipped), blacks stay deep;
+# 2) a brightening curve: the cloth goes from ~150 to ~200 (clean, not clipped; ~220 was too bright), blacks stay deep;
 # 3) +6 % saturation so the yellow body pops while the hands stay natural (more looked neon / made skin too red);
 # every shot is first brought to the same cloth level, so the bright top-view shot does not blow out.
 # usage: python3 tools/grade.py <src> --stills <out dir> <t,t,...>     (before | current v2 | new grade, side by side)
@@ -10,7 +10,7 @@ import os, sys, json, subprocess
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 SHOTS = [0.0, 6.2, 23.3, 31.783, 37.583, 41.9, 43.56]        # cuts (scene detection); the last shot is the logo card
-CURVE = '0/0 0.12/0.13 0.45/0.645 0.59/0.85 0.85/0.965 1/1'   # cloth 150 -> ~218, soft top so yellow does not go neon
+CURVE = '0/0 0.12/0.125 0.45/0.60 0.59/0.79 0.85/0.95 1/1'    # cloth 150 -> ~200 (client: ~218 was too bright), soft top
 CLOTH_IN = 150.0                                               # every shot's cloth is first brought to this level
 V2 = 'eq=gamma=1.10:brightness=0.025:saturation=1.04'
 FONT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'funhoods-target-blaster', 'fonts', 'Inter-ExtraBold.ttf')
