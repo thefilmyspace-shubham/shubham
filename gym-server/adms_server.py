@@ -38,6 +38,8 @@ ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "")
 
 DB_LOCK = threading.Lock()
+BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), "backups")
+KEEP_BACKUPS = 14
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS devices (
@@ -190,6 +192,18 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     html_ = M.sync_page(conn, sn, q.get("m", ""))
             return self.send_text(html_, ctype="text/html")
+        if path == "/backup":
+            if not self.authorized():
+                return self.ask_auth()
+            data = snapshot_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition",
+                             'attachment; filename="hos-backup-%s.db"' % datetime.date.today().isoformat())
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if path in ("/", "/admin", "/admin/command"):
             if not self.authorized():
                 return self.ask_auth()
@@ -434,7 +448,7 @@ form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
 input,select,button{min-height:40px;padding:0 10px;border-radius:8px;border:1px solid #333;background:#151517;color:#fff}
 button{background:#d90b16;border:0;font-weight:600;cursor:pointer}.msg{background:#1f2a1a;padding:10px;border-radius:8px}</style>
 </head><body><h1>House of Strength — gate test</h1>
-<p><a href="/today" style="color:#ff7a7a">Today</a> · <a href="/members" style="color:#ff7a7a">Members</a> · <a href="/member" style="color:#ff7a7a">Add / Renew</a> · <a href="/sync" style="color:#ff7a7a">Door sync</a></p>
+<p><a href="/today" style="color:#ff7a7a">Today</a> · <a href="/members" style="color:#ff7a7a">Members</a> · <a href="/member" style="color:#ff7a7a">Add / Renew</a> · <a href="/sync" style="color:#ff7a7a">Door sync</a> · <a href="/backup" style="color:#ff7a7a">Download backup</a></p>
 <p>Page refreshes every 15 seconds. Server time %s</p>%s
 <h2>Machines</h2>%s
 <h2>Last punches</h2>%s
@@ -469,6 +483,45 @@ button{background:#d90b16;border:0;font-weight:600;cursor:pointer}.msg{backgroun
         )
 
 
+def snapshot_to(path):
+    """Consistent copy of the live database (safe while the server writes)."""
+    with DB_LOCK:
+        src = sqlite3.connect(DB_PATH, timeout=10)
+        dst = sqlite3.connect(path)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+
+
+def snapshot_bytes():
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    tmp = os.path.join(BACKUP_DIR, ".download.tmp")
+    snapshot_to(tmp)
+    with open(tmp, "rb") as f:
+        data = f.read()
+    os.remove(tmp)
+    return data
+
+
+def backup_loop():
+    """Once a day: hos-YYYY-MM-DD.db in BACKUP_DIR, keeping the newest KEEP_BACKUPS."""
+    while True:
+        try:
+            os.makedirs(BACKUP_DIR, exist_ok=True)
+            name = os.path.join(BACKUP_DIR, "hos-%s.db" % datetime.date.today().isoformat())
+            if not os.path.exists(name):
+                snapshot_to(name)
+                print("%s backup written %s" % (now(), name), flush=True)
+            old = sorted(f for f in os.listdir(BACKUP_DIR) if f.startswith("hos-") and f.endswith(".db"))
+            for f in old[:-KEEP_BACKUPS]:
+                os.remove(os.path.join(BACKUP_DIR, f))
+        except Exception as exc:
+            print("%s backup error: %s" % (now(), exc), flush=True)
+        threading.Event().wait(3600)
+
+
 def auto_sync_loop():
     """Every 30 minutes: if automatic sync is switched on, block/restore by expiry."""
     while True:
@@ -488,6 +541,7 @@ def main():
         sys.exit("Set ADMIN_PASS before starting, e.g. ADMIN_PASS=secret python3 adms_server.py")
     init_db()
     threading.Thread(target=auto_sync_loop, daemon=True).start()
+    threading.Thread(target=backup_loop, daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print("%s listening on port %d, database %s" % (now(), PORT, DB_PATH), flush=True)
     srv.serve_forever()

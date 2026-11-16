@@ -74,6 +74,21 @@ def init(conn):
     conn.executescript(SCHEMA)
     conn.execute("INSERT OR IGNORE INTO settings VALUES ('grace_days', '3')")
     conn.execute("INSERT OR IGNORE INTO settings VALUES ('auto_sync', '0')")
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(members)")}
+    if "pending" not in cols:
+        conn.execute("ALTER TABLE members ADD COLUMN pending REAL DEFAULT 0")
+
+
+def pending_from(r):
+    """Pending amount from an import row: a 'pending' column, or 'pending Rs N' in all_packages."""
+    v = (r.get("pending") or "").replace(",", "").replace("Rs", "").strip()
+    if not v:
+        m = re.search(r"pending Rs ([\d.]+)", r.get("all_packages", ""))
+        v = m.group(1) if m else ""
+    try:
+        return float(v) if v else None
+    except ValueError:
+        return None
 
 
 def setting(conn, key, default=""):
@@ -114,6 +129,9 @@ def import_csv(conn, text):
              r.get("gender", ""), iso(reg), r.get("package", ""), iso(exp),
              r.get("all_packages", ""), stamp()),
         )
+        pend = pending_from(r)
+        if pend is not None:
+            conn.execute("UPDATE members SET pending=? WHERE client_id=?", (pend, int(cid)))
         if exists:
             updated += 1
         else:
@@ -246,6 +264,12 @@ def save_member(conn, sn, f):
         "expiry=excluded.expiry, updated_at=excluded.updated_at",
         (cid, name, phone, gender, iso(today()) if not old else old["registration"], package, expiry,
          old["notes"] if old else "", stamp()))
+    pend = (f.get("pending") or "").replace(",", "").strip()
+    if pend:
+        try:
+            conn.execute("UPDATE members SET pending=? WHERE client_id=?", (max(0.0, float(pend)), cid))
+        except ValueError:
+            pass
     exp = parse_date(expiry)
     if sn and exp and exp >= today() and str(cid) in blocked_pins(conn, sn):
         ok, m = unblock(conn, sn, cid)
@@ -274,7 +298,7 @@ a{color:#ff7a7a}.msg{background:#1f2a1a;padding:10px;border-radius:8px}.warn{bac
 
 
 def layout(title, active, body, msg=""):
-    links = [("/today", "Today"), ("/members", "Members"), ("/member", "Add / Renew"), ("/sync", "Door sync"), ("/", "Gate")]
+    links = [("/today", "Today"), ("/members", "Members"), ("/member", "Add / Renew"), ("/sync", "Door sync"), ("/", "Gate"), ("/backup", "Backup")]
     nav = "".join('<a href="%s"%s>%s</a>' % (h, ' class="on"' if h == active else "", t) for h, t in links)
     return ('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" '
             'content="width=device-width,initial-scale=1"><title>%s</title><style>%s</style></head>'
@@ -303,7 +327,8 @@ def members_page(conn, sn, q, msg=""):
     rows = conn.execute("SELECT * FROM members ORDER BY client_id DESC").fetchall()
     t = today()
     counts = {"all": len(rows), "active": 0, "soon": 0, "expired": 0,
-              "expired_on_machine": 0, "active_missing": 0}
+              "expired_on_machine": 0, "active_missing": 0, "pending": 0}
+    pending_total = 0.0
     out = []
     for m in rows:
         pin = str(m["client_id"])
@@ -316,9 +341,12 @@ def members_page(conn, sn, q, msg=""):
         counts["expired"] += not active
         counts["expired_on_machine"] += (not active) and on_machine
         counts["active_missing"] += active and pin not in names
+        owes = (m["pending"] or 0) > 0
+        counts["pending"] += owes
+        pending_total += m["pending"] or 0
         keep = {"all": True, "active": active, "soon": soon, "expired": not active,
                 "expired_on_machine": (not active) and on_machine,
-                "active_missing": active and pin not in names}.get(f, True)
+                "active_missing": active and pin not in names, "pending": owes}.get(f, True)
         if term and term not in ("%s %s %s" % (pin, m["name"], m["phone"])).lower():
             keep = False
         if not keep:
@@ -331,19 +359,22 @@ def members_page(conn, sn, q, msg=""):
         else:
             door = '<span class="dim">Not on machine</span>'
         out.append("<tr><td>%s</td><td><a href=\"/member?id=%s\">%s</a>%s</td><td>%s</td><td>%s</td>"
-                   "<td>%s</td><td><span class=\"tag %s\">%s</span></td><td>%s</td></tr>" % (
+                   "<td>%s</td><td><span class=\"tag %s\">%s</span></td><td>%s</td><td>%s</td></tr>" % (
                        pin, pin, e(m["name"] or ""),
                        ('<br><span class="dim">machine: %s</span>' % e(names[pin])) if pin in names and names[pin] and names[pin].lower() != (m["name"] or "").lower() else "",
-                       e(m["phone"] or ""), e(m["package"] or ""), show(m["expiry"]), cls, st, door))
+                       e(m["phone"] or ""), e(m["package"] or ""), show(m["expiry"]), cls, st, door,
+                       '<span class="tag mid">₹{:,.0f}</span>'.format(m["pending"]) if owes else ""))
     labels = [("all", "All"), ("active", "Active"), ("soon", "Expiring ≤7 days"), ("expired", "Expired"),
-              ("expired_on_machine", "Expired but door opens"), ("active_missing", "Active, not on machine")]
+              ("expired_on_machine", "Expired but door opens"), ("active_missing", "Active, not on machine"),
+              ("pending", "Pending payment")]
     cards = "".join('<a class="card" style="text-decoration:none;color:inherit;%s" href="/members?f=%s"><span class="dim">%s</span><b>%d</b></a>'
                     % ("border-color:#d90b16" if k == f else "", k, t_, counts[k]) for k, t_ in labels)
+    cards += '<div class="card"><span class="dim">Total pending</span><b>₹{:,.0f}</b></div>'.format(pending_total)
     body = """<h1>Members</h1><div class="cards">%s</div>
 <form class="row" method="get" action="/members"><input type="hidden" name="f" value="%s">
 <input name="q" value="%s" placeholder="Search ID, name or phone" size="30"><button>Search</button>
 <a href="/member">+ Add member</a></form>
-<table><tr><th>ID</th><th>Name</th><th>Phone</th><th>Package</th><th>Expiry</th><th>Status</th><th>Door</th></tr>%s</table>
+<table><tr><th>ID</th><th>Name</th><th>Phone</th><th>Package</th><th>Expiry</th><th>Status</th><th>Door</th><th>Pending</th></tr>%s</table>
 <h2>Import from old software</h2>
 <p class="dim">CSV with columns client_id, name, phone, gender, registration, package, expiry. Existing IDs are updated.</p>
 <input type="file" id="csv" accept=".csv,text/csv"> <button type="button" onclick="up()">Import</button> <span id="st"></span>
@@ -351,7 +382,7 @@ def members_page(conn, sn, q, msg=""):
 var s=document.getElementById('st');s.textContent='Uploading…';f.text().then(function(t){
 return fetch('/members/import',{method:'POST',headers:{'Content-Type':'text/csv'},body:t})}).then(function(r){return r.text()})
 .then(function(t){s.textContent=t;setTimeout(function(){location.href='/members'},1500)})}</script>""" % (
-        cards, e(f), e(term), "".join(out) or '<tr><td colspan="7">No members</td></tr>')
+        cards, e(f), e(term), "".join(out) or '<tr><td colspan="8">No members</td></tr>')
     return layout("Members", "/members", body, msg)
 
 
@@ -382,6 +413,7 @@ def member_page(conn, sn, q, msg=""):
 <label>Name<input name="name" value="%s" required></label>
 <label>Phone<input name="phone" value="%s"></label>
 <label>Gender<select name="gender"><option>%s</option><option>Male</option><option>Female</option></select></label>
+<label>Pending amount (₹)<input name="pending" value="%s" inputmode="decimal"></label>
 </div>
 <h2>New / renew membership <span class="dim">(leave package empty to only edit details)</span></h2>
 <div class="grid">
@@ -396,9 +428,12 @@ def member_page(conn, sn, q, msg=""):
 %s
 <h2>Payments</h2><table><tr><th>Paid on</th><th>Package</th><th>Amount</th><th>Period</th><th>Mode</th></tr>%s</table>""" % (
         e(m["name"]) if m else "Add member",
-        '<p>Status: <span class="tag %s">%s</span> · Expiry %s · Package %s</p>' % (cls, e(st), show(m["expiry"]), v("package")) if m else
+        '<p>Status: <span class="tag %s">%s</span> · Expiry %s · Package %s%s</p>' % (
+            cls, e(st), show(m["expiry"]), v("package"),
+            ' · <span class="tag mid">Pending ₹{:,.0f}</span>'.format(m["pending"]) if (m["pending"] or 0) > 0 else "") if m else
         '<p class="dim">Enroll the finger on the gate machine first with the same ID, then save here.</p>',
-        v("client_id"), "readonly" if m else "", v("name"), v("phone"), v("gender"), opts, iso(today()),
+        v("client_id"), "readonly" if m else "", v("name"), v("phone"), v("gender"),
+        "%g" % (m["pending"] or 0) if m else "0", opts, iso(today()),
         door, pays or '<tr><td colspan="5">—</td></tr>')
     return layout("Member", "/member", body, msg)
 
