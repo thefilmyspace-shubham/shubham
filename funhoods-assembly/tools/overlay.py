@@ -8,36 +8,34 @@
 # usage: python3 tools/overlay.py <src video>            (or: --still <t> <out.png> to preview one frame)
 import os, sys, subprocess
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from videos import V, T0                         # which video (ASM_VIDEO=1|2): step times, wording, trim, names
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 FONTS = os.path.join(ROOT, '..', 'funhoods-target-blaster', 'fonts')
 F_HEAD, F_BODY = os.path.join(FONTS, 'LilitaOne-Regular.ttf'), os.path.join(FONTS, 'Inter-ExtraBold.ttf')
 RED, DRED, INK, YEL = (210, 24, 31), (120, 6, 14), (34, 28, 30), (255, 212, 0)
 W, H = 2160, 3840
-STEPS = [  # (start, end, text) -- seconds on the video clock
-    (0.30, 6.05, 'Put the batteries in the battery box and close the cover'),
-    (6.35, 11.75, 'Place the seat on top and press it down firmly'),
-    (11.95, 14.75, 'Fit the black cap on the front tube'),
-    (14.95, 19.10, 'Slide the front wheel axle through the front tube'),
-    (19.30, 23.15, 'Fit the black ring on top of the steering tube'),
-    (23.45, 26.45, 'Insert the handlebar into the steering tube'),
-    (26.65, 30.40, 'Press the centre cap onto the handlebar'),
-]
-TITLE = (0.0, 1.9)                    # "HOW TO ASSEMBLE" before step 1 settles
-READY = (31.95, 37.45)                # top view of the finished ride-on
-DONE = (37.75, 41.75)
+STEPS = V['steps']                    # (start, end, text) -- seconds on the output clock (read from the footage)
+TITLE = V['title']                    # "HOW TO ASSEMBLE" before step 1 settles
+READY = V['ready']                    # top view of the finished ride-on
+DONE = V['done']
 BRIGHT = 'eq=gamma=1.10:brightness=0.025:saturation=1.04'     # slight lift: about +10 % mean brightness, whites not clipped
-WM = dict(width=360, cx=300, cy=250, alpha=0.85, end=41.7)     # watermark: logo only (no white sticker), 85 % opacity (60 % looked faded)
+WM = dict(width=360, cx=300, cy=250, alpha=0.85, end=V['wm_end'])     # watermark: logo only (no white sticker), 85 % opacity (60 % looked faded)
 LOGO = os.path.join(ROOT, '..', 'funhoods-dino-car', 'assets', 'logo_rgba.png')
 
 def font(p, s): return ImageFont.truetype(p, s)
 
 def wrap(d, s, fo, w):
-    out, cur = [], ''
-    for wd in s.split():
-        tr = (cur + ' ' + wd).strip()
-        if d.textlength(tr, font=fo) <= w: cur = tr
-        else: out.append(cur); cur = wd
-    return out + [cur]
+    def greedy(w):
+        out, cur = [], ''
+        for wd in s.split():
+            tr = (cur + ' ' + wd).strip()
+            if d.textlength(tr, font=fo) <= w: cur = tr
+            else: out.append(cur); cur = wd
+        return out + [cur]
+    best = greedy(w)                                  # then narrow the box while the line count holds: balanced lines,
+    while w > 300 and len(greedy(w - 20)) == len(best): w -= 20   # no single word left alone on the last line
+    return greedy(w)
 
 def shadowed(im, blur=26, dy=18, a=90):
     pad = 70; out = Image.new('RGBA', (im.width + 2 * pad, im.height + 2 * pad), (0, 0, 0, 0))
@@ -70,7 +68,7 @@ def pill(text, size=96, bg=RED, fg=(255, 255, 255), padx=80, pady=40, path=F_HEA
 
 def cards():
     """(png path, start, end, centre x, top y)"""
-    out = []; tmp = os.path.join(ROOT, 'build'); os.makedirs(tmp, exist_ok=True)
+    out = []; tmp = os.path.join(ROOT, V['build']); os.makedirs(tmp, exist_ok=True)
     def save(im, name): p = os.path.join(tmp, name); im.save(p); return p, im
     p, im = save(pill('HOW TO ASSEMBLE', 104), 'title.png'); out.append((p, TITLE[0], TITLE[1], W / 2, 430))
     for i, (a, b, txt) in enumerate(STEPS):
@@ -83,10 +81,11 @@ def watermark():
     lg = Image.open(LOGO).convert('RGBA'); lg = lg.crop(lg.getchannel('A').getbbox())
     lg = lg.resize((WM['width'], int(lg.height * WM['width'] / lg.width)), Image.LANCZOS)
     lg.putalpha(lg.getchannel('A').point(lambda v: int(v * WM['alpha'])))
-    p = os.path.join(ROOT, 'build', 'watermark.png'); lg.save(p); return p, lg
+    os.makedirs(os.path.join(ROOT, V['build']), exist_ok=True)
+    p = os.path.join(ROOT, V['build'], 'watermark.png'); lg.save(p); return p, lg
 
 def build(src, outp):
-    cs = cards(); args = ['ffmpeg', '-v', 'error', '-y', '-i', src]
+    cs = cards(); args = ['ffmpeg', '-v', 'error', '-y'] + (['-ss', '%.3f' % T0] if T0 else []) + ['-i', src]   # cut the intro
     for p, a, b, cx, ty in cs: args += ['-loop', '1', '-framerate', '60', '-t', '44', '-i', p]
     wp, wm = watermark(); args += ['-loop', '1', '-framerate', '60', '-t', '44', '-i', wp]; nw = len(cs) + 1
     from grade import full_graph                                       # the approved grade, shot by shot
@@ -100,7 +99,9 @@ def build(src, outp):
         y = '%d+60*max(0\\,1-(t-%.2f)/0.25)' % (ty - 70, a)
         fl.append("[%s][c%d]overlay=x=%d:y='%s':shortest=1:enable='between(t\\,%.2f\\,%.2f)'[v%d]" % (last, k, int(cx - w_ / 2), y, a, b, k))
         last = 'v%d' % k
-    args += ['-filter_complex', ';'.join(fl), '-map', '[%s]' % last, '-map', '0:a', '-c:a', 'copy',
+    if T0: fl.append('[0:a]afade=t=in:st=0:d=0.06[aout]')          # trimmed: a short fade so the music does not click in
+    audio = ['-map', '[aout]', '-c:a', 'aac', '-b:a', '256k'] if T0 else ['-map', '0:a', '-c:a', 'copy']
+    args += ['-filter_complex', ';'.join(fl), '-map', '[%s]' % last] + audio + [
              '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-level', '5.2',
              '-threads', '4', '-movflags', '+faststart', outp]
     subprocess.run(args, check=True)
@@ -110,7 +111,7 @@ def still(src, t, outp):
     from grade import SHOTS, gains_all, shot_filter
     i = max(k for k, c in enumerate(SHOTS) if c <= t); g = gains_all(src)[i]
     vf = shot_filter(g) if i < len(SHOTS) - 2 else 'null'
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', str(t), '-i', src, '-frames:v', '1', '-vf', vf, outp], check=True)
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', '%.3f' % (t + T0), '-i', src, '-frames:v', '1', '-vf', vf, outp], check=True)
     fr = Image.open(outp).convert('RGBA')
     if t <= WM['end']:
         wp, wm = watermark(); fr.alpha_composite(wm, (WM['cx'] - wm.width // 2, WM['cy'] - wm.height // 2))
@@ -124,4 +125,4 @@ if __name__ == '__main__':
     if len(sys.argv) > 3 and sys.argv[2] == '--still':
         still(src, float(sys.argv[3]), sys.argv[4])
     else:
-        build(src, os.path.join(ROOT, 'exports', 'Funhoods_RideOn_Assembly_Guide_4K60.mp4'))
+        build(src, os.path.join(ROOT, 'exports', V['out'] + '_4K60.mp4'))

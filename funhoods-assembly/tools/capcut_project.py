@@ -5,16 +5,17 @@
 #   text   : HOW TO ASSEMBLE / STEP n chips / step instructions / READY TO RIDE! / EASY TO ASSEMBLE AT HOME,
 #            as native CapCut text layers (editable wording, size, colour, position)
 # Media paths point to C:/Users/Public/Funhoods_Assembly/ (extract the media there on Windows), otherwise relink in CapCut.
-# usage: python3 tools/capcut_project.py <out dir>   (expects <out dir>/media/assembly_base_4K60.mp4 + funhoods_logo.png)
+# usage: [ASM_VIDEO=2] python3 tools/capcut_project.py <out dir>   (expects <out dir>/media/<V['base']> + funhoods_logo.png)
 import os, sys, json, shutil
 import pyJianYingDraft as draft
 from pyJianYingDraft import trange, TrackType, TrackSpec, ClipSettings, TextStyle, TextBackground
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from overlay import STEPS, TITLE, READY, DONE, WM
+from videos import V                                     # ASM_VIDEO=1|2
 
 OUT = os.path.abspath(sys.argv[1]); MEDIA = os.path.join(OUT, 'media')
-NAME = 'Funhoods_RideOn_Assembly'
-WIN_MEDIA = 'C:/Users/Public/Funhoods_Assembly'          # where the media is expected on Windows
+NAME = V['draft']
+WIN_MEDIA = V['win']                                     # where the media is expected on Windows
 W, H, FPS, DUR = 2160, 3840, 60, 43.56
 
 def s(t): return '%.3fs' % t
@@ -26,7 +27,7 @@ sc.append_track(TrackSpec(TrackType.video, 'footage'))
 sc.append_track(TrackSpec(TrackType.video, 'watermark'))                   # appended later = drawn above the footage
 for name in ('title', 'step chip', 'step text'): sc.append_track(TrackSpec(TrackType.text, name))
 
-base = draft.VideoMaterial(os.path.join(MEDIA, 'assembly_base_4K60.mp4')); DUR = base.duration / 1e6   # the real clip length
+base = draft.VideoMaterial(os.path.join(MEDIA, V['base'])); DUR = base.duration / 1e6   # the real clip length
 sc.add_segment(draft.VideoSegment(base, tr(0, DUR)), 'footage')
 logo = draft.VideoMaterial(os.path.join(MEDIA, 'funhoods_logo.png'))       # a still image is a video material too
 wm_scale = WM['width'] / W                                                 # the logo is fitted to the canvas width

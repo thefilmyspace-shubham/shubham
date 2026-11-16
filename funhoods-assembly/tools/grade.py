@@ -9,21 +9,25 @@
 import os, sys, json, subprocess
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-SHOTS = [0.0, 6.2, 23.3, 31.783, 37.583, 41.9, 43.56]        # cuts (scene detection); the last shot is the logo card
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from videos import V, T0                                       # which video (ASM_VIDEO), its cuts and the trimmed intro
+SHOTS = V['shots']                                             # cuts on the output clock; the last shot is the logo card
 CURVE = '0/0 0.12/0.125 0.45/0.60 0.59/0.79 0.85/0.95 1/1'    # cloth 150 -> ~200 (client: ~218 was too bright), soft top
 CLOTH_IN = 150.0                                               # every shot's cloth is first brought to this level
 V2 = 'eq=gamma=1.10:brightness=0.025:saturation=1.04'
 FONT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'funhoods-target-blaster', 'fonts', 'Inter-ExtraBold.ttf')
 
 def frame(src, t, vf=None):
-    a = ['ffmpeg', '-v', 'error', '-ss', '%.3f' % t, '-i', src, '-frames:v', '1'] + (['-vf', vf] if vf else []) + ['-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']
+    """one frame at output time t (the trimmed intro is added back to find it in the source)"""
+    a = ['ffmpeg', '-v', 'error', '-ss', '%.3f' % (t + T0), '-i', src, '-frames:v', '1'] + (['-vf', vf] if vf else []) + ['-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']
     raw = subprocess.run(a, capture_output=True, check=True).stdout
     return np.frombuffer(raw, np.uint8).reshape(3840, 2160, 3)
 
 def wb_gains(src, a, b):
     """channel gains that make the cloth neutral in shot [a, b)"""
     px = []
-    for t in np.linspace(a + 0.3, b - 0.3, 4):
+    ts = np.linspace(a + 0.3, b - 0.3, 4) if b - a > 0.8 else np.linspace(a + 0.05, b - 0.05, 3)   # short shots too
+    for t in ts:
         f = frame(src, t)[::8, ::8].reshape(-1, 3).astype(float)
         sat = f.max(1) - f.min(1); m = (sat < 40) & (f.mean(1) > 110)
         px.append(f[m])
@@ -36,7 +40,7 @@ def shot_filter(g):
             % (g[0], g[1], g[2], CURVE))
 
 def gains_all(src):
-    cache = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'grade_gains.json')
+    cache = os.path.join(os.path.dirname(os.path.abspath(__file__)), V['gains'])
     if os.path.exists(cache): return json.load(open(cache))
     gs = [list(wb_gains(src, a, b)) if i < len(SHOTS) - 2 else [1, 1, 1] for i, (a, b) in enumerate(zip(SHOTS, SHOTS[1:]))]
     json.dump(gs, open(cache, 'w'), indent=1); return gs
