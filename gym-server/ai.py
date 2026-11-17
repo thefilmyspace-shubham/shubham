@@ -38,7 +38,7 @@ def _ask(system, text, schema):
             max_tokens=4000,
             system=system,
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": schema}},
-            messages=[{"role": "user", "content": text}],
+            messages=[{"role": "user", "content": text}],  # text: a string, or content blocks (image + text)
         )
     except anthropic.AuthenticationError:
         return None, "The AI key on the server is not valid."
@@ -100,3 +100,34 @@ def bill_fill(text, packages, trainers, today_iso):
     ) % (today_iso, catalogue, ", ".join(trainers) or "none")
     data, err = _ask(system, text.strip()[:500], schema)
     return data, err
+
+
+def expense_fill(text, image_b64, media_type, categories, today_iso):
+    """A typed line and/or a photo of a bill -> expense fields. Returns (fields, error)."""
+    schema = {
+        "type": "object",
+        "properties": {
+            "spent_on": {"type": "string", "description": "YYYY-MM-DD"},
+            "category": {"type": "string", "enum": categories},
+            "amount": {"type": "number"},
+            "paid_to": {"type": "string"},
+            "mode": {"type": "string", "enum": ["UPI", "Cash", "Bank", "Card", ""]},
+            "note": {"type": "string"},
+            "unclear": {"type": "string"},
+        },
+        "required": ["spent_on", "category", "amount", "paid_to", "mode", "note", "unclear"],
+        "additionalProperties": False,
+    }
+    system = (
+        "You fill a gym's expense form from a short Hinglish line and/or a photo of a bill or receipt. Today is %s. "
+        "Categories: %s ('bijli'/'light'/'MPEB' = Electricity, 'kiraya' = Rent, 'safai' = Cleaning, 'repair'/'theek' = Repairs, "
+        "'ads'/'flyer'/'Instagram' = Marketing, machines/weights = Equipment, staff pay = Salaries). "
+        "Amount is the total paid in rupees ('8.4k' = 8400); from a bill use the grand total. 'aaj' = today, 'kal' = yesterday "
+        "unless the line clearly means a future date. Use the bill's date if a photo shows one and the line gives none. "
+        "paid_to is the shop, company or person paid. Leave a field empty or 0 if unknown and say what was unclear."
+    ) % (today_iso, ", ".join(categories))
+    content = []
+    if image_b64:
+        content.append({"type": "image", "source": {"type": "base64", "media_type": media_type or "image/jpeg", "data": image_b64}})
+    content.append({"type": "text", "text": (text or "Read this bill.").strip()[:500]})
+    return _ask(system, content, schema)

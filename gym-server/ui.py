@@ -1626,7 +1626,7 @@ def expenses_page(conn, sn, q):
 <div class="kpis"><div class="kpi"><div class="l">Collection</div><div class="v">%s</div></div>
 <div class="kpi hot"><div class="l">Expenses</div><div class="v">%s</div><div class="s">%d entries</div></div>
 <div class="kpi"><div class="l">Profit</div><div class="v">%s</div><div class="s">collection − expenses</div></div></div>
-<form class="panel" method="post" action="/expenses/save" style="display:flex;flex-direction:column;gap:14px"><h2>Add expense</h2><div class="grid">
+%s<form class="panel" method="post" action="/expenses/save" style="display:flex;flex-direction:column;gap:14px" id="expf"><h2>Add expense</h2><div class="grid">
 <label>Date<input type="date" name="spent_on" value="%s" required></label>
 <label>Category<select name="category">%s</select></label>
 <label>Amount (₹)<input name="amount" inputmode="decimal" required></label>
@@ -1636,11 +1636,46 @@ def expenses_page(conn, sn, q):
 <p class="dim" style="margin:0;font-size:12px">Salaries paid go in category "Salaries" so profit is right.</p></form>
 %s<div class="panel"><div class="ph"><h2>Expenses · %s</h2>%s</div><div class="tw"><table>
 <tr><th>Date</th><th>Category</th><th>Paid to</th><th>Mode</th><th>Note</th><th style="text-align:right">Amount</th><th></th></tr>%s</table></div></div>""" % (
-        tabs, e(label), money(col), money(total), len(rows), money(col - total), M.iso(M.today()),
+        tabs, e(label), money(col), money(total), len(rows), money(col - total), expense_ai_box(), M.iso(M.today()),
         "".join("<option>%s</option>" % c for c in EXPENSE_CATS),
         ('<div class="kpis">%s</div>' % cats) if cats else "", e(label),
         '<a class="btn sm" href="/reports/expenses.csv?%s">%sExport</a>' % (urlencode({"from": A_, "to": B_}), icon("down", 16)), trs)
     return shell("Expenses", "/expenses", body, sub="Kharcha, and what is left as profit", msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
+def expense_ai_box():
+    ok = AI.available()
+    return """<div class="panel" style="display:flex;flex-direction:column;gap:10px"><div class="ph" style="margin:0"><h2>AI-fill expense</h2>
+<span class="dim" style="font-size:12px">%s</span></div><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+<input id="etext" placeholder="e.g. bijli bill 8400 aaj UPI se diya" style="flex:1 1 320px"%s>
+<label class="btn" style="flex-direction:row;cursor:pointer">Bill photo<input type="file" id="eimg" accept="image/*" capture="environment" hidden%s></label>
+<button type="button" class="btn red" id="ebtn"%s>Fill with AI</button></div><div id="emsg" class="dim" style="font-size:13px"></div></div>
+<script>(function(){var img=null;var m=document.getElementById('emsg');
+document.getElementById('eimg').addEventListener('change',function(ev){var file=ev.target.files[0];if(!file){return}var r=new FileReader();
+r.onload=function(){var im=new Image();im.onload=function(){var k=Math.min(1,1600/Math.max(im.width,im.height));var c=document.createElement('canvas');
+c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+img=c.toDataURL('image/jpeg',0.8).split(',')[1];m.textContent='Photo ready: '+file.name};im.src=r.result};r.readAsDataURL(file)});
+document.getElementById('ebtn').addEventListener('click',function(){var t=document.getElementById('etext').value.trim();if(!t&&!img){m.textContent='Type a line or add a bill photo.';return}
+var b=this;b.disabled=true;b.textContent='Reading…';var body='text='+encodeURIComponent(t)+(img?'&img='+encodeURIComponent(img):'');
+fetch('/expenses/ai',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body}).then(function(r){return r.json()})
+.then(function(d){b.disabled=false;b.textContent='Fill with AI';if(d.error){m.textContent=d.error;return}var f=document.getElementById('expf');
+['spent_on','category','amount','paid_to','mode','note'].forEach(function(k){var el=f.querySelector('[name='+k+']');if(el&&d[k]!==undefined&&d[k]!==''&&d[k]!==null){el.value=d[k]}});
+m.textContent=(d.unclear?('AI note: '+d.unclear+' '):'')+'Check the form below, then Save expense.';f.scrollIntoView({behavior:'smooth'})})
+.catch(function(){b.disabled=false;b.textContent='Fill with AI';m.textContent='Could not reach the server.'})})})();</script>""" % (
+        "Type it, or snap the bill. You check, then save." if ok else "AI is not set up on the server yet.",
+        "" if ok else " disabled", "" if ok else " disabled", "" if ok else " disabled")
+
+
+def expense_ai(conn, f):
+    img = re.sub(r"[^A-Za-z0-9+/=]", "", f.get("img") or "")
+    if len(img) > 8000000:
+        return {"error": "Photo is too large. Try a smaller photo."}
+    data, err = AI.expense_fill(f.get("text", ""), img, "image/jpeg", EXPENSE_CATS, M.iso(M.today()))
+    if err:
+        return {"error": err}
+    if data.get("amount") == 0:
+        data["amount"] = ""
+    return data
 
 
 def save_expense(conn, f):

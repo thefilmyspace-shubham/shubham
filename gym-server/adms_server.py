@@ -412,6 +412,13 @@ class Handler(BaseHTTPRequestHandler):
                 msg = U.manual_checkin(conn, M.default_sn(conn), f)
                 A.log(conn, "manual check-in", msg)
             return self.redirect("/attendance?" + urlencode({"m": msg}))
+        if path == "/expenses/ai":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            out = U.expense_ai(None, f)
+            with DB_LOCK, db() as conn:
+                A.log(conn, "AI-fill expense", (f.get("text") or "")[:200] + (" + photo" if f.get("img") else "") +
+                      (" -> " + out["error"] if out.get("error") else ""))
+            return self.send_text(json.dumps(out), ctype="application/json")
         if path == "/bill/ai":
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with db() as conn:  # the AI call can take seconds; do not hold the lock during it
