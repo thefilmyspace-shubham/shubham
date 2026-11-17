@@ -289,7 +289,7 @@ button.ghost{background:var(--card2);border:1px solid var(--line)}h1{font-family
 
 NAV = [
     ("/", "Dashboard", "dash", None), ("/members", "Members", "users", None), ("/bill", "New Bill", "bill", None),
-    ("/attendance", "Attendance", "finger", None), ("/renewals", "Renewals", "renew", "renewals"),
+    ("/attendance", "Attendance", "finger", None), ("/door", "Open gate", "door", None), ("/renewals", "Renewals", "renew", "renewals"),
     ("/pending", "Pending Payments", "rupee", "pending"), ("/absent", "Absent Members", "alert", "absent"),
     ("/joinings", "Joining forms", "users", "joinings"), ("/inquiries", "Inquiries", "chat", None), ("/approvals", "Approvals", "alert", "approvals"), ("/packages", "Packages", "box", None),
     ("/staff", "Staff & Trainers", "staff", None), ("/reports", "Reports", "chart", None), ("/expenses", "Expenses", "rupee", None),

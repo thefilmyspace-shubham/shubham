@@ -35,6 +35,7 @@ import members as M
 import ui as U
 import assistant as AS
 import gsheets as GS
+import door as D
 import joining as J
 import whatsapp as W
 
@@ -91,6 +92,7 @@ def init_db():
         A.init(conn)
         GS.init(conn)
         J.init(conn)
+        D.init(conn)
         W.init(conn)
 
 
@@ -249,6 +251,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/join":
             with DB_LOCK, db() as conn:
                 return self.send_text(J.public_page(conn), ctype="text/html")
+        if path in ("/door", "/door/status"):
+            with DB_LOCK, db() as conn:
+                if path == "/door/status":
+                    return self.send_text(D.status_json(conn), ctype="application/json")
+                return self.send_text(D.page(conn, M.default_sn(conn), q), ctype="text/html")
         if path == "/whatsapp/status":
             st = W.status()
             return self.send_text(json.dumps({"state": st.get("state", "off"), "qr": st.get("qr", ""), "me": st.get("me", "")}),
@@ -396,6 +403,21 @@ class Handler(BaseHTTPRequestHandler):
                         return self.set_session(A.new_session(conn, "owner"), "/")
                     return self.redirect("/login?" + urlencode({"err": "Wrong owner password."}))
             return self.redirect("/login")
+        if path in ("/door/open", "/door/method"):
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                if path == "/door/method":
+                    if not A.is_admin():
+                        return self.redirect("/door")
+                    M.set_setting(conn, "door_method", "2" if f.get("method") == "2" else "1")
+                    A.log(conn, "door method", f.get("method", ""))
+                    return self.redirect("/door?" + urlencode({"m": "Open method saved. Try Open door now."}))
+                user = A.me()
+                msg = D.request(conn, M.default_sn(conn), f.get("action", "open"), f.get("reason", ""),
+                                user.get("name") or user.get("email") or "", A.role())
+                A.log(conn, "door " + (f.get("action") or "open"), "%s · %s" % (f.get("reason", ""), msg))
+            ok = msg.endswith("seconds.") or msg.startswith(("Door will", "Locking"))
+            return self.redirect("/door?" + urlencode({"m": msg, "wait": "1" if ok else ""}))
         if path == "/join/submit":
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
@@ -635,8 +657,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def next_command(self, sn):
         with DB_LOCK, db() as conn:
+            D.expire_stale(conn, sn)
+            # Door opens jump the queue (a person is waiting at the gate); then everything else in order.
             row = conn.execute(
-                "SELECT id, cmd FROM commands WHERE sn=? AND sent_at IS NULL ORDER BY id LIMIT 1",
+                "SELECT id, cmd FROM commands WHERE sn=? AND sent_at IS NULL "
+                "ORDER BY (cmd LIKE 'AC_UNLOCK%' OR cmd LIKE 'CONTROL DEVICE%') DESC, id LIMIT 1",
                 (sn,),
             ).fetchone()
             if not row:
