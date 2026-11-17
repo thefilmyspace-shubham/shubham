@@ -33,6 +33,7 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import auth as A
 import members as M
 import ui as U
+import assistant as AS
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8081"))
@@ -243,6 +244,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/" and A.role() == "trainer":
             return self.redirect("/trainer")
+        if path == "/assistant":
+            with DB_LOCK, db() as conn:
+                return self.send_text(AS.page(conn, M.default_sn(conn), q), ctype="text/html")
         if path in ("/users", "/activity"):
             with DB_LOCK, db() as conn:
                 body_ = (A.users_page(conn, U.trainers(conn)) if path == "/users" else A.activity_page(conn, q))
@@ -412,6 +416,24 @@ class Handler(BaseHTTPRequestHandler):
                 msg = U.manual_checkin(conn, M.default_sn(conn), f)
                 A.log(conn, "manual check-in", msg)
             return self.redirect("/attendance?" + urlencode({"m": msg}))
+        if path in ("/assistant/ask", "/assistant/confirm", "/assistant/reset"):
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            user = A.me()
+            with DB_LOCK, db() as conn:
+                sn = M.default_sn(conn)
+            if path == "/assistant/reset":
+                AS.reset(user)
+                return self.send_text("{}", ctype="application/json")
+            if path == "/assistant/ask":
+                out = AS.ask(DB_PATH, sn, user, f.get("q", ""))
+                with DB_LOCK, db() as conn:
+                    A.log(conn, "AI assistant", (f.get("q") or "")[:200] + "".join(
+                        " | proposed: " + a["label"] for a in out.get("actions", []) if a.get("type") == "confirm"))
+                return self.send_text(json.dumps(out), ctype="application/json")
+            with DB_LOCK, db() as conn:
+                res = AS.confirm(conn, sn, user, f.get("id", ""))
+                A.log(conn, "AI action confirmed", res)
+            return self.send_text(json.dumps({"result": res}), ctype="application/json")
         if path == "/expenses/ai":
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             out = U.expense_ai(None, f)
