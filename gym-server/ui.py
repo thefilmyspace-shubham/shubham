@@ -13,6 +13,7 @@ from urllib.parse import quote, urlencode
 
 import ai as AI
 import auth as A
+import gsheets as GS
 import members as M
 
 e = M.e
@@ -938,7 +939,7 @@ def settings_page(conn, sn, q):
         inputs = "".join('<label>%s<input name="%s" value="%s"></label>' % (e(lbl), k, e(M.setting(conn, k, d))) for k, lbl, d in fields)
         blocks.append('<div class="panel"><h2 style="margin-bottom:14px">%s</h2><div class="grid">%s</div></div>' % (e(title), inputs))
     body = ('<form method="post" action="/settings/save" style="display:flex;flex-direction:column;gap:20px">%s'
-            '<button class="btn red" style="align-self:flex-start">Save changes</button></form>' % "".join(blocks))
+            '<button class="btn red" style="align-self:flex-start">Save changes</button></form>' % "".join(blocks)) + GS.settings_block(conn)
     return shell("Settings", "/settings", body, sub="Gym profile, receipt payment details, billing rules",
                  msg=q.get("m", ""), cnt=counts(conn, sn))
 

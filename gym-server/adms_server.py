@@ -34,6 +34,7 @@ import auth as A
 import members as M
 import ui as U
 import assistant as AS
+import gsheets as GS
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8081"))
@@ -86,6 +87,7 @@ def init_db():
         M.init(conn)
         U.init(conn)
         A.init(conn)
+        GS.init(conn)
 
 
 def kv_fields(text):
@@ -392,6 +394,18 @@ class Handler(BaseHTTPRequestHandler):
                 msg = U.save_expense(conn, f)
                 A.log(conn, "expense", msg)
             return self.redirect("/expenses?" + urlencode({"m": msg}))
+        if path == "/settings/sheets":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            url = (f.get("gs_url") or "").strip()
+            if url and not url.startswith("https://script.google.com/"):
+                return self.redirect("/settings?" + urlencode({"m": "The link must start with https://script.google.com/"}))
+            with DB_LOCK, db() as conn:
+                M.set_setting(conn, "gs_url", url)
+                A.log(conn, "sheets backup link saved" if f.get("do") != "sync" else "sheets backup started", "")
+            if f.get("do") == "sync":
+                threading.Thread(target=GS.sync, args=(DB_PATH,), daemon=True).start()
+                return self.redirect("/settings?" + urlencode({"m": "Backup started. Refresh this page in a minute to see the result."}))
+            return self.redirect("/settings?" + urlencode({"m": "Google Sheet link saved."}))
         if path in ("/settings/save", "/packages/save"):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
@@ -454,6 +468,8 @@ class Handler(BaseHTTPRequestHandler):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
                 inv, msg = U.save_bill(conn, M.default_sn(conn), f)
+                if inv:
+                    GS.soon()
                 A.log(conn, "bill saved" if inv else "bill refused", "%s · %s · discount %s" % (
                     msg, f.get("member", ""), f.get("discount", "0")))
             if not inv:
@@ -780,6 +796,7 @@ def main():
     init_db()
     threading.Thread(target=auto_sync_loop, daemon=True).start()
     threading.Thread(target=backup_loop, daemon=True).start()
+    threading.Thread(target=GS.loop, args=(DB_PATH,), daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print("%s listening on port %d, database %s" % (now(), PORT, DB_PATH), flush=True)
     srv.serve_forever()
