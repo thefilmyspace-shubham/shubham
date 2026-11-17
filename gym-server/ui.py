@@ -11,6 +11,7 @@ import io
 import re
 from urllib.parse import quote, urlencode
 
+import ai as AI
 import auth as A
 import members as M
 
@@ -676,7 +677,14 @@ def bill_page(conn, sn, q):
         old = M.parse_date(m["expiry"])
         if old and old >= start:
             start = old + datetime.timedelta(days=1)
-    body = """<form method="post" action="/bill/save" class="two" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr);align-items:start" id="bf">
+    ai_box = """<div class="panel" style="display:flex;flex-direction:column;gap:10px"><div class="ph" style="margin:0"><h2>AI-fill</h2>
+<span class="dim" style="font-size:12px">%s</span></div><div style="display:flex;flex-wrap:wrap;gap:10px">
+<input id="aitext" placeholder="e.g. Rohit 3 month, 1500 discount, 5000 UPI se diya" style="flex:1 1 360px"%s>
+<button type="button" class="btn red" id="aibtn" onclick="aiFill()"%s>Fill with AI</button></div>
+<div id="aimsg" class="dim" style="font-size:13px"></div></div>""" % (
+        "Type one line, check the form, then Save. Nothing is saved without you." if AI.available() else "AI is not set up on the server yet.",
+        "" if AI.available() else " disabled", "" if AI.available() else " disabled")
+    body = ai_box + """<form method="post" action="/bill/save" class="two" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr);align-items:start" id="bf">
 <div class="panel" style="display:flex;flex-direction:column;gap:22px">
 <div><h2 style="margin-bottom:12px">1 · Member</h2><div class="grid">
 <label>Member (type name or ID)<input name="member" list="mlist" value="%s" required placeholder="Search member" autocomplete="off"></label>
@@ -720,12 +728,55 @@ f.disc=document.getElementById('disc');f.adm=document.getElementById('adm');f.gs
 f.start=document.getElementById('start');f.end=document.getElementById('end');
 f.addEventListener('input',upd);f.addEventListener('change',upd);f.end.addEventListener('input',function(){f.end.dataset.touched=1});
 f.start.addEventListener('input',function(){delete f.end.dataset.touched});f.querySelectorAll('input[name=package_id]').forEach(function(i){i.addEventListener('change',function(){delete f.end.dataset.touched;upd()})});
-document.getElementById('kind').addEventListener('change',function(){kindFilter();upd()});kindFilter();upd()})();
+document.getElementById('kind').addEventListener('change',function(){kindFilter();upd()});kindFilter();upd();
+window.aiFill=function(){var t=document.getElementById('aitext').value.trim(),m=document.getElementById('aimsg'),b=document.getElementById('aibtn');if(!t){return}
+b.disabled=true;b.textContent='Reading…';m.textContent='';fetch('/bill/ai',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'text='+encodeURIComponent(t)})
+.then(function(r){return r.json()}).then(function(d){b.disabled=false;b.textContent='Fill with AI';if(d.error){m.textContent=d.error;return}
+var set=function(name,v){var el=f.querySelector('[name='+name+']');if(el&&v!==undefined&&v!==null&&v!==''){el.value=v}};
+if(d.member){f.querySelector('[name=member]').value=d.member}
+document.getElementById('kind').value=d.bill_type||'gym';kindFilter();
+if(d.package){f.querySelectorAll('input[name=package_id]').forEach(function(i){if(i.dataset.name===d.package){i.checked=true}})}
+if(d.start_date){f.start.value=d.start_date}delete f.end.dataset.touched;set('trainer',d.trainer);
+f.disc.value=d.discount||0;f.adm.value=d.admission||0;f.paid.value=(d.paid===null||d.paid<0)?'':d.paid;set('mode',d.mode);upd();
+m.innerHTML=d.note||'Form filled. Check every field, then Save.'}).catch(function(){b.disabled=false;b.textContent='Fill with AI';m.textContent='Could not reach the server.'})};
+document.getElementById('aitext').addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();aiFill()}})})();
 </script>""" % (
         e("%s · %s" % (nice(m["name"]), member_id(m["client_id"]))) if m else "", options, cards,
         M.iso(start), tr, e(M.setting(conn, "default_admission", "0")), inv, e(staff_name()))
     return shell("New bill", "/bill", body, sub="Membership or PT bill in under a minute", msg=q.get("m", ""),
                  cnt=counts(conn, sn))
+
+
+def ai_fill(conn, f):
+    """JSON for the bill page. The typed line goes to Claude; member lookup stays on this server."""
+    text = (f.get("text") or "").strip()
+    if not text:
+        return {"error": "Type a line first."}
+    pk = [(r["name"], r["days"], r["price"], r["kind"]) for r in conn.execute("SELECT * FROM packages WHERE active=1 ORDER BY kind, sort")]
+    data, err = AI.bill_fill(text, pk, trainers(conn), M.iso(M.today()))
+    if err:
+        return {"error": err}
+    out = {k: data.get(k) for k in ("bill_type", "package", "start_date", "trainer", "discount", "admission", "paid", "mode")}
+    notes = []
+    q = (data.get("member") or "").strip()
+    found = []
+    if q:
+        found = [r for r in [resolve_member(conn, q)] if r]
+        if not found:
+            words = [w for w in re.split(r"\s+", q.lower()) if len(w) > 1]
+            rows = conn.execute("SELECT * FROM members ORDER BY expiry DESC").fetchall()
+            found = [r for r in rows if words and all(w in (r["name"] or "").lower() for w in words)][:6]
+    if len(found) == 1:
+        out["member"] = "%s · %s" % (nice(found[0]["name"]), member_id(found[0]["client_id"]))
+    elif found:
+        notes.append("More than one member matches <b>%s</b>: %s. Pick the right one in the Member box." % (
+            e(q), ", ".join("%s (%s)" % (e(nice(r["name"])), member_id(r["client_id"])) for r in found)))
+    elif q:
+        notes.append("No member found for <b>%s</b>. Pick from the list, or add them as a new member first." % e(q))
+    if data.get("unclear"):
+        notes.append("AI note: %s" % e(data["unclear"]))
+    out["note"] = " ".join(notes + ["Check every field, then Save."])
+    return out
 
 
 def resolve_member(conn, text):

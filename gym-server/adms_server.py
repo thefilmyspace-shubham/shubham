@@ -21,6 +21,7 @@ Machine side (Menu > COMM > Cloud Server Setting):
 import base64
 import datetime
 import hmac
+import json
 import html
 import os
 import sqlite3
@@ -411,6 +412,13 @@ class Handler(BaseHTTPRequestHandler):
                 msg = U.manual_checkin(conn, M.default_sn(conn), f)
                 A.log(conn, "manual check-in", msg)
             return self.redirect("/attendance?" + urlencode({"m": msg}))
+        if path == "/bill/ai":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with db() as conn:  # the AI call can take seconds; do not hold the lock during it
+                out = U.ai_fill(conn, f)
+            with DB_LOCK, db() as conn:
+                A.log(conn, "AI-fill bill", (f.get("text") or "")[:200] + (" -> " + out["error"] if out.get("error") else ""))
+            return self.send_text(json.dumps(out), ctype="application/json")
         if path == "/bill/save":
             if not self.authorized():
                 return self.ask_auth()

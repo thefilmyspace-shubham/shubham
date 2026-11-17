@@ -190,7 +190,7 @@ def cookie_token(header):
 RECEPTION_PATHS = {
     "/", "/members", "/m", "/member", "/member/save", "/member/door", "/bill", "/bill/save", "/receipt",
     "/attendance", "/attendance/manual", "/renewals", "/pending", "/collect", "/absent", "/r", "/remind", "/soon",
-    "/logout", "/me", "/packages", "/inquiries", "/inquiries/save", "/approvals", "/approvals/request",
+    "/logout", "/me", "/packages", "/inquiries", "/inquiries/save", "/approvals", "/approvals/request", "/bill/ai",
 }
 TRAINER_PATHS = {"/", "/trainer", "/logout", "/me", "/approvals", "/approvals/request"}
 
