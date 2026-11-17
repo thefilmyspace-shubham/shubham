@@ -1167,7 +1167,8 @@ def attendance(conn, sn, q):
     month_n = conn.execute("SELECT COUNT(DISTINCT pin || substr(ts,1,10)) FROM punches WHERE substr(ts,1,7)=? AND CAST(pin AS INT) < ?",
                            (ti[:7], STAFF_FROM)).fetchone()[0]
     live = "".join(
-        '<tr><td><a class="mem" href="%s"><span class="av">%s</span>%s</a></td><td class="dim">%s</td><td style="text-align:right"><b>%s</b></td></tr>' % (
+        '<tr><td style="white-space:normal;padding-left:0"><a class="mem" href="%s"><span class="av">%s</span>%s</a></td><td class="dim" style="padding:11px 6px">%s</td>'
+        '<td style="text-align:right;padding-right:0"><b>%s</b></td></tr>' % (
             "/m?id=%s" % r[0] if is_member(r[0]) else "#", initials(mn.get(r[0]) or sn_names.get(r[0], r[0])),
             e(nice(mn.get(r[0]) or sn_names.get(r[0]) or "ID %s" % r[0])),
             "Out" if r[2] == "1" else ("In" if is_member(r[0]) else "Staff"),
@@ -1216,8 +1217,8 @@ def attendance(conn, sn, q):
 <div class="kpi"><div class="l">Today</div><div class="v">%d</div><div class="s">member check-ins</div></div>
 <div class="kpi"><div class="l">Staff present</div><div class="v">%d / %d</div><div class="s">came in the last 30 days</div></div>
 <div class="kpi"><div class="l">This month</div><div class="v">%s</div><div class="s">member visits since 1 %s</div></div></div>
-<div class="two" style="grid-template-columns:minmax(320px,1fr) minmax(0,1.6fr)"><div class="panel"><div class="ph"><h2>Live check-ins</h2><span class="pill p-ok">%s</span></div>
-<table>%s</table></div><div class="panel"><div class="ph"><h2>Busy hours · last 4 weeks</h2></div>%s
+<div class="two" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr))"><div class="panel" style="min-width:0"><div class="ph"><h2>Live check-ins</h2><span class="pill p-ok">%s</span></div>
+<div class="tw"><table>%s</table></div></div><div class="panel"><div class="ph"><h2>Busy hours · last 4 weeks</h2></div>%s
 <p class="dim" style="margin:12px 0 0;font-size:12px">Darker = more members.</p></div></div>
 <div class="tabs">%s</div>%s
 <details class="panel"><summary style="cursor:pointer;font-weight:600">Manual check-in</summary>
