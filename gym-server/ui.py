@@ -15,6 +15,7 @@ import ai as AI
 import auth as A
 import gsheets as GS
 import members as M
+import staffhours as SH
 
 e = M.e
 STAFF_FROM = M.STAFF_FROM
@@ -1744,6 +1745,7 @@ CREATE TABLE IF NOT EXISTS salary_pay (id INTEGER PRIMARY KEY, pin TEXT, month T
     base REAL, incentive REAL, advance REAL, deduction REAL, payable REAL, paid_on TEXT, mode TEXT, expense_id INTEGER,
     created_by TEXT, UNIQUE (pin, month));
 """)
+    SH.init(conn)
 
 
 def sync_staff_from_machine(conn, sn):
@@ -1771,22 +1773,12 @@ def fmt_t(t):
 
 
 def day_status(conn, pin, shift, d):
-    """('On time'|'Late 12m'|'Not in'|'Off day', first_in, last_out, early_leave)."""
-    rows = conn.execute("SELECT substr(ts,12,5), status FROM punches WHERE pin=? AND substr(ts,1,10)=? ORDER BY ts",
-                        (pin, M.iso(d))).fetchall()
-    first = rows[0][0] if rows else None
-    last = rows[-1][0] if len(rows) > 1 else None
-    if shift and str(d.weekday()) not in (shift["days"] or "0123456"):
-        return ("Off day" if not first else "Came on off day"), first, last, False
-    if not first:
-        return "Not in", None, None, False
-    if not shift:
-        return "Present", first, last, False
-    late = hm(first) - hm(shift["start"])
-    early = bool(last and hm(shift["end"]) and hm(last) < hm(shift["end"]) - (shift["grace"] or 10))
-    if late > (shift["grace"] or 10):
-        return "Late %dm" % late, first, last, early
-    return "On time", first, last, early
+    """('On time'|'Late 12m'|'Not in'|'Off day', first_in, last_out, early_leave). Late uses the gym's late rule."""
+    info = SH.day_info(conn, pin, shift, d)
+    to_s = lambda m: None if m is None else "%02d:%02d" % (m // 60, m % 60)
+    pr = SH.parts(shift)
+    early = bool(info["last"] is not None and pr and info["last"] < pr[-1][1] - SH.grace(conn))
+    return info["status"], to_s(info["first"]), to_s(info["last"]), early
 
 
 def working_days(shift, a, b):
@@ -1827,10 +1819,10 @@ def staff_page(conn, sn, q):
         n30 = conn.execute("SELECT COUNT(DISTINCT substr(ts,1,10)) FROM punches WHERE pin=? AND ts >= ?",
                            (s_["pin"], M.iso(t - datetime.timedelta(days=30)))).fetchone()[0]
         pill = {"On time": "p-ok", "Present": "p-ok", "Not in": "p-dim", "Off day": "p-dim"}.get(st, "p-warn")
-        rows += ('<tr%s><td><span class="mem"><span class="av">%s</span>%s</span></td><td>%s</td><td>%s</td><td>%d / 30</td><td>%s</td>'
+        rows += ('<tr%s><td><a class="mem" href="/staff/report?pin=%s"><span class="av">%s</span>%s</a></td><td>%s</td><td>%s</td><td>%d / 30</td><td>%s</td>'
                  '<td><span class="pill %s">%s</span>%s</td><td class="dim">%s</td><td>%s</td><td style="display:flex;gap:6px;justify-content:flex-end">%s'
                  '<a class="ibtn" href="/staff?edit=%s" aria-label="Edit">%s</a></td></tr>') % (
-            ' style="opacity:.5"' if not s_["active"] else "", initials(s_["name"]), e(s_["name"] or "ID " + s_["pin"]),
+            ' style="opacity:.5"' if not s_["active"] else "", e(s_["pin"]), initials(s_["name"]), e(s_["name"] or "ID " + s_["pin"]),
             e(s_["role"] or ""), e(sh["name"]) if sh else '<span class="dim">No shift</span>', n30,
             ("%d clients" % loads.get((s_["name"] or "").lower(), 0)) if s_["role"] == "Trainer" else "—",
             pill, e(st), (' <span class="pill p-warn">Left early</span>' if early else ""),
@@ -1842,10 +1834,11 @@ def staff_page(conn, sn, q):
     for sh in shifts.values():
         members_ = [s_["name"] for s_ in staff if s_["shift_id"] == sh["id"] and s_["active"]]
         sh_cards += ('<div class="kpi"><div class="ph" style="margin:0"><b style="font:600 18px Oswald,sans-serif;text-transform:uppercase">%s</b>'
-                     '<a class="btn sm" href="/staff?shift=%d">Edit</a></div><div class="v" style="font-size:24px">%s – %s</div>'
-                     '<div class="s">%s · grace %d min</div><div class="s" style="margin-top:8px">%s</div></div>') % (
+                     '<a class="btn sm" href="/staff?shift=%d">Edit</a></div><div class="v" style="font-size:24px">%s – %s%s</div>'
+                     '<div class="s">%s · %s a day</div><div class="s" style="margin-top:8px">%s</div></div>') % (
             e(sh["name"]), sh["id"], fmt_t(sh["start"]), fmt_t(sh["end"]),
-            " ".join(WEEKDAYS[int(c)] for c in (sh["days"] or "")) or "No days", sh["grace"] or 10,
+            ('<div style="font-size:18px">+ %s – %s</div>' % (fmt_t(sh["start2"]), fmt_t(sh["end2"]))) if sh["start2"] else "",
+            " ".join(WEEKDAYS[int(c)] for c in (sh["days"] or "")) or "No days", SH.dur(SH.shift_minutes(sh)),
             e(", ".join(members_)) if members_ else "Nobody assigned")
     es = conn.execute("SELECT * FROM shifts WHERE id=?", (q.get("shift"),)).fetchone() if q.get("shift", "").isdigit() else None
     day_boxes = "".join('<label class="chk" style="flex-direction:row"><input type="checkbox" name="d%d" value="1"%s>%s</label>' % (
@@ -1854,11 +1847,14 @@ def staff_page(conn, sn, q):
 <h2>%s</h2><input type="hidden" name="id" value="%s"><div class="grid">
 <label>Shift name<input name="name" value="%s" placeholder="e.g. Morning" required></label>
 <label>Starts<input type="time" name="start" value="%s" required></label><label>Ends<input type="time" name="end" value="%s" required></label>
-<label>Late after (minutes)<input name="grace" value="%d" inputmode="numeric"></label></div>
+<label>Second part starts (split shift, optional)<input type="time" name="start2" value="%s"></label>
+<label>Second part ends<input type="time" name="end2" value="%s"></label></div>
+<p class="dim" style="margin:0;font-size:12px">Split shift: e.g. 6:00–10:00 AM and 5:00–9:00 PM. Leave the second part empty for one continuous shift.
+Late is checked at the start of each part (rule below).</p>
 <div style="display:flex;flex-wrap:wrap;gap:14px">%s</div>
 <div style="display:flex;gap:8px"><button class="btn red">Save shift</button>%s</div></form>""" % (
         "Edit shift" if es else "Create a shift", es["id"] if es else "", e(es["name"]) if es else "", es["start"] if es else "06:00",
-        es["end"] if es else "14:00", (es["grace"] if es else 10) or 10, day_boxes,
+        es["end"] if es else "14:00", (es["start2"] or "") if es else "", (es["end2"] or "") if es else "", day_boxes,
         ('<button class="btn" name="delete" value="1" onclick="return confirm(\'Delete this shift? Staff on it become unassigned.\')">Delete</button>'
          '<a class="btn" href="/staff">Cancel</a>') if es else "")
     edit_form = ""
@@ -1881,11 +1877,12 @@ def staff_page(conn, sn, q):
 <div class="kpi"><div class="l">Other staff</div><div class="v">%d</div><div class="s">front desk, manager, housekeeping</div></div>
 <div class="kpi"><div class="l">Present today</div><div class="v">%d</div><div class="s">via biometric</div></div>
 <a class="kpi" href="/salary"><div class="l">Salaries</div><div class="v" style="font-size:22px;margin-top:14px">Salary sheet →</div><div class="s">days from biometric</div></a></div>
-<div class="panel"><div class="ph"><h2>Shifts</h2></div><div class="kpis">%s</div></div>%s
+<div class="panel"><div class="ph"><h2>Shifts</h2></div><div class="kpis">%s</div></div><div class="two">%s%s</div>
 <div class="panel"><div class="ph"><h2>Team</h2><a href="/staff?all=1">Show people who left</a></div><div class="tw"><table>
 <tr><th>Name</th><th>Role</th><th>Shift</th><th>Present (30 d)</th><th>PT load</th><th>Today</th><th>In / out</th><th>Salary</th><th></th></tr>%s</table></div>
 <p class="dim" style="font-size:12px;margin:12px 0 0">Staff come from the gate machine (IDs 10000+). Enroll a new staff finger on the machine with the next 100xx ID and they appear here.</p></div>""" % (
         edit_form, trainers_n, others, present, sh_cards or '<p class="dim">No shifts yet. Create one below.</p>', shift_form,
+        admin_only(SH.rule_panel(conn)),
         rows or '<tr><td colspan="9" class="dim">No staff found on the gate machine yet.</td></tr>')
     return shell("Staff & trainers", "/staff", body, sub="Team, shifts, attendance and salary", msg=q.get("m", ""), cnt=counts(conn, sn))
 
@@ -1901,12 +1898,21 @@ def save_shift(conn, f):
     if not name or hm(start) is None or hm(end) is None:
         return "Shift name, start and end time are needed."
     days = "".join(str(i) for i in range(7) if f.get("d%d" % i))
-    grace = int(f.get("grace")) if (f.get("grace") or "").isdigit() else 10
+    grace = int(M.setting(conn, "late_grace", "14") or 14)
+    s2, e2 = f.get("start2", ""), f.get("end2", "")
+    if hm(s2) is None or hm(e2) is None:
+        s2 = e2 = ""
+    elif hm(s2) <= hm(end) or hm(e2) <= hm(s2):
+        return "The second part must start after the first part ends, and end after it starts."
+    if hm(end) <= hm(start):
+        return "The shift must end after it starts."
     if sid.isdigit():
-        conn.execute("UPDATE shifts SET name=?, start=?, end=?, days=?, grace=? WHERE id=?", (name, start, end, days, grace, int(sid)))
+        conn.execute("UPDATE shifts SET name=?, start=?, end=?, days=?, grace=?, start2=?, end2=? WHERE id=?",
+                     (name, start, end, days, grace, s2, e2, int(sid)))
     else:
-        conn.execute("INSERT INTO shifts (name, start, end, days, grace) VALUES (?,?,?,?,?)", (name, start, end, days, grace))
-    return "Shift %s saved (%s – %s)." % (name, fmt_t(start), fmt_t(end))
+        conn.execute("INSERT INTO shifts (name, start, end, days, grace, start2, end2) VALUES (?,?,?,?,?,?,?)",
+                     (name, start, end, days, grace, s2, e2))
+    return "Shift %s saved (%s – %s%s)." % (name, fmt_t(start), fmt_t(end), (", %s – %s" % (fmt_t(s2), fmt_t(e2))) if s2 else "")
 
 
 def save_staff(conn, f):
@@ -1942,8 +1948,8 @@ def salary_page(conn, sn, q):
     rows, total = "", 0
     for s_ in conn.execute("SELECT * FROM staff WHERE active=1 ORDER BY role, name"):
         sh = shifts.get(s_["shift_id"])
-        pres = conn.execute("SELECT COUNT(DISTINCT substr(ts,1,10)) FROM punches WHERE pin=? AND substr(ts,1,10) BETWEEN ? AND ?",
-                            (s_["pin"], M.iso(first), M.iso(last))).fetchone()[0]
+        sm = SH.month_summary(conn, s_["pin"], sh, s_["salary"], first, last)
+        pres = sm["present"]
         work = working_days(sh, first, last) if last >= first else 0
         base = s_["salary"] or 0
         suggested = round(base * min(pres, work) / work) if work else 0
@@ -1953,11 +1959,11 @@ def salary_page(conn, sn, q):
             act = '<span class="pill p-ok">Paid %s · %s</span>' % (money(p["payable"]), short_date(p["paid_on"])[:6])
             cells = "<td>%s</td><td>%s</td><td>%s</td>" % (money(p["incentive"]), money(p["advance"]), money(p["deduction"]))
         else:
-            total += suggested
+            total += suggested - sm["cut"]
             fid = "f%s" % s_["pin"]
-            cells = ('<td><input form="%s" name="incentive" value="0" style="width:90px" inputmode="decimal"></td>'
-                     '<td><input form="%s" name="advance" value="0" style="width:90px" inputmode="decimal"></td>'
-                     '<td><input form="%s" name="deduction" value="0" style="width:90px" inputmode="decimal"></td>') % (fid, fid, fid)
+            cells = ('<td><input form="%s" name="incentive" value="0" style="width:72px" inputmode="decimal"></td>'
+                     '<td><input form="%s" name="advance" value="0" style="width:72px" inputmode="decimal"></td>'
+                     '<td><input form="%s" name="deduction" value="%d" style="width:72px" inputmode="decimal"></td>') % (fid, fid, fid, sm["cut"])
             act = ('<form id="%s" method="post" action="/salary/pay" style="display:flex;gap:6px;align-items:center">'
                    '<input type="hidden" name="pin" value="%s"><input type="hidden" name="month" value="%s">'
                    '<input type="hidden" name="present" value="%d"><input type="hidden" name="working" value="%d"><input type="hidden" name="base" value="%g">'
@@ -1965,18 +1971,23 @@ def salary_page(conn, sn, q):
                    '<select name="mode" aria-label="Mode"><option>Bank</option><option>UPI</option><option>Cash</option></select>'
                    '<button class="btn red sm" onclick="return confirm(\'Mark salary paid? It is added to expenses.\')">Mark paid</button></form>') % (
                 fid, e(s_["pin"]), month, pres, work, base, suggested)
-        rows += '<tr><td><b>%s</b><div class="dim" style="font-size:12px">%s</div></td><td>%s</td><td>%d / %d</td><td>%d</td>%s<td>%s</td></tr>' % (
-            e(s_["name"]), e(s_["role"]), money(base) if base else '<a href="/staff?edit=%s">Set salary</a>' % e(s_["pin"]),
-            pres, work, max(0, work - pres), cells, act)
+        late_txt = ('<a href="/staff/report?pin=%s&month=%s">%d late</a>%s' % (
+            e(s_["pin"]), month, sm["late"], ('<div class="dim" style="font-size:12px">cut %gh = %s</div>' % (sm["hours_cut"], money(sm["cut"])))
+            if sm["hours_cut"] else "")) if sm["late"] else '<span class="dim">0</span>'
+        rows += ('<tr><td><a href="/staff/report?pin=%s&month=%s"><b>%s</b></a><div class="dim" style="font-size:12px">%s</div></td><td>%s</td>'
+                 '<td>%d / %d</td><td>%d</td><td>%s</td><td>%s</td>%s<td>%s</td></tr>') % (
+            e(s_["pin"]), month, e(s_["name"]), e(s_["role"]), money(base) if base else '<a href="/staff?edit=%s">Set salary</a>' % e(s_["pin"]),
+            pres, work, max(0, work - pres), SH.dur(sm["worked"]) if sm["worked"] else "—", late_txt, cells, act)
     prev = (first - datetime.timedelta(days=1)).strftime("%Y-%m")
     body = """<div class="ph"><div class="tabs"><a href="/salary?month=%s">← %s</a><a class="on" href="/salary?month=%s">%s</a>%s</div>
 <span class="dim">Total %s</span></div><div class="panel"><div class="tw"><table>
-<tr><th>Staff</th><th>Monthly salary</th><th>Present / working days</th><th>Absent</th><th>Incentive</th><th>Advance</th><th>Deduction</th><th>Payable</th></tr>%s</table></div>
-<p class="dim" style="font-size:12px;margin:12px 0 0">Present days come from the gate machine. Working days follow each person's shift days up to today.
-Suggested payable = salary × present ÷ working days; change it before marking paid (add incentive, take off advance). Paid salaries go into Expenses → Salaries.</p></div>""" % (
+<tr><th>Staff</th><th>Monthly salary</th><th>Present / working days</th><th>Absent</th><th>Hours</th><th>Late</th><th>Incentive</th><th>Advance</th><th>Deduction</th><th>Payable</th></tr>%s</table></div>
+<p class="dim" style="font-size:12px;margin:12px 0 0">Present days and hours come from the gate machine (hours need an out punch). Working days follow each person's shift days up to today.
+Payable box = salary × present ÷ working days; on Mark paid, incentive is added and advance and deduction are taken off. Deduction starts with the late-rule pay cut
+(salary ÷ (working days × shift hours) per hour); excuse a late day on the person's page. Paid salaries go into Expenses → Salaries.</p></div>""" % (
         prev, datetime.datetime.strptime(prev + "-01", "%Y-%m-%d").strftime("%b"), month, first.strftime("%B %Y"),
         ('<a href="/salary?month=%s">%s →</a>' % (nxt.strftime("%Y-%m"), nxt.strftime("%b"))) if nxt <= t else "",
-        money(total), rows or '<tr><td colspan="8" class="dim">No staff yet.</td></tr>')
+        money(total), rows or '<tr><td colspan="10" class="dim">No staff yet.</td></tr>')
     return shell("Salary sheet", "/staff", body, sub="Monthly salaries from biometric attendance", msg=q.get("m", ""), cnt=counts(conn, sn))
 
 

@@ -195,3 +195,14 @@ browsers from the plain-http address to the HTTPS one and mark the login cookie 
 machine keeps talking plain http to port 8081 (`/iclock/` is never redirected). For a real domain:
 point its A record at the IP, put the domain in `/etc/caddy/Caddyfile` and in `HOS_PUBLIC_URL`.
 GCP firewall must allow TCP 80 and 443 (VM → Edit → Allow HTTP/HTTPS traffic).
+
+## Staff hours and the late rule (`staffhours.py`)
+
+- Hours: first to last punch in each part of the shift (shifts can have a second part for a split
+  shift). Staff must punch when leaving too, or the day shows "no out punch".
+- Late rule: more than 14 min after a part's start is a late day. Per calendar month: 1st Notice,
+  2nd Warning, 3rd and later cut 1 hour of pay (salary ÷ (month's working days × shift hours)).
+  Checked every 5 minutes; each late day is sent to the person on WhatsApp once. The owner can change
+  the minutes and hours on the Staff page and excuse a day on the person's page (`/staff/report`).
+  Counting starts from the day this was installed (`late_from` setting).
+- Salary sheet shows hours and late days and starts the Deduction box with the pay cut.

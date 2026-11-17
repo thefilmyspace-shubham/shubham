@@ -44,8 +44,8 @@ KINDS = [  # key, label, default template, default on
     ("birthday", "Birthday wish",
      "Happy Birthday {name}! 🎂 House of Strength ki taraf se aapko dher saari shubhkamnayein. Aaj ka workout aapke naam!", "1"),
 ]
-LABEL = {k: l for k, l, _, _ in KINDS}
-FIRST = ("test", "receipt", "form")  # sent before the daily reminders
+LABEL = dict({k: l for k, l, _, _ in KINDS}, staff="Staff late notice", test="Test")
+FIRST = ("test", "receipt", "form", "staff")  # sent before the daily reminders
 
 
 def init(conn):

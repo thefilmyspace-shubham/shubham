@@ -37,6 +37,7 @@ import assistant as AS
 import gsheets as GS
 import door as D
 import joining as J
+import staffhours as SH
 import whatsapp as W
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -97,6 +98,7 @@ def init_db():
         J.init(conn)
         D.init(conn)
         W.init(conn)
+        U.init_staff(conn)  # staff, shifts, late days
 
 
 def kv_fields(text):
@@ -280,6 +282,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/join":
             with DB_LOCK, db() as conn:
                 return self.send_text(J.public_page(conn), ctype="text/html")
+        if path == "/staff/report":
+            with DB_LOCK, db() as conn:
+                U.init_staff(conn)
+                return self.send_text(SH.report_page(conn, M.default_sn(conn), q), ctype="text/html")
         if path in ("/door", "/door/status"):
             with DB_LOCK, db() as conn:
                 if path == "/door/status":
@@ -503,6 +509,17 @@ class Handler(BaseHTTPRequestHandler):
                 msg = U.make_request(conn, f) if path == "/approvals/request" else U.decide(conn, M.default_sn(conn), f)
                 A.log(conn, "approval request" if path == "/approvals/request" else "approval decided", msg)
             return self.redirect("/approvals?" + urlencode({"m": msg}))
+        if path in ("/staff/rule", "/staff/excuse"):
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                U.init_staff(conn)
+                if path == "/staff/rule":
+                    msg = SH.save_rule(conn, f)
+                    A.log(conn, "late rule saved", msg)
+                    return self.redirect("/staff?" + urlencode({"m": msg}))
+                pin, msg = SH.excuse(conn, f, U.staff_name())
+                A.log(conn, "late day " + (f.get("do") or "excuse"), "%s %s" % (pin, msg))
+            return self.redirect("/staff/report?" + urlencode({"pin": pin, "month": f.get("month", ""), "m": msg}))
         if path in ("/staff/shift", "/staff/save", "/salary/pay"):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
@@ -939,6 +956,7 @@ def main():
     threading.Thread(target=backup_loop, daemon=True).start()
     threading.Thread(target=GS.loop, args=(DB_PATH,), daemon=True).start()
     threading.Thread(target=W.loop, args=(DB_PATH,), daemon=True).start()
+    threading.Thread(target=SH.loop, args=(DB_PATH,), daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print("%s listening on port %d, database %s" % (now(), PORT, DB_PATH), flush=True)
     srv.serve_forever()
