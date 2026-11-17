@@ -321,7 +321,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_text(AS.page(conn, M.default_sn(conn), q), ctype="text/html")
         if path in ("/users", "/activity"):
             with DB_LOCK, db() as conn:
-                body_ = (A.users_page(conn, U.trainers(conn)) if path == "/users" else A.activity_page(conn, q))
+                body_ = (A.users_page(conn, U.trainers(conn), q.get("edit", "")) if path == "/users" else A.activity_page(conn, q))
                 cnt = U.counts(conn, M.default_sn(conn))
             title = "Staff logins" if path == "/users" else "Activity log"
             return self.send_text(U.shell(title, path, body_, sub="Who can sign in" if path == "/users" else
@@ -509,6 +509,13 @@ class Handler(BaseHTTPRequestHandler):
                 msg = U.make_request(conn, f) if path == "/approvals/request" else U.decide(conn, M.default_sn(conn), f)
                 A.log(conn, "approval request" if path == "/approvals/request" else "approval decided", msg)
             return self.redirect("/approvals?" + urlencode({"m": msg}))
+        if path == "/member/noexpiry":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            cid = f.get("id", "")
+            with DB_LOCK, db() as conn:
+                ok, msg = M.set_no_expiry(conn, M.default_sn(conn), int(cid), f.get("do") == "on") if cid.isdigit() else (False, "Member not found.")
+                A.log(conn, "no expiry " + (f.get("do") or ""), "%s · %s" % (cid, msg))
+            return self.redirect("/m?" + urlencode({"id": cid, "m": msg}))
         if path in ("/staff/rule", "/staff/excuse"):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:

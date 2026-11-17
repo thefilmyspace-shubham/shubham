@@ -264,31 +264,42 @@ def login_page(step="email", email="", msg="", err=""):
         LOGIN_CSS, '<div class="msg">%s</div>' % e(msg) if msg else "", '<div class="err">%s</div>' % e(err) if err else "", form)
 
 
-def users_page(conn, trainers):
+def users_page(conn, trainers, edit=""):
+    from urllib.parse import quote
     rows = "".join(
         '<tr><td><b>%s</b></td><td class="dim">%s</td><td>%s</td><td>%s</td><td>%s</td><td>'
-        '<form method="post" action="/users/save" style="display:flex;gap:6px"><input type="hidden" name="email" value="%s">'
-        '<input type="hidden" name="toggle" value="1"><button class="btn sm">%s</button></form></td></tr>' % (
+        '<div style="display:flex;gap:6px;justify-content:flex-end"><a class="btn sm" href="/users?edit=%s#userf">Edit</a>'
+        '<form method="post" action="/users/save" style="margin:0"><input type="hidden" name="email" value="%s">'
+        '<input type="hidden" name="toggle" value="1"><button class="btn sm">%s</button></form></div></td></tr>' % (
             e(u["name"] or ""), e(u["email"]), e(u["role"].title()), e(u["trainer"] or "—"),
             '<span class="pill p-ok">Active</span>' if u["active"] else '<span class="pill p-dim">Off</span>',
-            e(u["email"]), "Switch off" if u["active"] else "Switch on")
+            e(quote(u["email"])), e(u["email"]), "Switch off" if u["active"] else "Switch on")
         for u in conn.execute("SELECT * FROM users ORDER BY role, name")) or '<tr><td colspan="6" class="dim">No staff yet.</td></tr>'
-    topt = "".join('<option>%s</option>' % e(t) for t in trainers)
+    eu = conn.execute("SELECT * FROM users WHERE email=?", ((edit or "").strip().lower(),)).fetchone() if edit else None
+    v = lambda k: e((eu[k] or "") if eu else "")
+    topt = "".join('<option%s>%s</option>' % (" selected" if eu and eu["trainer"] == t else "", e(t)) for t in trainers)
+    ropt = "".join('<option value="%s"%s>%s</option>' % (r, " selected" if eu and eu["role"] == r else "", r.title())
+                   for r in ("reception", "trainer", "admin"))
+    form = """<form class="panel" id="userf" method="post" action="/users/save" style="display:flex;flex-direction:column;gap:14px"><h2>%s</h2><div class="grid">
+<label>Name<input name="name" value="%s" required></label><label>Email<input name="email" type="email" value="%s" required%s></label>
+<label>Role<select name="role">%s</select></label>
+<label>Trainer name (for trainers)<select name="trainer"><option value="">—</option>%s</select></label></div>
+<div style="display:flex;gap:8px"><button class="btn red">Save</button>%s</div>
+<p class="dim" style="margin:0;font-size:12px">%s</p></form>""" % (
+        ("Edit " + v("name")) if eu else "Add staff login", v("name"), v("email"), " readonly" if eu else "", ropt, topt,
+        '<a class="btn" href="/users">Cancel</a>' if eu else "",
+        "The email cannot be changed. For a new email, add a new login and switch this one off." if eu else
+        "They sign in with this email: the app emails them a 6-digit code. Switching a login off stops it at once.")
     return """<div class="panel"><div class="ph"><h2>Staff logins</h2></div><div class="tw"><table>
 <tr><th>Name</th><th>Email</th><th>Role</th><th>Trainer name</th><th>Status</th><th></th></tr>%s</table></div></div>
-<form class="panel" method="post" action="/users/save" style="display:flex;flex-direction:column;gap:14px"><h2>Add staff login</h2><div class="grid">
-<label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label>
-<label>Role<select name="role"><option value="reception">Reception</option><option value="trainer">Trainer</option><option value="admin">Admin</option></select></label>
-<label>Trainer name (for trainers)<select name="trainer"><option value="">—</option>%s</select></label></div>
-<button class="btn red" style="align-self:flex-start">Save</button>
-<p class="dim" style="margin:0;font-size:12px">They sign in with this email: the app emails them a 6-digit code. Switching a login off stops it at once.</p></form>
+%s
 <div class="panel"><h2>What each role can do</h2><div class="tw"><table><tr><th></th><th>Admin</th><th>Reception</th><th>Trainer</th></tr>
 <tr><td>Members, bills, payments, renewals, dues</td><td>✓</td><td>✓</td><td>—</td></tr>
 <tr><td>Block / unblock door</td><td>✓</td><td>✓ (logged)</td><td>—</td></tr>
 <tr><td>Discount</td><td>Any</td><td>Up to %d%%</td><td>—</td></tr>
 <tr><td>Phone numbers</td><td>All</td><td>Only members with a due</td><td>Own PT clients</td></tr>
 <tr><td>Money totals, reports, exports, imports, backup, door sync, settings</td><td>✓</td><td>—</td><td>—</td></tr>
-<tr><td>Own PT clients</td><td>✓</td><td>—</td><td>✓</td></tr></table></div></div>""" % (rows, topt, RECEPTION_MAX_DISCOUNT)
+<tr><td>Own PT clients</td><td>✓</td><td>—</td><td>✓</td></tr></table></div></div>""" % (rows, form, RECEPTION_MAX_DISCOUNT)
 
 
 def save_user(conn, f):

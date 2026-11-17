@@ -63,7 +63,8 @@ def parts(shift):
     keys = shift.keys() if hasattr(shift, "keys") else []
     for a, b in (("start", "end"), ("start2", "end2")):
         if a in keys and hm(shift[a]) is not None and hm(shift[b]) is not None:
-            out.append((hm(shift[a]), hm(shift[b])))
+            s_, e_ = hm(shift[a]), hm(shift[b])
+            out.append((s_, e_ + 1440 if e_ <= s_ else e_))  # ends after midnight (e.g. 7:30 PM - 12:00 AM)
     return out
 
 
@@ -76,12 +77,23 @@ def grace(conn):
     return int(v) if str(v).isdigit() else 14
 
 
-def punches(conn, pin, d):
-    """Minutes of the day this person punched, with double taps (within 3 minutes) removed."""
+def _raw(conn, pin, d):
+    return [m for (t,) in conn.execute("SELECT substr(ts,12,5) FROM punches WHERE pin=? AND substr(ts,1,10)=? ORDER BY ts",
+                                       (pin, M.iso(d))) for m in [hm(t)] if m is not None]
+
+
+def punches(conn, pin, d, shift=None):
+    """Minutes of the day this person punched, with double taps (within 3 minutes) removed.
+    For a shift that ends after midnight, punches up to 2 hours after its end on the next date
+    belong to this day (counted as 24:xx), and this date's early punches belong to the day before."""
+    ps = _raw(conn, pin, d)
+    pr = parts(shift)
+    if pr and pr[-1][1] >= 1440:
+        cutoff = pr[-1][1] - 1440 + 120
+        ps = [m for m in ps if m >= cutoff] + [m + 1440 for m in _raw(conn, pin, d + datetime.timedelta(days=1)) if m < cutoff]
     out = []
-    for (t,) in conn.execute("SELECT substr(ts,12,5) FROM punches WHERE pin=? AND substr(ts,1,10)=? ORDER BY ts", (pin, M.iso(d))):
-        m = hm(t)
-        if m is not None and (not out or m - out[-1] > 3):
+    for m in ps:
+        if not out or m - out[-1] > 3:
             out.append(m)
     return out
 
@@ -89,7 +101,7 @@ def punches(conn, pin, d):
 def day_info(conn, pin, shift, d, grace_min=None):
     """Everything about one person's day: first/last punch, minutes worked, minutes late, status text."""
     g = grace(conn) if grace_min is None else grace_min
-    ps = punches(conn, pin, d)
+    ps = punches(conn, pin, d, shift)
     info = {"first": ps[0] if ps else None, "last": ps[-1] if len(ps) > 1 else None, "worked": 0, "late": 0,
             "no_out": False, "missed": [], "status": "", "workday": True}
     pr = parts(shift)

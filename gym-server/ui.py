@@ -82,6 +82,8 @@ def nice(name):
 
 
 def short_date(d_iso):
+    if M.is_no_expiry(d_iso):
+        return "No expiry"
     d = M.parse_date(d_iso)
     return d.strftime("%d %b %Y") if d else "—"
 
@@ -116,7 +118,7 @@ def absent_list(conn, sn, min_days):
     lv = last_visits(conn, sn)
     start = tracking_start(conn)
     out = []
-    for m in conn.execute("SELECT * FROM members WHERE expiry >= ?", (M.iso(t),)):
+    for m in conn.execute("SELECT * FROM members WHERE expiry >= ? AND expiry < '2099'", (M.iso(t),)):
         last = lv.get(str(m["client_id"]))
         days = (t - last).days if last else (t - start).days
         if days >= min_days:
@@ -439,6 +441,8 @@ def my_collection_table(conn):
 
 
 def due_pill(exp_iso):
+    if M.is_no_expiry(exp_iso):
+        return '<span class="pill p-ok">No expiry</span>'
     d = M.parse_date(exp_iso)
     if not d:
         return '<span class="pill p-dim">—</span>'
@@ -453,6 +457,8 @@ def due_pill(exp_iso):
 
 
 def status_pill(exp_iso):
+    if M.is_no_expiry(exp_iso):
+        return '<span class="pill p-ok">Admin · no expiry</span>'
     d = M.parse_date(exp_iso)
     if not d:
         return '<span class="pill p-dim">—</span>'
@@ -484,7 +490,7 @@ def wa_btn(m, text):
 # ---------------- members ----------------
 
 TABS = [("all", "All"), ("active", "Active"), ("soon", "Expiring"), ("expired", "Expired"), ("pt", "PT clients"),
-        ("pending", "Pending dues")]
+        ("pending", "Pending dues"), ("admin", "Admin / no expiry")]
 
 
 def member_rows(conn, sn, f, term):
@@ -498,7 +504,7 @@ def member_rows(conn, sn, f, term):
         active = bool(exp and exp >= t)
         keep = {"all": True, "active": active, "soon": bool(exp and t <= exp <= t + datetime.timedelta(days=7)),
                 "expired": not active, "pt": "pt" in (m["package"] or "").lower(),
-                "pending": (m["pending"] or 0) > 0,
+                "pending": (m["pending"] or 0) > 0, "admin": M.is_no_expiry(m["expiry"]),
                 "expired_on_machine": (not active) and pin in names and pin not in blocked,
                 "active_missing": active and pin not in names}.get(f, True)
         if term and term not in ("%s %s %s %s" % (pin, member_id(pin), m["name"], m["phone"])).lower():
@@ -519,6 +525,7 @@ def members_list(conn, sn, q):
     n_pt = sum(1 for m in allm if "pt" in (m["package"] or "").lower())
     n_pend = sum(1 for m in allm if (m["pending"] or 0) > 0)
     tab_n = {"all": len(allm), "active": n_active, "soon": n_soon, "expired": len(allm) - n_active, "pt": n_pt,
+             "admin": sum(1 for m in allm if M.is_no_expiry(m["expiry"])),
              "pending": n_pend}
     rows = member_rows(conn, sn, f, term)
     per = 50
@@ -640,7 +647,7 @@ def profile(conn, sn, q):
         initials(m["name"]), e(nice(m["name"])), status,
         ' <span class="pill p-warn">Due %s</span>' % money(m["pending"]) if (m["pending"] or 0) > 0 else "",
         e(m["package"] or "—"), short_date(m["expiry"]),
-        ("%d days left" % left) if left >= 0 else ("expired %d days ago" % -left), pct,
+        "never expires" if M.is_no_expiry(m["expiry"]) else (("%d days left" % left) if left >= 0 else ("expired %d days ago" % -left)), pct,
         m["client_id"], icon("renew"), wa_btn_big(m), m["client_id"], icon("edit"),
         member_id(m["client_id"]), e(show_phone(m) or "—"), e(m["gender"] or "—"),
         short_date(m["registration"] or (first["paid_on"] if first else "")), m["client_id"], door,
@@ -659,6 +666,13 @@ def profile(conn, sn, q):
             flags = []
         jform = '<a class="btn" href="/joinings/view?id=%d">%sJoining form%s</a>' % (
             jr["id"], icon("edit", 16), (' <span class="pill p-bad">%s</span>' % e(flags[0][:30])) if flags else "")
+    if A.is_admin():
+        noexp = M.is_no_expiry(m["expiry"])
+        jform += ('<form method="post" action="/member/noexpiry" style="margin:0" onsubmit="return confirm(%s)">'
+                  '<input type="hidden" name="id" value="%d"><button class="btn" name="do" value="%s">%s</button></form>') % (
+            e('"Remove no expiry? The end date goes back to the last bill."' if noexp else
+              '"Make this member Admin / no expiry? They never expire and are never blocked at the door."'),
+            m["client_id"], "off" if noexp else "on", "Remove no expiry" if noexp else "Make admin (no expiry)")
     return shell("Member profile", "/members", body, sub='<a href="/members">Members</a> › %s' % e(nice(m["name"])),
                  actions=jform + '<a class="btn red" href="/bill?id=%d">%sNew bill</a>' % (m["client_id"], icon("plus")),
                  msg=q.get("m", ""), cnt=counts(conn, sn))
@@ -1902,10 +1916,10 @@ def save_shift(conn, f):
     s2, e2 = f.get("start2", ""), f.get("end2", "")
     if hm(s2) is None or hm(e2) is None:
         s2 = e2 = ""
-    elif hm(s2) <= hm(end) or hm(e2) <= hm(s2):
+    elif hm(s2) <= hm(end) or (hm(e2) <= hm(s2) and hm(e2) > 360):
         return "The second part must start after the first part ends, and end after it starts."
-    if hm(end) <= hm(start):
-        return "The shift must end after it starts."
+    if hm(end) <= hm(start) and (hm(end) > 360 or s2):
+        return "The shift must end after it starts (a shift may run past midnight, up to 6 AM)."
     if sid.isdigit():
         conn.execute("UPDATE shifts SET name=?, start=?, end=?, days=?, grace=?, start2=?, end2=? WHERE id=?",
                      (name, start, end, days, grace, s2, e2, int(sid)))

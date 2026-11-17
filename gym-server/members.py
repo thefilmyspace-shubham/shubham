@@ -497,6 +497,30 @@ fingerprint stays on the server and is put back the moment they renew. Staff IDs
 
 # ---------------- today ----------------
 
+NO_EXPIRY = "2099-12-31"  # "Admin / no expiry" members (owner, family): never expire, never blocked, no reminders
+
+
+def is_no_expiry(exp_iso):
+    return str(exp_iso or "") >= "2099"
+
+
+def set_no_expiry(conn, sn, cid, on):
+    """Turn "no expiry" on or off. Off goes back to the end date of the member's last bill (or today)."""
+    m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone()
+    if not m:
+        return False, "Member not found."
+    if on:
+        conn.execute("UPDATE members SET expiry=?, updated_at=? WHERE client_id=?", (NO_EXPIRY, stamp(), cid))
+        note = ""
+        if sn and str(cid) in blocked_pins(conn, sn):
+            ok, note = unblock(conn, sn, cid)
+        return True, "%s is now Admin / no expiry: never expires, never blocked at the door. %s" % (m["name"], note)
+    last = conn.execute("SELECT MAX(expiry) FROM payments WHERE client_id=? AND expiry < '2099'", (cid,)).fetchone()[0]
+    exp = last or iso(today())
+    conn.execute("UPDATE members SET expiry=?, updated_at=? WHERE client_id=?", (exp, stamp(), cid))
+    return True, "No expiry removed for %s. Membership end date is now %s." % (m["name"], exp)
+
+
 def wa_link(phone, text):
     from urllib.parse import quote
     digits = re.sub(r"\D", "", phone or "")
