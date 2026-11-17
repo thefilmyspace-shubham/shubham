@@ -753,6 +753,7 @@ def bill_page(conn, sn, q):
 <label>End date<input type="date" name="end" id="end" required></label>
 <label>Trainer (optional)<select name="trainer"><option value="">No trainer</option>%s</select></label></div></div>
 <div><h2 style="margin-bottom:12px">4 · Payment</h2><div class="grid">
+<label>Price for this member (₹)<input id="fprice" inputmode="decimal" placeholder="type the agreed price"></label>
 <label>Discount (₹)<input name="discount" id="disc" inputmode="decimal" value="0"></label>
 <label>Admission fee (₹)<input name="admission" id="adm" inputmode="decimal" value="%s"></label>
 <label>GST<select name="gst" id="gst"><option value="0">No GST</option><option value="18">18%% GST</option></select></label>
@@ -774,13 +775,16 @@ function r(v){return '₹'+Math.round(v).toLocaleString('en-IN')}
 function sel(){return f.querySelector('input[name=package_id]:checked')}
 function kindFilter(){var k=document.getElementById('kind').value;f.querySelectorAll('.pk label').forEach(function(l){var i=l.querySelector('input');l.style.display=(i.dataset.kind==k||(k=='gym'&&i.dataset.kind=='gym'))?'':'none'})}
 function upd(){var p=sel(),price=p?n(p.dataset.price):0,d=n(f.disc.value),a=n(f.adm.value),g=n(f.gst.value);
+if(document.activeElement!==f.fp){f.fp.value=p?Math.max(0,price-d):''}
 var base=Math.max(0,price-d+a),gst=base*g/100,tot=base+gst,paid=f.paid.value===''?tot:n(f.paid.value);
 document.getElementById('s_pk').textContent=p?('Package · '+p.dataset.name):'Package';document.getElementById('s_price').textContent=r(price);
 document.getElementById('s_disc').textContent='– '+r(d);document.getElementById('s_adm').textContent=r(a);document.getElementById('s_gst').textContent=r(gst);
 document.getElementById('s_tot').textContent=r(tot);document.getElementById('s_paid').textContent=r(paid);document.getElementById('s_bal').textContent=r(Math.max(0,tot-paid));
 document.getElementById('savebtn').textContent='SAVE BILL · '+r(paid);if(p&&f.start.value){var s=new Date(f.start.value);s.setDate(s.getDate()+n(p.dataset.days)-1);
 if(!f.end.dataset.touched){f.end.value=s.toISOString().slice(0,10)}}}
-f.disc=document.getElementById('disc');f.adm=document.getElementById('adm');f.gst=document.getElementById('gst');f.paid=document.getElementById('paid');
+f.disc=document.getElementById('disc');f.fp=document.getElementById('fprice');
+f.fp.addEventListener('input',function(){var p=sel();if(!p){return}var price=n(p.dataset.price);if(f.fp.value!==''){f.disc.value=Math.max(0,price-n(f.fp.value))}});
+f.adm=document.getElementById('adm');f.gst=document.getElementById('gst');f.paid=document.getElementById('paid');
 f.start=document.getElementById('start');f.end=document.getElementById('end');
 f.addEventListener('input',upd);f.addEventListener('change',upd);f.end.addEventListener('input',function(){f.end.dataset.touched=1});
 f.start.addEventListener('input',function(){delete f.end.dataset.touched});f.querySelectorAll('input[name=package_id]').forEach(function(i){i.addEventListener('change',function(){delete f.end.dataset.touched;upd()})});
@@ -1000,7 +1004,7 @@ SETTING_FIELDS = [
     ("Payment details on receipts", [("upi_id", "UPI ID (for the scan-to-pay QR)", ""), ("upi_name", "UPI payee name", ""),
                                      ("bank_name", "Bank account name", ""), ("bank_account", "Account number", ""),
                                      ("bank_ifsc", "IFSC", ""), ("bank_branch", "Bank & branch", "")]),
-    ("Billing rules", [("max_discount_reception", "Max discount · reception (%)", "20"), ("invoice_prefix", "Invoice prefix", "HOS-"),
+    ("Billing rules", [("max_discount_reception", "Max discount · reception (%, 100 = no limit)", "20"), ("invoice_prefix", "Invoice prefix", "HOS-"),
                        ("next_invoice", "Next invoice number", "1242"), ("default_admission", "Default admission fee (₹)", "0"),
                        ("receipt_terms", "Receipt terms", "Fees are non-refundable and non-transferable.")]),
 ]
