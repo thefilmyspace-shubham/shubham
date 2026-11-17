@@ -176,3 +176,12 @@ UNIT
 Then copy `wa/wa.mjs`, `wa/package.json` and `wa/package-lock.json` to `/opt/hos/wa/`, run
 `cd /opt/hos/wa && sudo npm ci --omit=dev`, `sudo chown -R nobody:nogroup /opt/hos`, and
 `sudo systemctl daemon-reload && sudo systemctl enable --now hos-wa`.
+
+## Open gate (`/door`, owner + reception)
+
+- **Open door** queues `AC_UNLOCK` (Method 1) or `CONTROL DEVICE 01010105` (Method 2, owner
+  can switch). Door commands jump the machine's queue; one the machine has not picked up
+  within 60 s is dropped so the door never opens late. Every open is in the door log.
+- **Keep door open** (owner): the X2008 ignores a "stay open" command, so while a hold is on
+  every machine poll (~10 s) gets another open, until *Lock again* or the chosen time
+  (max 4 h). Set the machine's lock delay to 10 s or more so it never clicks shut between.
