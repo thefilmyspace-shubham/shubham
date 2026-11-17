@@ -190,9 +190,9 @@ def cookie_token(header):
 RECEPTION_PATHS = {
     "/", "/members", "/m", "/member", "/member/save", "/member/door", "/bill", "/bill/save", "/receipt",
     "/attendance", "/attendance/manual", "/renewals", "/pending", "/collect", "/absent", "/r", "/remind", "/soon",
-    "/logout", "/me", "/packages",
+    "/logout", "/me", "/packages", "/inquiries", "/inquiries/save", "/approvals", "/approvals/request",
 }
-TRAINER_PATHS = {"/", "/trainer", "/logout", "/me"}
+TRAINER_PATHS = {"/", "/trainer", "/logout", "/me", "/approvals", "/approvals/request"}
 
 
 def allowed(user, path):

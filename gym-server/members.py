@@ -421,7 +421,7 @@ def member_page(conn, sn, q, msg=""):
     cid = q.get("id", "")
     m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone() if cid.isdigit() else None
     names = machine_names(conn, sn)
-    v = lambda k: e(str((m[k] if m else "") or ""))
+    v = lambda k: e(str((m[k] if m else q.get(k, "")) or ""))
     opts = "".join('<option value="%d" data-label="%s">%s (%d days)</option>' % (d, e(l), e(l), d) for l, d in PACKAGES)
     pays = ""
     if m:

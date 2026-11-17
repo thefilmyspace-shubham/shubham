@@ -129,6 +129,9 @@ def counts(conn, sn):
                                  (M.iso(t), M.iso(t + datetime.timedelta(days=7)))).fetchone()[0]
     c["pending"] = conn.execute("SELECT COUNT(*) FROM members WHERE pending > 0").fetchone()[0]
     c["absent"] = len(absent_list(conn, sn, 7)) if sn else 0
+    init_approvals(conn)
+    c["approvals"] = conn.execute("SELECT COUNT(*) FROM approvals WHERE status='pending'%s" % (
+        "" if A.is_admin() else " AND requested_by=?"), () if A.is_admin() else (staff_name(),)).fetchone()[0]
     return c
 
 
@@ -282,12 +285,12 @@ NAV = [
     ("/", "Dashboard", "dash", None), ("/members", "Members", "users", None), ("/bill", "New Bill", "bill", None),
     ("/attendance", "Attendance", "finger", None), ("/renewals", "Renewals", "renew", "renewals"),
     ("/pending", "Pending Payments", "rupee", "pending"), ("/absent", "Absent Members", "alert", "absent"),
-    ("/soon?p=Inquiries", "Inquiries", "chat", None), ("/packages", "Packages", "box", None),
+    ("/inquiries", "Inquiries", "chat", None), ("/approvals", "Approvals", "alert", "approvals"), ("/packages", "Packages", "box", None),
     ("/staff", "Staff & Trainers", "staff", None), ("/reports", "Reports", "chart", None), ("/expenses", "Expenses", "rupee", None),
 ]
 SYSTEM = [("/users", "Staff logins", "staff"), ("/activity", "Activity log", "chart"), ("/sync", "Door sync", "door"),
           ("/gate", "Gate machine", "server"), ("/settings", "Settings", "gear"), ("/backup", "Backup", "down")]
-TRAINER_NAV = [("/trainer", "My PT clients", "users", None)]
+TRAINER_NAV = [("/trainer", "My PT clients", "users", None), ("/approvals", "Leave / requests", "alert", "approvals")]
 
 
 def shell(title, active, body, sub="", actions="", msg="", cnt=None, warn=""):
@@ -394,7 +397,7 @@ def dashboard(conn, sn, q):
 <div class="two"><div class="panel"><div class="ph"><h2>Renewals due this week</h2><a href="/renewals">View all %d</a></div>
 <div class="tw"><table><tr><th>Member</th><th>Package</th><th>Expiry</th><th>Due</th><th></th></tr>%s</table></div></div>
 <div style="display:flex;flex-direction:column;gap:20px"><div class="panel"><div class="ph"><h2>Quick actions</h2></div><div class="qa">
-<a href="/bill">%sNew membership bill</a><a href="/member">%sAdd member</a><a href="/soon?p=Inquiries">%sAdd inquiry</a><a href="/renewals">%sSend reminders</a></div></div>
+<a href="/bill">%sNew membership bill</a><a href="/member">%sAdd member</a><a href="/inquiries#lead">%sAdd inquiry</a><a href="/renewals">%sSend reminders</a></div></div>
 <div class="panel"><div class="ph"><h2>Not seen for 7+ days</h2><a href="/absent">View all %d</a></div><table>%s</table></div></div></div>""" % (
         active, total - active, total, today_in,
         "Peak %s" % ("%d %s" % ((peak - 1) % 12 + 1, "AM" if peak < 12 else "PM")) if peak is not None else "From the gate",
@@ -755,8 +758,10 @@ def save_bill(conn, sn, f):
     disc, adm, rate = num(f.get("discount")), num(f.get("admission")), num(f.get("gst"))
     cap = num(M.setting(conn, "max_discount_reception", str(A.RECEPTION_MAX_DISCOUNT)))
     if not A.is_admin() and disc > p["price"] * cap / 100:
-        return None, ("Discount above %g%% (%s) needs the owner. Ask the owner to make this bill."
-                      % (cap, money(p["price"] * cap / 100)))
+        request_approval(conn, "discount", m["client_id"], dict(f, package_name=p["name"]),
+                         "Discount %s on %s (limit %g%%)" % (money(disc), p["name"], cap))
+        return None, ("Discount above %g%% (%s) needs the owner. The bill has been sent to the owner for approval; "
+                      "it is made as soon as they approve." % (cap, money(p["price"] * cap / 100)))
     base = max(0.0, p["price"] - disc + adm)
     gst = round(base * rate / 100, 2)
     total = base + gst
@@ -1877,12 +1882,237 @@ def pay_salary(conn, f):
     return month, "Salary %s for %s marked paid: %s." % (month, s_["name"], money(payable))
 
 
+# ---------------- inquiries ----------------
+
+LEAD_SOURCES = ["Walk-in", "Instagram", "Flyer", "Hoarding", "Friend / referral", "Google", "Other"]
+LEAD_STAGES = [("new", "New"), ("follow", "Follow-up due"), ("trial", "Trial booked"), ("joined", "Joined"), ("lost", "Not interested")]
+
+
+def init_leads(conn):
+    conn.execute("""CREATE TABLE IF NOT EXISTS inquiries (id INTEGER PRIMARY KEY, name TEXT, phone TEXT, interest TEXT, source TEXT,
+        stage TEXT DEFAULT 'new', next_date TEXT, trial_at TEXT, note TEXT, client_id INTEGER, created_by TEXT, created_at TEXT,
+        updated_at TEXT)""")
+
+
+def lead_chip(r):
+    t = M.today()
+    if r["stage"] == "joined":
+        return '<span class="pill p-ok">Converted</span>'
+    if r["stage"] == "trial" and r["trial_at"]:
+        d = M.parse_date(r["trial_at"][:10])
+        if d:
+            n = (d - t).days
+            return '<span class="pill %s">%s</span>' % ("p-ok" if n >= 0 else "p-bad",
+                                                         "Today" if n == 0 else "Tomorrow" if n == 1 else ("%d days" % n if n > 0 else "Trial missed"))
+    d = M.parse_date(r["next_date"]) if r["next_date"] else None
+    if d:
+        n = (d - t).days
+        if n < 0:
+            return '<span class="pill p-bad">Overdue %dd</span>' % -n
+        if n == 0:
+            return '<span class="pill p-warn">Call today</span>'
+        return '<span class="pill p-dim">%s</span>' % d.strftime("%d %b")
+    c = M.parse_date((r["created_at"] or "")[:10])
+    return '<span class="pill p-ok">%s</span>' % ("Today" if c == t else "Yesterday" if c == t - datetime.timedelta(days=1)
+                                                  else c.strftime("%d %b") if c else "New")
+
+
+def lead_wa(r):
+    link = wa(r["phone"], "Hi %s, House of Strength se baat kar rahe hain. Aapne gym ke baare me poocha tha. Kab visit kar sakte hain? "
+                          "Free trial bhi le sakte hain." % nice(r["name"]))
+    return ('<a class="ibtn wa" href="%s" target="_blank" rel="noopener" aria-label="WhatsApp">%s</a>' % (e(link), icon("chat", 16))) if link else ""
+
+
+def inquiries(conn, sn, q):
+    init_leads(conn)
+    rows = conn.execute("SELECT * FROM inquiries WHERE stage != 'lost' ORDER BY COALESCE(next_date, created_at)").fetchall()
+    cols = ""
+    for key, title in LEAD_STAGES[:4]:
+        items = [r for r in rows if r["stage"] == key]
+        if key == "joined":
+            items = sorted(items, key=lambda r: r["updated_at"] or "", reverse=True)[:12]
+        cards = "".join('<div class="kpi" style="padding:14px"><a href="/inquiries?id=%d" style="color:inherit"><b>%s</b></a>'
+                        '<div class="dim" style="font-size:12px;margin:4px 0 10px">%s · %s</div>'
+                        '<div style="display:flex;justify-content:space-between;align-items:center">%s%s</div></div>' % (
+                            r["id"], e(nice(r["name"])), e(r["interest"] or "—"), e(r["source"] or "—"), lead_chip(r), lead_wa(r))
+                        for r in items) or '<p class="dim" style="font-size:13px">Empty</p>'
+        cols += ('<div class="panel" style="padding:14px;display:flex;flex-direction:column;gap:10px"><div class="ph" style="margin:0">'
+                 '<h2 style="font-size:16px">%s</h2><span class="pill p-dim">%d</span></div>%s</div>' % (
+                     e(title), len([r for r in rows if r["stage"] == key]), cards))
+    src = conn.execute("SELECT COALESCE(NULLIF(source,''),'Other'), COUNT(*) FROM inquiries GROUP BY 1 ORDER BY 2 DESC").fetchall()
+    total = conn.execute("SELECT COUNT(*) FROM inquiries").fetchone()[0]
+    joined = conn.execute("SELECT COUNT(*) FROM inquiries WHERE stage='joined'").fetchone()[0]
+    sel = conn.execute("SELECT * FROM inquiries WHERE id=?", (q.get("id"),)).fetchone() if (q.get("id") or "").isdigit() else None
+    v = lambda k: e(str((sel[k] if sel else "") or ""))
+    pk = "".join('<option%s>%s</option>' % (" selected" if sel and sel["interest"] == p_[0] else "", e(p_[0]))
+                 for p_ in conn.execute("SELECT name FROM packages WHERE active=1 ORDER BY kind, sort"))
+    form = """<form class="panel" method="post" action="/inquiries/save" style="display:flex;flex-direction:column;gap:14px" id="lead">
+<h2>%s</h2><input type="hidden" name="id" value="%s"><div class="grid">
+<label>Name<input name="name" value="%s" required></label><label>Phone<input name="phone" value="%s" inputmode="tel"></label>
+<label>Interested in<select name="interest"><option value="">—</option>%s</select></label>
+<label>Came from<select name="source">%s</select></label>
+<label>Stage<select name="stage">%s</select></label>
+<label>Next follow-up<input type="date" name="next_date" value="%s"></label>
+<label>Trial date &amp; time<input type="datetime-local" name="trial_at" value="%s"></label>
+<label>Note<input name="note" value="%s"></label></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn red">Save</button>%s</div></form>""" % (
+        "Edit inquiry" if sel else "Add inquiry", v("id"), v("name"), v("phone"), pk,
+        "".join('<option%s>%s</option>' % (" selected" if sel and sel["source"] == s_ else "", s_) for s_ in LEAD_SOURCES),
+        "".join('<option value="%s"%s>%s</option>' % (k, " selected" if (sel["stage"] if sel else "new") == k else "", l) for k, l in LEAD_STAGES),
+        v("next_date") or M.iso(M.today() + datetime.timedelta(days=1)), v("trial_at"), v("note"),
+        ('<a class="btn" href="/member?%s">Joined → add as member</a><a class="btn" href="/inquiries">Cancel</a>' % urlencode(
+            {"name": sel["name"] or "", "phone": sel["phone"] or ""})) if sel else "")
+    chart = bars([(s_, n) for s_, n in src], lambda l, v_: True) if src else '<p class="dim">No inquiries yet.</p>'
+    body = """<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));align-items:start">%s</div>%s
+<div class="panel"><div class="ph"><h2>Where leads come from · all time</h2></div>%s
+<p class="dim" style="margin:10px 0 0">%d inquiries · %d joined (%s). Logging every walk-in and call lifts this.</p></div>""" % (
+        cols, form, chart, total, joined, ("%.1f%%" % (100.0 * joined / total)) if total else "0%")
+    return shell("Inquiries", "/inquiries", body, sub="Simple lead board: new → follow-up → trial → joined",
+                 actions='<a class="btn red" href="/inquiries#lead">%sAdd inquiry</a>' % icon("plus"), msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
+def save_inquiry(conn, f):
+    init_leads(conn)
+    name = (f.get("name") or "").strip()
+    if not name:
+        return "Name is needed."
+    stage = f.get("stage") if f.get("stage") in dict(LEAD_STAGES) else "new"
+    vals = (name, re.sub(r"[^\d+]", "", f.get("phone") or ""), f.get("interest", ""), f.get("source", ""), stage,
+            M.iso(M.parse_date(f.get("next_date"))), (f.get("trial_at") or "").replace("T", " "), (f.get("note") or "").strip(), M.stamp())
+    if (f.get("id") or "").isdigit():
+        conn.execute("UPDATE inquiries SET name=?, phone=?, interest=?, source=?, stage=?, next_date=?, trial_at=?, note=?, updated_at=? "
+                     "WHERE id=?", vals + (int(f["id"]),))
+    else:
+        conn.execute("INSERT INTO inquiries (name, phone, interest, source, stage, next_date, trial_at, note, updated_at, created_by, "
+                     "created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)", vals + (staff_name(), M.stamp()))
+    return "Saved %s (%s)." % (nice(name), dict(LEAD_STAGES)[stage])
+
+
+# ---------------- approvals ----------------
+
+def init_approvals(conn):
+    conn.execute("""CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY, kind TEXT, client_id INTEGER, payload TEXT,
+        note TEXT, status TEXT DEFAULT 'pending', requested_by TEXT, requested_role TEXT, decided_by TEXT, decided_at TEXT,
+        result TEXT, created_at TEXT)""")
+
+
+APPROVAL_KINDS = {"discount": "Discount above limit", "cancel_bill": "Cancel a bill", "extend": "Extend / freeze membership",
+                  "phone": "Phone number access", "leave": "Leave / shift swap", "other": "Other"}
+
+
+def request_approval(conn, kind, client_id, payload, note):
+    import json
+    init_approvals(conn)
+    conn.execute("INSERT INTO approvals (kind, client_id, payload, note, requested_by, requested_role, created_at) VALUES (?,?,?,?,?,?,?)",
+                 (kind, client_id, json.dumps(payload), note, staff_name(), A.role(), M.stamp()))
+
+
+def approvals(conn, sn, q):
+    import json
+    init_approvals(conn)
+    admin = A.is_admin()
+    where = "" if admin else " WHERE requested_by = %s" % "?"
+    args = () if admin else (staff_name(),)
+    rows = conn.execute("SELECT * FROM approvals%s ORDER BY status='pending' DESC, id DESC LIMIT 200" % where, args).fetchall()
+    names = member_names(conn)
+    trs = ""
+    for r in rows:
+        try:
+            pl = json.loads(r["payload"] or "{}")
+        except ValueError:
+            pl = {}
+        what = {"discount": lambda: "%s · discount %s" % (pl.get("package_name", ""), money(num(pl.get("discount")))),
+                "cancel_bill": lambda: "Bill %s" % pl.get("invoice", ""),
+                "extend": lambda: "+%s days" % pl.get("days", "")}.get(r["kind"], lambda: "")()
+        st = {"pending": "p-warn", "approved": "p-ok", "rejected": "p-bad"}[r["status"]]
+        act = ""
+        if admin and r["status"] == "pending":
+            act = ('<form method="post" action="/approvals/decide" style="display:flex;gap:6px"><input type="hidden" name="id" value="%d">'
+                   '<button class="btn red sm" name="do" value="approve">Approve</button><button class="btn sm" name="do" value="reject">Reject</button></form>' % r["id"])
+        trs += '<tr><td class="dim">%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td class="dim">%s</td><td><span class="pill %s">%s</span>%s</td><td>%s</td></tr>' % (
+            e((r["created_at"] or "")[:16]), e(r["requested_by"] or ""), e(APPROVAL_KINDS.get(r["kind"], r["kind"])),
+            ('<a href="/m?id=%d">%s</a>' % (r["client_id"], e(nice(names.get(str(r["client_id"]), ""))))) if r["client_id"] else "—",
+            e(what), e(r["note"] or ""), st, r["status"].title(), ('<div class="dim" style="font-size:12px">%s</div>' % e(r["result"])) if r["result"] else "", act)
+    form = ""
+    if not admin:
+        kinds = ("extend", "cancel_bill", "phone", "other") if A.role() == "reception" else ("leave", "other")
+        form = """<form class="panel" method="post" action="/approvals/request" style="display:flex;flex-direction:column;gap:14px">
+<h2>Ask the owner</h2><div class="grid"><label>Request<select name="kind">%s</select></label>
+<label>Member (if any)<input name="member" list="mlist3" placeholder="Name or HOS-ID"></label><datalist id="mlist3">%s</datalist>
+<label>Bill invoice (for cancel)<input name="invoice" placeholder="HOS-01250"></label><label>Days (for extend)<input name="days" inputmode="numeric"></label>
+<label>Reason<input name="note" required></label></div><button class="btn red" style="align-self:flex-start">Send request</button></form>""" % (
+            "".join('<option value="%s">%s</option>' % (k, APPROVAL_KINDS[k]) for k in kinds),
+            "".join('<option value="%s · %s">' % (e(nice(n)), member_id(c)) for c, n in conn.execute(
+                "SELECT client_id, name FROM members ORDER BY client_id DESC LIMIT 800")) if A.role() == "reception" else "")
+    pending = sum(1 for r in rows if r["status"] == "pending")
+    body = """%s<div class="panel"><div class="ph"><h2>%s</h2><span class="pill p-warn">%d pending</span></div><div class="tw"><table>
+<tr><th>When</th><th>From</th><th>Request</th><th>Member</th><th>Detail</th><th>Reason</th><th>Status</th><th></th></tr>%s</table></div></div>""" % (
+        form, "Requests" if admin else "My requests", pending, trs or '<tr><td colspan="8" class="dim">No requests.</td></tr>')
+    return shell("Approvals", "/approvals", body, sub="Requests from reception and trainers wait for the owner's yes or no",
+                 msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
+def make_request(conn, f):
+    kind = f.get("kind") if f.get("kind") in APPROVAL_KINDS else "other"
+    if A.role() == "trainer" and kind not in ("leave", "other"):
+        kind = "other"
+    m = resolve_member(conn, f.get("member")) if f.get("member") else None
+    payload = {}
+    if kind == "cancel_bill":
+        inv = (f.get("invoice") or "").strip().upper()
+        p = conn.execute("SELECT * FROM payments WHERE invoice=?", (inv,)).fetchone()
+        if not p:
+            return "Bill %s not found." % inv
+        payload = {"invoice": inv}
+        m = m or conn.execute("SELECT * FROM members WHERE client_id=?", (p["client_id"],)).fetchone()
+    if kind == "extend":
+        if not m or not (f.get("days") or "").isdigit():
+            return "Pick the member and number of days."
+        payload = {"days": int(f["days"])}
+    request_approval(conn, kind, m["client_id"] if m else None, payload, (f.get("note") or "").strip())
+    return "Request sent to the owner."
+
+
+def decide(conn, sn, f):
+    import json
+    init_approvals(conn)
+    r = conn.execute("SELECT * FROM approvals WHERE id=? AND status='pending'", (f.get("id", ""),)).fetchone()
+    if not r:
+        return "Already decided."
+    pl = json.loads(r["payload"] or "{}")
+    if f.get("do") != "approve":
+        conn.execute("UPDATE approvals SET status='rejected', decided_by=?, decided_at=? WHERE id=?", (staff_name(), M.stamp(), r["id"]))
+        return "Rejected."
+    result = "Approved."
+    if r["kind"] == "discount":
+        inv, msg = save_bill(conn, sn, dict(pl, approved_by=staff_name(), on_behalf=r["requested_by"]))
+        result = msg if inv else "Could not make the bill: " + msg
+    elif r["kind"] == "extend" and r["client_id"]:
+        m = conn.execute("SELECT * FROM members WHERE client_id=?", (r["client_id"],)).fetchone()
+        old = M.parse_date(m["expiry"]) or M.today()
+        new = old + datetime.timedelta(days=int(pl.get("days", 0)))
+        conn.execute("UPDATE members SET expiry=?, updated_at=? WHERE client_id=?", (M.iso(new), M.stamp(), r["client_id"]))
+        if sn and new >= M.today() and str(r["client_id"]) in M.blocked_pins(conn, sn):
+            M.unblock(conn, sn, r["client_id"])
+        result = "Expiry moved to %s." % new.strftime("%d %b %Y")
+    elif r["kind"] == "cancel_bill":
+        p = conn.execute("SELECT * FROM payments WHERE invoice=?", (pl.get("invoice"),)).fetchone()
+        if p:
+            conn.execute("UPDATE members SET pending=MAX(0, COALESCE(pending,0)-?) WHERE client_id=?", (p["balance"] or 0, p["client_id"]))
+            conn.execute("UPDATE payments SET amount=0, balance=0, payable=0, note='CANCELLED ' || COALESCE(note,'') WHERE id=?", (p["id"],))
+            result = "Bill %s cancelled. Fix the member's expiry from Edit if needed." % pl.get("invoice")
+    conn.execute("UPDATE approvals SET status='approved', decided_by=?, decided_at=?, result=? WHERE id=?",
+                 (staff_name(), M.stamp(), result, r["id"]))
+    return result
+
+
 # ---------------- routing ----------------
 
 GET_PAGES = {"/": dashboard, "/members": members_list, "/m": profile, "/bill": bill_page, "/receipt": receipt,
              "/soon": soon, "/attendance": attendance, "/renewals": renewals, "/pending": pending, "/absent": absent,
              "/collect": collect_page, "/trainer": trainer_page, "/settings": settings_page, "/packages": packages_page,
-             "/reports": reports, "/expenses": expenses_page, "/staff": staff_page, "/salary": salary_page}
+             "/reports": reports, "/expenses": expenses_page, "/staff": staff_page, "/salary": salary_page,
+             "/inquiries": inquiries, "/approvals": approvals}
 CSV_PAGES = {"/members.csv": members_csv, "/attendance.csv": attendance_csv, "/renewals.csv": renewals_csv,
              "/pending.csv": pending_csv, "/reports/collection.csv": collection_csv, "/reports/bills.csv": bills_csv,
              "/reports/expenses.csv": expenses_csv}

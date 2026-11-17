@@ -361,6 +361,16 @@ class Handler(BaseHTTPRequestHandler):
                         return self.set_session(A.new_session(conn, "owner"), "/")
                     return self.redirect("/login?" + urlencode({"err": "Wrong owner password."}))
             return self.redirect("/login")
+        if path in ("/inquiries/save", "/approvals/request", "/approvals/decide"):
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                if path == "/inquiries/save":
+                    msg = U.save_inquiry(conn, f)
+                    A.log(conn, "inquiry saved", msg)
+                    return self.redirect("/inquiries?" + urlencode({"m": msg}))
+                msg = U.make_request(conn, f) if path == "/approvals/request" else U.decide(conn, M.default_sn(conn), f)
+                A.log(conn, "approval request" if path == "/approvals/request" else "approval decided", msg)
+            return self.redirect("/approvals?" + urlencode({"m": msg}))
         if path in ("/staff/shift", "/staff/save", "/salary/pay"):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
