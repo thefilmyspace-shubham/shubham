@@ -1331,7 +1331,7 @@ def renewals(conn, sn, q):
 <div class="kpi"><div class="l">Retention</div><div class="v">%d%%</div><div class="s">%d of %d who joined 30+ days ago are active</div></div></div>
 <form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="renew"><div class="ph"><div class="tabs">%s</div>
 <div class="acts"><button class="btn red sm">Remind selected on WhatsApp</button>%s</div></div>
-<div class="tw"><table><tr><th></th><th>Member</th><th>Package</th><th>Expiry</th><th>Due in</th><th>Renewal value</th><th>Reminder</th><th></th></tr>%s</table></div></form>""" % (
+<div class="tw"><table><tr><th><input type="checkbox" aria-label="Select all" title="Select all" style="width:18px;height:18px;min-height:0;accent-color:#e10600" onclick="var on=this.checked;this.form.querySelectorAll('input[name=id]').forEach(function(c){c.checked=on})"></th><th>Member</th><th>Package</th><th>Expiry</th><th>Due in</th><th>Renewal value</th><th>Reminder</th><th></th></tr>%s</table></div></form>""" % (
         len(sets["today"]), money(value(sets["today"])), len(sets["week"]), money(value(sets["week"])), len(sets["expired"]),
         round(100 * renewed / max(1, total)), renewed, total, tabs,
         admin_only('<a class="btn sm" href="/renewals.csv?t=%s">%sExport Excel</a>' % (tab, icon("down", 16))), trs)
@@ -1341,9 +1341,30 @@ def renewals(conn, sn, q):
 
 def remind_queue(conn, sn, q, ids):
     """Selected members, one WhatsApp button each (WhatsApp opens one chat at a time)."""
+    import whatsapp as W
     kind = q.get("k", "renew")
     ms = [conn.execute("SELECT * FROM members WHERE client_id=?", (i,)).fetchone() for i in ids if str(i).isdigit()]
     ms = [m for m in ms if m]
+    back = {"renew": "/renewals", "absent": "/absent", "due": "/pending"}.get(kind, "/")
+    if ms and W.ready(conn):
+        # The gym's WhatsApp is linked: queue them; they go one every 1-3 minutes within the daily limit.
+        text_of = {"renew": renew_msg, "absent": absent_msg, "due": due_msg}.get(kind, renew_msg)
+        queued = skipped = 0
+        for m in ms:
+            if W.enqueue(conn, "remind_" + kind, m["client_id"], m["phone"], text_of(m), M.iso(M.today())):
+                log_reminder(conn, m["client_id"], kind)
+                queued += 1
+            else:
+                skipped += 1
+        cap = M.setting(conn, "wa_cap", "40")
+        body = ('<div class="panel" style="display:flex;flex-direction:column;gap:12px"><h2>%d reminders queued</h2>'
+                '<p class="dim" style="margin:0">They go from the gym\'s WhatsApp number automatically, one every 1-3 minutes, between %s:00 and %s:00, '
+                'at most %s a day (together with the daily reminders). %s</p>'
+                '<div style="display:flex;gap:8px"><a class="btn red" href="%s">Back</a>%s</div></div>') % (
+            queued, e(M.setting(conn, "wa_from", "9")), e(M.setting(conn, "wa_to", "20")), e(cap),
+            ("%d skipped: no valid number, replied STOP, or already reminded today." % skipped) if skipped else "",
+            back, '<a class="btn" href="/whatsapp">See messages</a>' if A.is_admin() else "")
+        return shell("Send reminders", back, body, sub="%d members" % len(ms), cnt=counts(conn, sn))
     rows = "".join(
         '<tr><td>%d</td><td><span class="mem"><span class="av">%s</span>%s</span></td><td class="dim">%s</td>'
         '<td style="text-align:right"><a class="btn sm red" href="%s" target="_blank" rel="noopener" onclick="this.textContent=\'Opened\';this.classList.remove(\'red\')">%sSend</a></td></tr>' % (
@@ -1351,7 +1372,6 @@ def remind_queue(conn, sn, q, ids):
             icon("chat", 16)) for i, m in enumerate(ms) if m["phone"]) or '<tr><td class="dim">Nobody selected.</td></tr>'
     body = ('<div class="panel"><p class="dim">Tap Send on each row: WhatsApp opens with the message ready, press send there, '
             'come back and tap the next one.</p><table>%s</table></div>' % rows)
-    back = {"renew": "/renewals", "absent": "/absent", "due": "/pending"}.get(kind, "/")
     return shell("Send reminders", back, body, sub="%d members" % len(ms), cnt=counts(conn, sn))
 
 
@@ -1401,7 +1421,7 @@ def pending(conn, sn, q):
 <div class="kpi"><div class="l">Collected this month</div><div class="v">%s</div><div class="s">%d bills</div></div></div>
 <form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="due"><div class="ph"><h2>Pending dues</h2>
 <div class="acts"><button class="btn red sm">Remind selected</button>%s</div></div>
-<div class="tw"><table><tr><th></th><th>Member</th><th>Since</th><th>Package</th><th>Amount due</th><th>Overdue</th><th></th></tr>%s</table></div></form>""" % (
+<div class="tw"><table><tr><th><input type="checkbox" aria-label="Select all" title="Select all" style="width:18px;height:18px;min-height:0;accent-color:#e10600" onclick="var on=this.checked;this.form.querySelectorAll('input[name=id]').forEach(function(c){c.checked=on})"></th><th>Member</th><th>Since</th><th>Package</th><th>Amount due</th><th>Overdue</th><th></th></tr>%s</table></div></form>""" % (
         money(total), len(ms), money(sum(m["pending"] for m in old)), len(old), money(col[0]), col[1],
         admin_only('<a class="btn sm" href="/pending.csv">%sExport Excel</a>' % icon("down", 16)),
         trs or '<tr><td colspan="7" class="dim">No pending dues.</td></tr>')
@@ -1477,7 +1497,7 @@ def absent(conn, sn, q):
 <a class="kpi" href="/absent?d=14"><div class="l">Absent 14+ days</div><div class="v">%d</div><div class="s">likely to quit</div></a></div>
 <form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="absent"><div class="ph"><div class="tabs">%s</div>
 <button class="btn red sm">Message selected on WhatsApp</button></div>
-<div class="tw"><table><tr><th></th><th>Member</th><th>Package</th><th>Last visit</th><th>Plan</th><th>Risk</th><th></th></tr>%s</table></div></form>""" % (
+<div class="tw"><table><tr><th><input type="checkbox" aria-label="Select all" title="Select all" style="width:18px;height:18px;min-height:0;accent-color:#e10600" onclick="var on=this.checked;this.form.querySelectorAll('input[name=id]').forEach(function(c){c.checked=on})"></th><th>Member</th><th>Package</th><th>Last visit</th><th>Plan</th><th>Risk</th><th></th></tr>%s</table></div></form>""" % (
         len(lists[3]), len(lists[7]), len(lists[14]), tabs, trs)
     return shell("Absent members", "/absent", body, sub="Active members who stopped coming, from biometric data",
                  msg=q.get("m", ""), cnt=counts(conn, sn))

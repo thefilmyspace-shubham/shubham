@@ -55,7 +55,8 @@ STAFF_TEMPLATES = [  # late rule messages to staff; {n} = which late day this mo
      "Hi {name}, aaj ({date}) aap shift me {minutes} minute late aaye (shift {shift} se). Is mahine ka {n}. late hai: niyam ke "
      "hisaab se {hours} ghante ki salary ({amount}) kaati jayegi.\n- House of Strength"),
 ]
-LABEL = dict({k: l for k, l, _, _ in KINDS}, staff="Staff late notice", test="Test")
+LABEL = dict({k: l for k, l, _, _ in KINDS}, staff="Staff late notice", test="Test", remind_renew="Renewal reminder (selected)",
+             remind_due="Due reminder (selected)", remind_absent="Absent reminder (selected)")
 FIRST = ("test", "receipt", "form", "staff")  # sent before the daily reminders
 
 
@@ -186,8 +187,8 @@ def plan(conn):
                 n += enqueue(conn, "birthday", r["client_id"], r["phone"], fill(conn, "birthday", name=name), str(t.year))
     # Reminders that could not go out within two days are stale; drop them.
     old = (t - datetime.timedelta(days=2)).isoformat()
-    conn.execute("UPDATE wa_queue SET status='skipped', error='too old' WHERE status='queued' AND kind IN "
-                 "('expiring','expired','due','birthday') AND created_at < ?", (old,))
+    conn.execute("UPDATE wa_queue SET status='skipped', error='too old' WHERE status='queued' AND (kind IN "
+                 "('expiring','expired','due','birthday') OR kind LIKE 'remind_%') AND created_at < ?", (old,))
     M.set_setting(conn, "wa_planned", t.isoformat())
     return n
 
