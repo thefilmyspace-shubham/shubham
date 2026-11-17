@@ -1,0 +1,13 @@
+{
+  "name": "hos-whatsapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "House of Strength: WhatsApp sender for reminders (linked-device login, local HTTP on 127.0.0.1 only)",
+  "type": "module",
+  "main": "wa.mjs",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "^9.6.0"
+  }
+}

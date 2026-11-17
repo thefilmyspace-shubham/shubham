@@ -439,7 +439,7 @@ def member_page(conn, sn, q, msg=""):
 <input type="hidden" name="id" value="%s"><button name="do" value="%s">%s</button></form>""" % (
             e(state), e(pin), "unblock" if blocked else "block", "Unblock now" if blocked else "Block now")
     body = """<h1>%s</h1>%s
-<form method="post" action="/member/save"><div class="grid">
+<form method="post" action="/member/save"><input type="hidden" name="join" value="%s"><div class="grid">
 <label>Client ID / Biometric ID<input name="client_id" value="%s" required %s></label>
 <label>Name<input name="name" value="%s" required></label>
 <label>Phone<input name="phone" value="%s"></label>
@@ -463,6 +463,7 @@ def member_page(conn, sn, q, msg=""):
             cls, e(st), show(m["expiry"]), v("package"),
             ' · <span class="tag mid">Pending ₹{:,.0f}</span>'.format(m["pending"]) if (m["pending"] or 0) > 0 else "") if m else
         '<p class="dim">Enroll the finger on the gate machine first with the same ID, then save here.</p>',
+        e(q.get("join", "")) if q.get("join", "").isdigit() else "",
         v("client_id"), "readonly" if m else "", v("name"), v("phone"), v("gender"),
         "%g" % (m["pending"] or 0) if m else "0", opts, iso(today()),
         door, pays or '<tr><td colspan="6">—</td></tr>')

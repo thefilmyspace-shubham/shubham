@@ -134,6 +134,10 @@ def counts(conn, sn):
     init_approvals(conn)
     c["approvals"] = conn.execute("SELECT COUNT(*) FROM approvals WHERE status='pending'%s" % (
         "" if A.is_admin() else " AND requested_by=?"), () if A.is_admin() else (staff_name(),)).fetchone()[0]
+    try:
+        c["joinings"] = conn.execute("SELECT COUNT(*) FROM joinings WHERE status='new'").fetchone()[0]
+    except Exception:
+        c["joinings"] = 0
     return c
 
 
@@ -287,11 +291,12 @@ NAV = [
     ("/", "Dashboard", "dash", None), ("/members", "Members", "users", None), ("/bill", "New Bill", "bill", None),
     ("/attendance", "Attendance", "finger", None), ("/renewals", "Renewals", "renew", "renewals"),
     ("/pending", "Pending Payments", "rupee", "pending"), ("/absent", "Absent Members", "alert", "absent"),
-    ("/inquiries", "Inquiries", "chat", None), ("/approvals", "Approvals", "alert", "approvals"), ("/packages", "Packages", "box", None),
+    ("/joinings", "Joining forms", "users", "joinings"), ("/inquiries", "Inquiries", "chat", None), ("/approvals", "Approvals", "alert", "approvals"), ("/packages", "Packages", "box", None),
     ("/staff", "Staff & Trainers", "staff", None), ("/reports", "Reports", "chart", None), ("/expenses", "Expenses", "rupee", None),
     ("/assistant", "AI assistant", "chat", None),
 ]
-SYSTEM = [("/users", "Staff logins", "staff"), ("/activity", "Activity log", "chart"), ("/sync", "Door sync", "door"),
+SYSTEM = [("/users", "Staff logins", "staff"), ("/activity", "Activity log", "chart"), ("/whatsapp", "WhatsApp", "chat"),
+          ("/sync", "Door sync", "door"),
           ("/gate", "Gate machine", "server"), ("/settings", "Settings", "gear"), ("/backup", "Backup", "down")]
 TRAINER_NAV = [("/trainer", "My PT clients", "users", None), ("/approvals", "Leave / requests", "alert", "approvals")]
 
@@ -643,8 +648,18 @@ def profile(conn, sn, q):
         m["client_id"], bill_rows,
         ('<p style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 0"><a class="btn sm" href="/receipt?inv=%s">%sPrint last receipt</a></p>'
          % (quote(lastinv), icon("print", 16))) if lastinv else "")
+    jr = conn.execute("SELECT id, data FROM joinings WHERE client_id=? ORDER BY id DESC LIMIT 1", (m["client_id"],)).fetchone()
+    jform = ""
+    if jr and A.role() in ("admin", "reception"):
+        import joining as J
+        try:
+            flags = J.health_flags(__import__("json").loads(jr["data"] or "{}"))
+        except ValueError:
+            flags = []
+        jform = '<a class="btn" href="/joinings/view?id=%d">%sJoining form%s</a>' % (
+            jr["id"], icon("edit", 16), (' <span class="pill p-bad">%s</span>' % e(flags[0][:30])) if flags else "")
     return shell("Member profile", "/members", body, sub='<a href="/members">Members</a> › %s' % e(nice(m["name"])),
-                 actions='<a class="btn red" href="/bill?id=%d">%sNew bill</a>' % (m["client_id"], icon("plus")),
+                 actions=jform + '<a class="btn red" href="/bill?id=%d">%sNew bill</a>' % (m["client_id"], icon("plus")),
                  msg=q.get("m", ""), cnt=counts(conn, sn))
 
 
@@ -841,6 +856,20 @@ def save_bill(conn, sn, f):
 
 
 # ---------------- receipt ----------------
+
+def receipt_text(conn, inv):
+    """(WhatsApp text, member row) for a bill, or ("", None)."""
+    p = conn.execute("SELECT * FROM payments WHERE invoice=?", (inv,)).fetchone()
+    if not p:
+        return "", None
+    m = conn.execute("SELECT * FROM members WHERE client_id=?", (p["client_id"],)).fetchone()
+    name = nice(m["name"]) if m else ""
+    return ("House of Strength - Receipt %s\nMember: %s (%s)\nPackage: %s\nPeriod: %s to %s\nTotal: %s\nPaid: %s (%s)\n%s"
+            "Thank you! Get better, together.") % (
+        inv, name, member_id(p["client_id"]), p["package"], short_date(p["start"]), short_date(p["expiry"]),
+        money(p["payable"]), money(p["amount"]), p["mode"] or "",
+        ("Balance: %s\n" % money(p["balance"])) if (p["balance"] or 0) > 0 else ""), m
+
 
 def receipt(conn, sn, q):
     inv = q.get("inv", "")

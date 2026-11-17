@@ -124,3 +124,55 @@ Pages (same login): **Members** (`/members`), **Add / Renew** (`/member`), **Doo
 6. *Unblock door* → their finger opens the door again.
 
 Use a staff/test ID for 4–6, never a paying member.
+
+## Joining form and WhatsApp (17 Nov 2026)
+
+**Joining form** (the gym's *Member Consent Form*, same wording as the paper form):
+
+- Online: `http://EXTERNAL-IP:8081/join`. Anyone can open it, so it has no login; it only
+  saves a new form (5 per hour per phone, hidden bot trap).
+- Editable PDF: `/join.pdf` (`joining_form.pdf`, built by `python3 make_join_pdf.py`).
+- **Joining forms** page (`/joinings`, owner + reception): link, QR to print, send on
+  WhatsApp, and upload a filled form back. A filled PDF is read on the server with
+  `pypdf`. A photo or scan of a paper form is read by Claude (AI key needed).
+  **Add as member** opens the member form with the next free gate ID; saving links the
+  form to the member, and the profile gets a *Joining form* button.
+
+**WhatsApp** (`/whatsapp`, owner only). It uses a separate SIM's WhatsApp, linked like
+WhatsApp Web, so it is unofficial and the number can be blocked:
+
+- `wa/wa.mjs` (Node, Baileys) holds the login and sends; it listens on 127.0.0.1:8091 only.
+- `whatsapp.py` plans the day's reminders at 10 AM (ending in 3 days, ended yesterday,
+  dues on Mondays, birthdays from joining forms) and sends one every 1-3 minutes, 9 AM to
+  8 PM, at most 40 a day. Receipts and joining-form links go first. A member who replies
+  STOP is never messaged again. Nothing is sent until *Send automatically* is ticked.
+
+One-time server setup (Ubuntu 24.04 e2-micro):
+
+```bash
+[ -f /swapfile ] || (sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile && echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs
+sudo pip3 install --break-system-packages pypdf
+sudo tee /etc/systemd/system/hos-wa.service >/dev/null <<'UNIT'
+[Unit]
+Description=House of Strength WhatsApp sender
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/hos/wa
+Environment=WA_AUTH_DIR=/opt/hos/wa-auth
+Environment=WA_PORT=8091
+ExecStart=/usr/bin/node /opt/hos/wa/wa.mjs
+Restart=always
+RestartSec=10
+User=nobody
+Group=nogroup
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+```
+
+Then copy `wa/wa.mjs`, `wa/package.json` and `wa/package-lock.json` to `/opt/hos/wa/`, run
+`cd /opt/hos/wa && sudo npm ci --omit=dev`, `sudo chown -R nobody:nogroup /opt/hos`, and
+`sudo systemctl daemon-reload && sudo systemctl enable --now hos-wa`.

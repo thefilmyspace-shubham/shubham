@@ -35,6 +35,8 @@ import members as M
 import ui as U
 import assistant as AS
 import gsheets as GS
+import joining as J
+import whatsapp as W
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8081"))
@@ -43,7 +45,7 @@ ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "")
 
 DB_LOCK = threading.Lock()
-PUBLIC = {"/login", "/login/send", "/login/verify", "/login/owner", "/logo.jpg", "/logout"}
+PUBLIC = {"/login", "/login/send", "/login/verify", "/login/owner", "/logo.jpg", "/logout", "/join", "/join/submit", "/join.pdf"}
 BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), "backups")
 KEEP_BACKUPS = 14
 
@@ -88,6 +90,8 @@ def init_db():
         U.init(conn)
         A.init(conn)
         GS.init(conn)
+        J.init(conn)
+        W.init(conn)
 
 
 def kv_fields(text):
@@ -232,6 +236,26 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
+        if path == "/join.pdf":
+            with open(os.path.join(HERE, "joining_form.pdf"), "rb") as fh:
+                data = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf")
+            self.send_header("Content-Disposition", 'attachment; filename="HOS-Member-Consent-Form.pdf"')
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        if path == "/join":
+            with DB_LOCK, db() as conn:
+                return self.send_text(J.public_page(conn), ctype="text/html")
+        if path in ("/joinings", "/joinings/view", "/whatsapp"):
+            q["_base"] = "http://" + (self.headers.get("Host") or "34.63.254.31:8081")
+            with DB_LOCK, db() as conn:
+                sn = M.default_sn(conn)
+                page = {"/joinings": J.staff_page, "/joinings/view": J.view_page, "/whatsapp": W.page}[path]
+                out = page(conn, sn, q)
+            return self.send_text(out, ctype="text/html")
         if path == "/login":
             return self.send_text(A.login_page(q.get("step", "email"), q.get("email", ""), q.get("m", ""), q.get("err", "")),
                                   ctype="text/html")
@@ -368,6 +392,52 @@ class Handler(BaseHTTPRequestHandler):
                         return self.set_session(A.new_session(conn, "owner"), "/")
                     return self.redirect("/login?" + urlencode({"err": "Wrong owner password."}))
             return self.redirect("/login")
+        if path == "/join/submit":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                ok, out = J.submit(conn, f, self.client_address[0])
+            return self.send_text(out, code=200 if ok else 400, ctype="text/html")
+        if path == "/joinings/upload":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            data, source, err = J.read_upload(f.get("file", ""), f.get("name", ""))  # may call the AI: no lock held
+            with DB_LOCK, db() as conn:
+                if err:
+                    A.log(conn, "joining form upload failed", err)
+                    return self.send_text(json.dumps({"error": err}), ctype="application/json")
+                jid = J.save(conn, data, source)
+                A.log(conn, "joining form uploaded", "%s (%s)" % (data.get("name", ""), source))
+            miss = J.missing(data)
+            msg = ("Read from the %s. Check every detail%s." % ("PDF" if source == "pdf" else "photo by AI",
+                                                                 ("; missing: " + ", ".join(miss)) if miss else ""))
+            return self.send_text(json.dumps({"id": jid, "msg": msg}), ctype="application/json")
+        if path in ("/joinings/send", "/joinings/mark"):
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                if path == "/joinings/mark":
+                    msg = J.mark(conn, f, A.is_admin(), U.staff_name())
+                    A.log(conn, "joining form " + (f.get("do") or ""), msg)
+                    return self.redirect("/joinings?" + urlencode({"m": msg}))
+                link = "http://" + (self.headers.get("Host") or "34.63.254.31:8081") + "/join"
+                text = J.form_message(conn, link)
+                if W.ready(conn):
+                    ok = W.enqueue(conn, "form", 0, f.get("phone"), text, M.stamp(), doc="joining_form.pdf") \
+                        if M.setting(conn, "wa_on_form", "1") == "1" else False
+                    msg = "Joining form will go on WhatsApp in a minute." if ok else "Enter a valid 10-digit mobile number."
+                    A.log(conn, "joining form sent", msg)
+                    return self.redirect("/joinings?" + urlencode({"m": msg}))
+                wa_link = M.wa_link(f.get("phone"), text)
+                A.log(conn, "joining form link opened", "")
+            return self.redirect(wa_link or "/joinings?" + urlencode({"m": "Enter a valid 10-digit mobile number."}))
+        if path == "/whatsapp/save":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            if f.get("do") == "logout":
+                msg = W.save(None, f)  # talks to the WhatsApp service; no lock needed
+            else:
+                with DB_LOCK, db() as conn:
+                    msg = W.save(conn, f)
+            with DB_LOCK, db() as conn:
+                A.log(conn, "whatsapp " + (f.get("do") or "save"), msg)
+            return self.redirect("/whatsapp?" + urlencode({"m": msg}))
         if path in ("/inquiries/save", "/approvals/request", "/approvals/decide"):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
@@ -470,6 +540,11 @@ class Handler(BaseHTTPRequestHandler):
                 inv, msg = U.save_bill(conn, M.default_sn(conn), f)
                 if inv:
                     GS.soon()
+                    if f.get("send_wa") == "1" and M.setting(conn, "wa_on_receipt", "1") == "1" and W.ready(conn):
+                        text, m = U.receipt_text(conn, inv)
+                        if m and W.enqueue(conn, "receipt", m["client_id"], m["phone"], text, inv):
+                            f["send_wa"] = ""
+                            msg += " Receipt goes on WhatsApp in a minute."
                 A.log(conn, "bill saved" if inv else "bill refused", "%s · %s · discount %s" % (
                     msg, f.get("member", ""), f.get("discount", "0")))
             if not inv:
@@ -504,6 +579,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_text("Imported %d old bills, %d skipped" % (n, skipped))
             if path == "/member/save":
                 ok, msg = M.save_member(conn, sn, f)
+                if ok and f.get("join"):
+                    J.linked(conn, f["join"], f.get("client_id", ""), U.staff_name())
                 A.log(conn, "member saved", msg)
                 cid = f.get("client_id", "")
                 return self.redirect("/m?" + urlencode({"id": cid, "m": msg}) if ok
@@ -797,6 +874,7 @@ def main():
     threading.Thread(target=auto_sync_loop, daemon=True).start()
     threading.Thread(target=backup_loop, daemon=True).start()
     threading.Thread(target=GS.loop, args=(DB_PATH,), daemon=True).start()
+    threading.Thread(target=W.loop, args=(DB_PATH,), daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print("%s listening on port %d, database %s" % (now(), PORT, DB_PATH), flush=True)
     srv.serve_forever()
