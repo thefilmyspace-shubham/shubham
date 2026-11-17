@@ -104,14 +104,35 @@ def send_code(conn, email):
     msg["To"] = email
     msg.set_content("Hi %s,\n\nYour House of Strength app login code is %s\nIt works for %d minutes.\n\n"
                     "If you did not ask for it, ignore this email.\n" % (u["name"] or "", code, CODE_MINUTES))
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=20) as s:
-            s.login(SMTP_USER, SMTP_PASS)
-            s.send_message(msg)
-    except Exception as exc:  # do not leak details to the page
-        print("%s smtp error: %s" % (stamp(), exc), flush=True)
+    if not smtp_send(msg):
         return False, "Could not send the email right now. Try again in a minute."
     return True, generic
+
+
+def smtp_send(msg):
+    """Gmail on 587 (STARTTLS) first, then 465 (SSL). Errors go to the server log only."""
+    ctx = ssl.create_default_context()
+    for port in (587, 465):
+        try:
+            if port == 587:
+                with smtplib.SMTP("smtp.gmail.com", 587, timeout=20) as s:
+                    s.ehlo()
+                    s.starttls(context=ctx)
+                    s.ehlo()
+                    s.login(SMTP_USER, SMTP_PASS)
+                    s.send_message(msg)
+            else:
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx, timeout=20) as s:
+                    s.login(SMTP_USER, SMTP_PASS)
+                    s.send_message(msg)
+            return True
+        except smtplib.SMTPAuthenticationError as exc:
+            print("%s smtp error port %d: login refused (check SMTP_USER / app password): %s"
+                  % (stamp(), port, exc.smtp_code), flush=True)
+            return False
+        except Exception as exc:
+            print("%s smtp error port %d: %s: %s" % (stamp(), port, type(exc).__name__, exc), flush=True)
+    return False
 
 
 def verify_code(conn, email, code):
