@@ -44,6 +44,9 @@ PORT = int(os.environ.get("PORT", "8081"))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(HERE, "hos.db"))
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "")
+# When set (e.g. https://34-63-254-31.sslip.io), people are sent to this HTTPS address; Caddy in front
+# of the app holds the certificate. The gate machine keeps using plain http on PORT (/iclock/ only).
+PUBLIC_URL = os.environ.get("HOS_PUBLIC_URL", "").rstrip("/")
 
 DB_LOCK = threading.Lock()
 PUBLIC = {"/login", "/login/send", "/login/verify", "/login/owner", "/logo.jpg", "/logout", "/join", "/join/submit", "/join.pdf"}
@@ -119,7 +122,7 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---------- helpers ----------
     def log_message(self, fmt, *args):
-        sys.stderr.write("%s %s - %s\n" % (now(), self.client_address[0], fmt % args))
+        sys.stderr.write("%s %s - %s\n" % (now(), self.client_ip(), fmt % args))
 
     def send_text(self, text, code=200, ctype="text/plain"):
         data = text.encode("utf-8")
@@ -194,10 +197,36 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def client_ip(self):
+        """The visitor's address; behind Caddy (a local connection) it is in X-Forwarded-For."""
+        ip = self.client_address[0]
+        if ip in ("127.0.0.1", "::1") and self.headers.get("X-Forwarded-For"):
+            return self.headers["X-Forwarded-For"].split(",")[0].strip()
+        return ip
+
+    def is_https(self):
+        return (self.headers.get("X-Forwarded-Proto") or "").lower() == "https"
+
+    def base_url(self):
+        """Address people should use for links we hand out (joining form, QR)."""
+        if PUBLIC_URL:
+            return PUBLIC_URL
+        return ("https://" if self.is_https() else "http://") + (self.headers.get("Host") or "34.63.254.31:8081")
+
+    def force_https(self, path):
+        """People on the plain-http address go to the HTTPS one. True when the request was answered here."""
+        if not PUBLIC_URL or path.startswith("/iclock/") or self.is_https():
+            return False
+        self.send_response(307 if self.command == "POST" else 301)  # 307 keeps a form post as a post
+        self.send_header("Location", PUBLIC_URL + self.path)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return True
+
     def set_session(self, token, location):
         self.send_response(303)
-        self.send_header("Set-Cookie", "%s=%s; Path=/; HttpOnly; SameSite=Lax; Max-Age=%d" % (
-            A.COOKIE, token, A.SESSION_DAYS * 86400))
+        self.send_header("Set-Cookie", "%s=%s; Path=/; HttpOnly; SameSite=Lax; Max-Age=%d%s" % (
+            A.COOKIE, token, A.SESSION_DAYS * 86400, "; Secure" if self.is_https() else ""))
         self.send_header("Location", location)
         self.send_header("Content-Length", "0")
         self.end_headers()
@@ -214,7 +243,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path, q = self.route()
-        if not self.gate(path):
+        if self.force_https(path) or not self.gate(path):
             return
         sn = q.get("SN", "")
         if path.startswith("/iclock/"):
@@ -261,7 +290,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_text(json.dumps({"state": st.get("state", "off"), "qr": st.get("qr", ""), "me": st.get("me", "")}),
                                   ctype="application/json")
         if path in ("/joinings", "/joinings/view", "/whatsapp"):
-            q["_base"] = "http://" + (self.headers.get("Host") or "34.63.254.31:8081")
+            q["_base"] = self.base_url()
             with DB_LOCK, db() as conn:
                 sn = M.default_sn(conn)
                 page = {"/joinings": J.staff_page, "/joinings/view": J.view_page, "/whatsapp": W.page}[path]
@@ -358,7 +387,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path, q = self.route()
-        if not self.gate(path):
+        if self.force_https(path) or not self.gate(path):
             return
         sn = q.get("SN", "")
         body = self.read_body()
@@ -421,7 +450,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/join/submit":
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
-                ok, out = J.submit(conn, f, self.client_address[0])
+                ok, out = J.submit(conn, f, self.client_ip())
             return self.send_text(out, code=200 if ok else 400, ctype="text/html")
         if path == "/joinings/upload":
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
@@ -443,7 +472,7 @@ class Handler(BaseHTTPRequestHandler):
                     msg = J.mark(conn, f, A.is_admin(), U.staff_name())
                     A.log(conn, "joining form " + (f.get("do") or ""), msg)
                     return self.redirect("/joinings?" + urlencode({"m": msg}))
-                link = "http://" + (self.headers.get("Host") or "34.63.254.31:8081") + "/join"
+                link = self.base_url() + "/join"
                 text = J.form_message(conn, link)
                 if W.ready(conn):
                     ok = W.enqueue(conn, "form", 0, f.get("phone"), text, M.stamp(), doc="joining_form.pdf") \

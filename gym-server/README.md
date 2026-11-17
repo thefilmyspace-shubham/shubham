@@ -185,3 +185,13 @@ Then copy `wa/wa.mjs`, `wa/package.json` and `wa/package-lock.json` to `/opt/hos
 - **Keep door open** (owner): the X2008 ignores a "stay open" command, so while a hold is on
   every machine poll (~10 s) gets another open, until *Lock again* or the chosen time
   (max 4 h). Set the machine's lock delay to 10 s or more so it never clicks shut between.
+
+## HTTPS
+
+Caddy (Ubuntu package) sits in front on ports 80/443, gets a free certificate for
+`34-63-254-31.sslip.io` (a free name that always points at the VM's IP) and forwards to the app
+on 127.0.0.1:8081. `HOS_PUBLIC_URL` (systemd drop-in `hos.service.d/https.conf`) makes the app send
+browsers from the plain-http address to the HTTPS one and mark the login cookie Secure. The gate
+machine keeps talking plain http to port 8081 (`/iclock/` is never redirected). For a real domain:
+point its A record at the IP, put the domain in `/etc/caddy/Caddyfile` and in `HOS_PUBLIC_URL`.
+GCP firewall must allow TCP 80 and 443 (VM → Edit → Allow HTTP/HTTPS traffic).
