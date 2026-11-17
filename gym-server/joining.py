@@ -483,6 +483,5 @@ def for_member(conn, client_id):
 
 
 def form_message(conn, link):
-    gym = M.setting(conn, "gym_name", "House of Strength") or "House of Strength"
-    return ("Welcome to %s! Please fill your joining form here: %s\n\nOr fill the attached PDF and send it back on this "
-            "chat. Thank you!") % (gym, link)
+    import whatsapp as W
+    return W.text("form", name="", link=link)

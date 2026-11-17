@@ -18,6 +18,7 @@ import datetime
 import json
 import os
 import random
+import re
 import sqlite3
 import threading
 import time
@@ -25,36 +26,32 @@ import urllib.error
 import urllib.request
 
 import members as M
+import messages as MSG
 
 WA_URL = os.environ.get("HOS_WA_URL", "http://127.0.0.1:8091")
 HERE = os.path.dirname(os.path.abspath(__file__))
 _wake = threading.Event()
 
-KINDS = [  # key, label, default template, default on
+KINDS = [  # key, label, default template (versions joined by ---), default on
     ("receipt", "Receipt after a bill", "", "1"),
-    ("form", "Joining form link", "", "1"),
-    ("expiring", "Membership ending soon",
-     "Hi {name}, House of Strength me aapki membership {date} ko khatam ho rahi hai. Renew karwane ke liye reception pe milein "
-     "ya UPI se pay karke screenshot bhej dein. Thank you!", "1"),
-    ("expired", "Membership ended yesterday",
-     "Hi {name}, House of Strength me aapki membership {date} ko khatam ho gayi. Gate pe dikkat na ho, isliye jaldi renew "
-     "karwa lijiye. Hum aapka intezaar kar rahe hain!", "1"),
-    ("due", "Pending payment (Mondays)",
-     "Hi {name}, House of Strength me aapka {amount} baaki hai. Agli visit pe reception pe clear kar dijiye. Thank you!", "1"),
-    ("birthday", "Birthday wish",
-     "Happy Birthday {name}! 🎂 House of Strength ki taraf se aapko dher saari shubhkamnayein. Aaj ka workout aapke naam!", "1"),
+    ("form", "Joining form link", MSG.joined("form"), "1"),
+    ("expiring", "Membership ending soon", MSG.joined("expiring"), "1"),
+    ("expired", "Membership ended yesterday", MSG.joined("expired"), "1"),
+    ("due", "Pending payment (Mondays)", MSG.joined("due"), "1"),
+    ("birthday", "Birthday wish", MSG.joined("birthday"), "1"),
+]
+MANUAL = [  # texts used by buttons, not sent on their own
+    ("absent", "Absent members (Absent page, Remind selected)"),
+    ("greet", "WhatsApp button on a member's page"),
+    ("inquiry", "Inquiry follow-up button"),
 ]
 STAFF_TEMPLATES = [  # late rule messages to staff; {n} = which late day this month
-    ("notice", "1st late in the month: Notice",
-     "Hi {name}, aaj ({date}) aap shift me {minutes} minute late aaye (shift {shift} se). Is mahine ka pehla late hai: NOTICE. "
-     "Kripya time pe aayein.\n- House of Strength"),
-    ("warning", "2nd late: Warning",
-     "Hi {name}, aaj ({date}) aap shift me {minutes} minute late aaye (shift {shift} se). Is mahine ka doosra late hai: WARNING. "
-     "Agli baar late aane pe {hours} ghante ki salary kategi.\n- House of Strength"),
-    ("deduct", "3rd and later: Pay cut",
-     "Hi {name}, aaj ({date}) aap shift me {minutes} minute late aaye (shift {shift} se). Is mahine ka {n}. late hai: niyam ke "
-     "hisaab se {hours} ghante ki salary ({amount}) kaati jayegi.\n- House of Strength"),
+    ("notice", "1st late in the month: Notice", MSG.joined("staff_notice")),
+    ("warning", "2nd late: Warning", MSG.joined("staff_warning")),
+    ("deduct", "3rd and later: Pay cut", MSG.joined("staff_deduct")),
 ]
+TEMPLATE_VERSION = "2"  # 2: English, several versions each
+TPL = {}  # kind -> text from settings (kept in memory so buttons need no database)
 LABEL = dict({k: l for k, l, _, _ in KINDS}, staff="Staff late notice", test="Test", remind_renew="Renewal reminder (selected)",
              remind_due="Due reminder (selected)", remind_absent="Absent reminder (selected)")
 FIRST = ("test", "receipt", "form", "staff")  # sent before the daily reminders
@@ -73,8 +70,32 @@ def init(conn):
     defaults["wa_on_staff"] = "1"
     for k, _, t in STAFF_TEMPLATES:
         defaults["wa_t_staff_" + k] = t
+    for k, _ in MANUAL:
+        defaults["wa_t_" + k] = MSG.joined(k)
     for k, v in defaults.items():
         conn.execute("INSERT OR IGNORE INTO settings VALUES (?, ?)", (k, v))
+    if M.setting(conn, "wa_tpl_v", "") != TEMPLATE_VERSION:
+        # New message set: replace the earlier (Hinglish, single-version) texts.
+        for k, _, t, _ in KINDS:
+            if t:
+                M.set_setting(conn, "wa_t_" + k, t)
+        for k, _ in MANUAL:
+            M.set_setting(conn, "wa_t_" + k, MSG.joined(k))
+        for k, _, t in STAFF_TEMPLATES:
+            M.set_setting(conn, "wa_t_staff_" + k, t)
+        M.set_setting(conn, "wa_tpl_v", TEMPLATE_VERSION)
+    load(conn)
+
+
+def load(conn):
+    """Refresh the in-memory copy of every message text."""
+    for k, _, t, _ in KINDS:
+        if t:
+            TPL[k] = M.setting(conn, "wa_t_" + k, t) or t
+    for k, _ in MANUAL:
+        TPL[k] = M.setting(conn, "wa_t_" + k, "") or MSG.joined(k)
+    for k, _, t in STAFF_TEMPLATES:
+        TPL["staff_" + k] = M.setting(conn, "wa_t_staff_" + k, "") or t
 
 
 # ---------------- talking to the Node service ----------------
@@ -135,11 +156,31 @@ def enqueue(conn, kind, client_id, phone, text, ref="", doc=""):
     return bool(cur.rowcount)
 
 
-def fill(conn, kind, **kw):
-    t = M.setting(conn, "wa_t_" + kind, "")
+def versions(kind):
+    raw = TPL.get(kind) or MSG.joined(kind)
+    return [v.strip() for v in re.split(r"\n\s*-{3,}\s*\n", raw) if v.strip()]
+
+
+def text(kind, turn=None, **kw):
+    """One version of a message with the blanks filled. turn picks the version (by turn); None = random."""
+    vs = versions(kind)
+    if not vs:
+        return ""
+    t = vs[turn % len(vs)] if turn is not None else random.choice(vs)
+    if not kw.get("name"):
+        t = re.sub(r"[ ,]*\{name\}", "", t)  # "Hi {name}," -> "Hi,"
     for k, v in kw.items():
         t = t.replace("{%s}" % k, str(v))
     return t
+
+
+def fill(conn, kind, key="", **kw):
+    """Like text(), but each member gets the next version each time (counted from messages already queued)."""
+    turn = None
+    if key and conn is not None:
+        turn = conn.execute("SELECT COUNT(*) FROM wa_queue WHERE phone=? AND (kind=? OR kind=?)",
+                            (norm(key), kind, "remind_" + {"expiring": "renew"}.get(kind, kind))).fetchone()[0]
+    return text(kind, turn, **kw)
 
 
 def _nice(name):
@@ -148,7 +189,7 @@ def _nice(name):
 
 def _date(iso_):
     d = M.parse_date(iso_)
-    return d.strftime("%d %b") if d else ""
+    return d.strftime("%d-%m-%Y") if d else ""
 
 
 def plan(conn):
@@ -163,14 +204,14 @@ def plan(conn):
         exp = M.parse_date(m["expiry"])
         if not exp:
             continue
-        name = _nice(m["name"]).split(" ")[0] if m["name"] else ""
+        name = _nice(m["name"])
         if on("expiring") and exp == t + datetime.timedelta(days=days):
-            n += enqueue(conn, "expiring", m["client_id"], m["phone"], fill(conn, "expiring", name=name, date=_date(m["expiry"])), m["expiry"])
+            n += enqueue(conn, "expiring", m["client_id"], m["phone"], fill(conn, "expiring", m["phone"], name=name, date=_date(m["expiry"])), m["expiry"])
         if on("expired") and exp == t - datetime.timedelta(days=1):
-            n += enqueue(conn, "expired", m["client_id"], m["phone"], fill(conn, "expired", name=name, date=_date(m["expiry"])), m["expiry"])
+            n += enqueue(conn, "expired", m["client_id"], m["phone"], fill(conn, "expired", m["phone"], name=name, date=_date(m["expiry"])), m["expiry"])
         if on("due") and t.weekday() == 0 and (m["pending"] or 0) > 0 and exp >= t - datetime.timedelta(days=30):
             amt = "₹{:,.0f}".format(m["pending"])
-            n += enqueue(conn, "due", m["client_id"], m["phone"], fill(conn, "due", name=name, amount=amt), "%d-W%02d" % t.isocalendar()[:2])
+            n += enqueue(conn, "due", m["client_id"], m["phone"], fill(conn, "due", m["phone"], name=name, amount=amt), "%d-W%02d" % t.isocalendar()[:2])
     if on("birthday"):
         try:
             jrows = conn.execute("SELECT j.client_id, j.data, m.name, m.phone FROM joinings j JOIN members m ON m.client_id=j.client_id "
@@ -183,8 +224,8 @@ def plan(conn):
             except ValueError:
                 dob = None
             if dob and (dob.month, dob.day) == (t.month, t.day):
-                name = _nice(r["name"]).split(" ")[0]
-                n += enqueue(conn, "birthday", r["client_id"], r["phone"], fill(conn, "birthday", name=name), str(t.year))
+                name = _nice(r["name"])
+                n += enqueue(conn, "birthday", r["client_id"], r["phone"], fill(conn, "birthday", r["phone"], name=name), str(t.year))
     # Reminders that could not go out within two days are stale; drop them.
     old = (t - datetime.timedelta(days=2)).isoformat()
     conn.execute("UPDATE wa_queue SET status='skipped', error='too old' WHERE status='queued' AND (kind IN "
@@ -326,17 +367,19 @@ draw(%s);tick()})();</script>""" % json.dumps(st.get("qr", "") if state == "qr" 
     auto = S("wa_auto", "0") == "1"
     kinds = ""
     for k, label, t, _ in KINDS:
-        tpl = ('<textarea name="wa_t_%s" rows="3" style="width:100%%">%s</textarea>' % (k, e(S("wa_t_" + k)))) if t else (
-            '<div class="dim" style="font-size:12px">%s</div>' % ("Same text as the receipt page; goes when “Send receipt on WhatsApp” is ticked."
-                                                                  if k == "receipt" else "Sent from the Joining forms page, with the PDF attached."))
+        tpl = ('<textarea name="wa_t_%s" rows="9" style="width:100%%;padding:10px 12px;line-height:1.45">%s</textarea>' % (k, e(S("wa_t_" + k, t)))) if t else (
+            '<div class="dim" style="font-size:12px">Same text as the receipt page; goes when “Send receipt on WhatsApp” is ticked.</div>')
         kinds += '<div style="border-top:1px solid var(--line);padding-top:12px"><label class="chk"><input type="checkbox" name="wa_on_%s" value="1"%s><b>%s</b></label>%s</div>' % (
             k, " checked" if S("wa_on_" + k) == "1" else "", e(label), tpl)
+    kinds += "".join('<div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px"><b>%s</b>'
+                     '<textarea name="wa_t_%s" rows="7" style="width:100%%;padding:10px 12px;line-height:1.45">%s</textarea></div>' % (
+                         e(label), k, e(S("wa_t_" + k, MSG.joined(k)))) for k, label in MANUAL)
     kinds += ('<div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px">'
               '<label class="chk"><input type="checkbox" name="wa_on_staff" value="1"%s><b>Staff late notice</b></label>'
               '<div class="dim" style="font-size:12px">Goes to the staff member (number on the Staff &amp; Trainers page) when they come late. '
               'In the texts: {name} first name, {date}, {minutes} late, {shift} start time, {n} which late this month, {hours} hours cut, {amount} rupees cut.</div>%s</div>') % (
         " checked" if S("wa_on_staff", "1") == "1" else "",
-        "".join('<label>%s<textarea name="wa_t_staff_%s" rows="3" style="width:100%%">%s</textarea></label>' % (e(l), k, e(S("wa_t_staff_" + k, t)))
+        "".join('<label>%s<textarea name="wa_t_staff_%s" rows="7" style="width:100%%;padding:10px 12px;line-height:1.45">%s</textarea></label>' % (e(l), k, e(S("wa_t_staff_" + k, t)))
                 for k, l, t in STAFF_TEMPLATES))
     counts_ = dict(conn.execute("SELECT status, COUNT(*) FROM wa_queue WHERE substr(created_at,1,10)=? OR status='queued' GROUP BY status",
                                 (M.today().isoformat(),)).fetchall())
@@ -365,7 +408,8 @@ that sends too much. Keep the daily limit low. Members who reply <b>STOP</b> are
 <div class="grid"><label>Messages a day (max)<input name="wa_cap" value="%s" inputmode="numeric"></label><label>Send from (hour, 24h)<input name="wa_from" value="%s" inputmode="numeric"></label>
 <label>Until (hour, 24h)<input name="wa_to" value="%s" inputmode="numeric"></label><label>Plan reminders at (hour)<input name="wa_plan_hour" value="%s" inputmode="numeric"></label>
 <label>“Ending soon” days before<input name="wa_days_before" value="%s" inputmode="numeric"></label></div>
-<p class="dim" style="margin:0;font-size:12px">In the texts: {name} first name, {date} end date, {amount} amount due.</p>%s
+<p class="dim" style="margin:0;font-size:12px">In the texts: {name} member's name, {date} end date, {amount} amount, {link} joining form link.
+Each message has a few versions separated by a line with only <b>---</b>; a different one goes each time. Add or remove versions freely.</p>%s
 <button class="btn red" name="do" value="save" style="align-self:flex-start">Save</button></form>
 <div class="panel"><div class="ph"><h2>Messages</h2><span class="dim" style="font-size:12px">Replied STOP: %d</span></div><div class="tw"><table>
 <tr><th>When</th><th>Type</th><th>To</th><th>Message</th><th>Status</th></tr>%s</table></div></div>""" % (
@@ -407,10 +451,14 @@ def save(conn, f):
     for k, _, t, _ in KINDS:
         M.set_setting(conn, "wa_on_" + k, "1" if f.get("wa_on_" + k) == "1" else "0")
         if t and (f.get("wa_t_" + k) or "").strip():
-            M.set_setting(conn, "wa_t_" + k, f["wa_t_" + k].strip()[:1000])
+            M.set_setting(conn, "wa_t_" + k, f["wa_t_" + k].strip()[:4000])
     M.set_setting(conn, "wa_on_staff", "1" if f.get("wa_on_staff") == "1" else "0")
     for k, _, _ in STAFF_TEMPLATES:
         if (f.get("wa_t_staff_" + k) or "").strip():
-            M.set_setting(conn, "wa_t_staff_" + k, f["wa_t_staff_" + k].strip()[:1000])
+            M.set_setting(conn, "wa_t_staff_" + k, f["wa_t_staff_" + k].strip()[:4000])
+    for k, _ in MANUAL:
+        if (f.get("wa_t_" + k) or "").strip():
+            M.set_setting(conn, "wa_t_" + k, f["wa_t_" + k].strip()[:4000])
+    load(conn)
     _wake.set()
     return "WhatsApp settings saved. Automatic sending is %s." % ("ON" if f.get("wa_auto") == "1" else "OFF")

@@ -547,12 +547,9 @@ def today_page(conn, sn, msg=""):
         out = []
         for m in conn.execute(sql, args):
             exp = parse_date(m["expiry"])
-            if kind == "soon":
-                text = ("Hi %s, House of Strength me aapki membership %s ko khatam ho rahi hai. "
-                        "Renew karwane ke liye reception pe milein. Thank you!") % (m["name"], exp.strftime("%d-%m-%Y"))
-            else:
-                text = ("Hi %s, House of Strength aapko miss kar raha hai! Aapki membership %s ko khatam ho gayi thi. "
-                        "Renew karwa ke wapas training shuru karein.") % (m["name"], exp.strftime("%d-%m-%Y"))
+            import whatsapp as W
+            nm = " ".join(w.capitalize() for w in (m["name"] or "").split())
+            text = W.text("expiring" if kind == "soon" else "expired", name=nm, date=exp.strftime("%d-%m-%Y"))
             link = wa_link(m["phone"], text)
             out.append("<tr><td>%s</td><td><a href=\"/member?id=%s\">%s</a></td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
                 m["client_id"], m["client_id"], e(m["name"] or ""), show(m["expiry"]), e(m["package"] or ""),

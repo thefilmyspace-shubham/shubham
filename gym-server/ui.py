@@ -16,6 +16,7 @@ import auth as A
 import gsheets as GS
 import members as M
 import staffhours as SH
+import whatsapp as W
 
 e = M.e
 STAFF_FROM = M.STAFF_FROM
@@ -499,13 +500,20 @@ def status_pill(exp_iso):
     return '<span class="pill p-ok">Active</span>'
 
 
+def dmy(d_iso):
+    d = M.parse_date(d_iso)
+    return d.strftime("%d-%m-%Y") if d else ""
+
+
 def renew_msg(m):
-    return ("Hi %s, House of Strength me aapki membership %s ko khatam ho rahi hai. Renew karwane ke liye "
-            "reception pe milein. Thank you!") % (nice(m["name"]), short_date(m["expiry"]))
+    """Ending soon, or already ended, in one of the English versions from the WhatsApp page."""
+    d = M.parse_date(m["expiry"])
+    kind = "expired" if d and d < M.today() else "expiring"
+    return W.text(kind, name=nice(m["name"]), date=dmy(m["expiry"]))
 
 
 def absent_msg(m):
-    return "Hi %s, kaafi din se aap gym nahi aaye. Sab theek? House of Strength me aapka intezaar hai!" % nice(m["name"])
+    return W.text("absent", name=nice(m["name"]))
 
 
 def wa_btn(m, text):
@@ -710,7 +718,7 @@ def profile(conn, sn, q):
 def wa_btn_big(m):
     if not phone_ok(m):
         return ""
-    link = wa(m["phone"], "Hi %s, House of Strength se." % nice(m["name"]))
+    link = wa(m["phone"], W.text("greet", name=nice(m["name"])))
     return '<a class="btn" href="%s" target="_blank" rel="noopener">%sWhatsApp</a>' % (e(link), icon("chat")) if link else ""
 
 
@@ -1200,8 +1208,7 @@ def remind_redirect(conn, q):
 
 
 def due_msg(m):
-    return ("Hi %s, House of Strength me aapka %s baaki hai. Agli visit pe reception pe clear kar dijiye. "
-            "Thank you!") % (nice(m["name"]), money(m["pending"]))
+    return W.text("due", name=nice(m["name"]), amount=money(m["pending"]))
 
 
 def remind_btn(m, kind):
@@ -2171,8 +2178,7 @@ def lead_chip(r):
 
 
 def lead_wa(r):
-    link = wa(r["phone"], "Hi %s, House of Strength se baat kar rahe hain. Aapne gym ke baare me poocha tha. Kab visit kar sakte hain? "
-                          "Free trial bhi le sakte hain." % nice(r["name"]))
+    link = wa(r["phone"], W.text("inquiry", name=nice(r["name"])))
     return ('<a class="ibtn wa" href="%s" target="_blank" rel="noopener" aria-label="WhatsApp">%s</a>' % (e(link), icon("chat", 16))) if link else ""
 
 
