@@ -527,6 +527,12 @@ class Handler(BaseHTTPRequestHandler):
                 pin, msg = SH.excuse(conn, f, U.staff_name())
                 A.log(conn, "late day " + (f.get("do") or "excuse"), "%s %s" % (pin, msg))
             return self.redirect("/staff/report?" + urlencode({"pin": pin, "month": f.get("month", ""), "m": msg}))
+        if path == "/staff/phone":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                msg = U.save_staff_phone(conn, f)
+                A.log(conn, "staff number", msg)
+            return self.redirect("/staff?" + urlencode({"m": msg}))
         if path in ("/staff/shift", "/staff/save", "/salary/pay"):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:

@@ -1842,14 +1842,18 @@ def staff_page(conn, sn, q):
         n30 = conn.execute("SELECT COUNT(DISTINCT substr(ts,1,10)) FROM punches WHERE pin=? AND ts >= ?",
                            (s_["pin"], M.iso(t - datetime.timedelta(days=30)))).fetchone()[0]
         pill = {"On time": "p-ok", "Present": "p-ok", "Not in": "p-dim", "Off day": "p-dim"}.get(st, "p-warn")
-        rows += ('<tr%s><td><a class="mem" href="/staff/report?pin=%s"><span class="av">%s</span>%s</a></td><td>%s</td><td>%s</td><td>%d / 30</td><td>%s</td>'
-                 '<td><span class="pill %s">%s</span>%s</td><td class="dim">%s</td><td>%s</td><td style="display:flex;gap:6px;justify-content:flex-end">%s'
+        rows += ('<tr%s><td><a class="mem" href="/staff/report?pin=%s"><span class="av">%s</span><span>%s<span class="dim" style="display:block;font-size:12px;font-weight:400">%s</span></span></a></td><td>%s</td><td>%d / 30</td><td>%s</td>'
+                 '<td><span class="pill %s">%s</span>%s<div class="dim" style="font-size:12px;margin-top:3px">%s</div></td><td>%s</td>'
+                 '<td><form method="post" action="/staff/phone" style="display:flex;gap:6px;margin:0"><input type="hidden" name="pin" value="%s">'
+                 '<input name="phone" value="%s" inputmode="numeric" maxlength="13" placeholder="10-digit number" aria-label="WhatsApp number" style="width:128px;min-height:36px">'
+                 '<button class="btn sm">Save</button></form></td><td style="display:flex;gap:6px;justify-content:flex-end">%s'
                  '<a class="ibtn" href="/staff?edit=%s" aria-label="Edit">%s</a></td></tr>') % (
             ' style="opacity:.5"' if not s_["active"] else "", e(s_["pin"]), initials(s_["name"]), e(s_["name"] or "ID " + s_["pin"]),
             e(s_["role"] or ""), e(sh["name"]) if sh else '<span class="dim">No shift</span>', n30,
             ("%d clients" % loads.get((s_["name"] or "").lower(), 0)) if s_["role"] == "Trainer" else "—",
             pill, e(st), (' <span class="pill p-warn">Left early</span>' if early else ""),
             ("%s%s" % (fmt_t(first), (" → " + fmt_t(last)) if last else "")) if first else "", money(s_["salary"]) if s_["salary"] else "—",
+            e(s_["pin"]), e(s_["phone"] or ""),
             ('<a class="ibtn" href="tel:%s" aria-label="Call">%s</a>' % (e(s_["phone"]), icon("phone", 16))) if s_["phone"] else "",
             e(s_["pin"]), icon("edit", 16))
     # shift cards
@@ -1902,11 +1906,11 @@ Late is checked at the start of each part (rule below).</p>
 <a class="kpi" href="/salary"><div class="l">Salaries</div><div class="v" style="font-size:22px;margin-top:14px">Salary sheet →</div><div class="s">days from biometric</div></a></div>
 <div class="panel"><div class="ph"><h2>Shifts</h2></div><div class="kpis">%s</div></div><div class="two">%s%s</div>
 <div class="panel"><div class="ph"><h2>Team</h2><a href="/staff?all=1">Show people who left</a></div><div class="tw"><table>
-<tr><th>Name</th><th>Role</th><th>Shift</th><th>Present (30 d)</th><th>PT load</th><th>Today</th><th>In / out</th><th>Salary</th><th></th></tr>%s</table></div>
+<tr><th>Name</th><th>Shift</th><th>Present (30 d)</th><th>PT load</th><th>Today</th><th>Salary</th><th>WhatsApp</th><th></th></tr>%s</table></div>
 <p class="dim" style="font-size:12px;margin:12px 0 0">Staff come from the gate machine (IDs 10000+). Enroll a new staff finger on the machine with the next 100xx ID and they appear here.</p></div>""" % (
         edit_form, trainers_n, others, present, sh_cards or '<p class="dim">No shifts yet. Create one below.</p>', shift_form,
         admin_only(SH.rule_panel(conn)),
-        rows or '<tr><td colspan="9" class="dim">No staff found on the gate machine yet.</td></tr>')
+        rows or '<tr><td colspan="8" class="dim">No staff found on the gate machine yet.</td></tr>')
     return shell("Staff & trainers", "/staff", body, sub="Team, shifts, attendance and salary", msg=q.get("m", ""), cnt=counts(conn, sn))
 
 
@@ -1936,6 +1940,20 @@ def save_shift(conn, f):
         conn.execute("INSERT INTO shifts (name, start, end, days, grace, start2, end2) VALUES (?,?,?,?,?,?,?)",
                      (name, start, end, days, grace, s2, e2))
     return "Shift %s saved (%s – %s%s)." % (name, fmt_t(start), fmt_t(end), (", %s – %s" % (fmt_t(s2), fmt_t(e2))) if s2 else "")
+
+
+def save_staff_phone(conn, f):
+    init_staff(conn)
+    s_ = conn.execute("SELECT * FROM staff WHERE pin=?", (f.get("pin", ""),)).fetchone()
+    if not s_:
+        return "Staff not found."
+    d = re.sub(r"\D", "", f.get("phone") or "")
+    if len(d) == 12 and d.startswith("91"):
+        d = d[2:]
+    if d and (len(d) != 10 or d[0] not in "6789"):
+        return "Enter a 10-digit mobile number for %s." % s_["name"]
+    conn.execute("UPDATE staff SET phone=? WHERE pin=?", (d, s_["pin"]))
+    return ("WhatsApp number saved for %s: %s." % (s_["name"], d)) if d else "Number removed for %s." % s_["name"]
 
 
 def save_staff(conn, f):

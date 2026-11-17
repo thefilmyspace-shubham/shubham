@@ -44,6 +44,17 @@ KINDS = [  # key, label, default template, default on
     ("birthday", "Birthday wish",
      "Happy Birthday {name}! 🎂 House of Strength ki taraf se aapko dher saari shubhkamnayein. Aaj ka workout aapke naam!", "1"),
 ]
+STAFF_TEMPLATES = [  # late rule messages to staff; {n} = which late day this month
+    ("notice", "1st late in the month: Notice",
+     "Hi {name}, aaj ({date}) aap shift me {minutes} minute late aaye (shift {shift} se). Is mahine ka pehla late hai: NOTICE. "
+     "Kripya time pe aayein.\n- House of Strength"),
+    ("warning", "2nd late: Warning",
+     "Hi {name}, aaj ({date}) aap shift me {minutes} minute late aaye (shift {shift} se). Is mahine ka doosra late hai: WARNING. "
+     "Agli baar late aane pe {hours} ghante ki salary kategi.\n- House of Strength"),
+    ("deduct", "3rd and later: Pay cut",
+     "Hi {name}, aaj ({date}) aap shift me {minutes} minute late aaye (shift {shift} se). Is mahine ka {n}. late hai: niyam ke "
+     "hisaab se {hours} ghante ki salary ({amount}) kaati jayegi.\n- House of Strength"),
+]
 LABEL = dict({k: l for k, l, _, _ in KINDS}, staff="Staff late notice", test="Test")
 FIRST = ("test", "receipt", "form", "staff")  # sent before the daily reminders
 
@@ -58,6 +69,9 @@ def init(conn):
         defaults["wa_on_" + k] = on
         if t:
             defaults["wa_t_" + k] = t
+    defaults["wa_on_staff"] = "1"
+    for k, _, t in STAFF_TEMPLATES:
+        defaults["wa_t_staff_" + k] = t
     for k, v in defaults.items():
         conn.execute("INSERT OR IGNORE INTO settings VALUES (?, ?)", (k, v))
 
@@ -316,6 +330,13 @@ draw(%s);tick()})();</script>""" % json.dumps(st.get("qr", "") if state == "qr" 
                                                                   if k == "receipt" else "Sent from the Joining forms page, with the PDF attached."))
         kinds += '<div style="border-top:1px solid var(--line);padding-top:12px"><label class="chk"><input type="checkbox" name="wa_on_%s" value="1"%s><b>%s</b></label>%s</div>' % (
             k, " checked" if S("wa_on_" + k) == "1" else "", e(label), tpl)
+    kinds += ('<div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px">'
+              '<label class="chk"><input type="checkbox" name="wa_on_staff" value="1"%s><b>Staff late notice</b></label>'
+              '<div class="dim" style="font-size:12px">Goes to the staff member (number on the Staff &amp; Trainers page) when they come late. '
+              'In the texts: {name} first name, {date}, {minutes} late, {shift} start time, {n} which late this month, {hours} hours cut, {amount} rupees cut.</div>%s</div>') % (
+        " checked" if S("wa_on_staff", "1") == "1" else "",
+        "".join('<label>%s<textarea name="wa_t_staff_%s" rows="3" style="width:100%%">%s</textarea></label>' % (e(l), k, e(S("wa_t_staff_" + k, t)))
+                for k, l, t in STAFF_TEMPLATES))
     counts_ = dict(conn.execute("SELECT status, COUNT(*) FROM wa_queue WHERE substr(created_at,1,10)=? OR status='queued' GROUP BY status",
                                 (M.today().isoformat(),)).fetchall())
     names = U.member_names(conn)
@@ -386,5 +407,9 @@ def save(conn, f):
         M.set_setting(conn, "wa_on_" + k, "1" if f.get("wa_on_" + k) == "1" else "0")
         if t and (f.get("wa_t_" + k) or "").strip():
             M.set_setting(conn, "wa_t_" + k, f["wa_t_" + k].strip()[:1000])
+    M.set_setting(conn, "wa_on_staff", "1" if f.get("wa_on_staff") == "1" else "0")
+    for k, _, _ in STAFF_TEMPLATES:
+        if (f.get("wa_t_staff_" + k) or "").strip():
+            M.set_setting(conn, "wa_t_staff_" + k, f["wa_t_staff_" + k].strip()[:1000])
     _wake.set()
     return "WhatsApp settings saved. Automatic sending is %s." % ("ON" if f.get("wa_auto") == "1" else "OFF")

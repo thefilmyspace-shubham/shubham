@@ -156,15 +156,15 @@ def hourly_rate(salary, shift, month_first):
 # ---------------- the late rule ----------------
 
 def _staff_text(conn, name, d, minutes, start, step, n, cut_hours, amount):
-    first = (name or "").split(" ")[0].title()
-    head = "Hi %s, aaj (%s) aap shift me %d minute late aaye (shift %s se)." % (first, d.strftime("%d %b"), minutes, start)
-    if step == "notice":
-        tail = "Is mahine ka pehla late hai: NOTICE. Kripya time pe aayein."
-    elif step == "warning":
-        tail = "Is mahine ka doosra late hai: WARNING. Agli baar late aane pe %g ghante ki salary kategi." % cut_hours
-    else:
-        tail = "Is mahine ka %d. late hai: niyam ke hisaab se %g ghante ki salary (₹%d) kaati jayegi." % (n, cut_hours, round(amount))
-    return "%s %s\n- House of Strength" % (head, tail)
+    """The WhatsApp text for a late day, from the templates on the WhatsApp page."""
+    import whatsapp as W
+    dflt = {k: t for k, _, t in W.STAFF_TEMPLATES}
+    text = M.setting(conn, "wa_t_staff_" + step, "") or dflt.get(step, dflt["notice"])
+    vals = {"name": (name or "").split(" ")[0].title(), "date": d.strftime("%d %b"), "minutes": minutes, "shift": start,
+            "n": n, "hours": "%g" % cut_hours, "amount": "₹%d" % round(amount)}
+    for k, v in vals.items():
+        text = text.replace("{%s}" % k, str(v))
+    return text
 
 
 def check_day(conn, d, notify=True):
@@ -194,7 +194,7 @@ def check_day(conn, d, notify=True):
         conn.execute("INSERT INTO staff_late (pin, day, minutes, step, hours_cut, created_at) VALUES (?,?,?,?,?,?)",
                      (s["pin"], M.iso(d), info["late"], step, hours, M.stamp()))
         new += 1
-        if notify and W and s["phone"]:
+        if notify and W and s["phone"] and M.setting(conn, "wa_on_staff", "1") == "1":
             amount = hours * hourly_rate(s["salary"], sh, d.replace(day=1))
             start = clock(info.get("late_start"))
             W.enqueue(conn, "staff", 0, s["phone"], _staff_text(conn, s["name"], d, info["late"], start, step, n, cut_hours, amount),
