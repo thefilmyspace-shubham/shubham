@@ -280,19 +280,25 @@ def page(conn, sn, q):
         conn_html = ('<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="pill p-ok">Linked</span>'
                      '<b>+%s</b><form method="post" action="/whatsapp/save" onsubmit="return confirm(\'Unlink this number from the app?\')">'
                      '<button class="btn sm" name="do" value="logout">Unlink number</button></form></div>' % e(st.get("me", "")))
-    elif state == "qr":
-        conn_html = """<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div id="waqr" style="background:#fff;padding:10px;border-radius:12px;width:240px;height:240px"></div>
-<ol style="margin:0;padding-left:18px;line-height:1.9"><li>Open WhatsApp on the <b>gym's separate phone</b> (not the main number).</li>
-<li>Tap <b>⋮ → Linked devices → Link a device</b>.</li><li>Scan this QR. This page updates by itself.</li></ol></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script>try{new QRCode(document.getElementById('waqr'),{text:%s,width:220,height:220,correctLevel:QRCode.CorrectLevel.L})}catch(x){}
-setTimeout(function(){location.reload()},20000)</script>""" % json.dumps(st.get("qr", ""))
     elif state == "off":
         conn_html = ('<div class="warn" style="margin:0">The WhatsApp service is not running on the server. '
                      'Run the WhatsApp setup commands once (see README), then refresh.</div>')
     else:
-        conn_html = ('<div><span class="pill p-warn">%s</span> <span class="dim">%s</span></div><script>setTimeout(function(){location.reload()},6000)</script>'
-                     % (e(state.replace("_", " ").title()), e(st.get("lastError", "")[:120])))
+        # Not linked yet: show the QR and keep it fresh without reloading the page, so a scan is never cut off.
+        conn_html = """<div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:8px;align-items:center"><div id="waqr" style="background:#fff;padding:10px;border-radius:12px;width:260px;height:260px;display:flex;align-items:center;justify-content:center;color:#555;font-size:13px">Getting QR…</div>
+<span id="wast" class="dim" style="font-size:12px"></span></div>
+<ol style="margin:0;padding-left:18px;line-height:1.9;flex:1;min-width:220px"><li>Open WhatsApp on the <b>gym's separate phone</b> (not the main number).</li>
+<li>Tap <b>⋮ → Linked devices → Link a device</b>.</li><li>Scan this QR. It changes by itself every ~20 seconds; the page does not reload.</li>
+<li>After the scan wait 10-20 seconds; this box turns into <b>Linked</b>.</li></ol></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>(function(){var last='',box=document.getElementById('waqr'),st=document.getElementById('wast');
+function draw(q){if(q===last){return}last=q;box.innerHTML='';try{new QRCode(box,{text:q,width:240,height:240,correctLevel:QRCode.CorrectLevel.L})}catch(x){box.textContent='QR could not be drawn.'}}
+function tick(){fetch('/whatsapp/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+if(d.state==='connected'){st.textContent='Linked! Opening…';location.reload();return}
+if(d.state==='qr'&&d.qr){draw(d.qr);st.textContent='Scan now'}else{st.textContent=(d.state||'').replace('_',' ')+'… new QR coming'}
+setTimeout(tick,3000)}).catch(function(){setTimeout(tick,5000)})}
+draw(%s);tick()})();</script>""" % json.dumps(st.get("qr", "") if state == "qr" else "")
     auto = S("wa_auto", "0") == "1"
     kinds = ""
     for k, label, t, _ in KINDS:

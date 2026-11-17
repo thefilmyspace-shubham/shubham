@@ -249,6 +249,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/join":
             with DB_LOCK, db() as conn:
                 return self.send_text(J.public_page(conn), ctype="text/html")
+        if path == "/whatsapp/status":
+            st = W.status()
+            return self.send_text(json.dumps({"state": st.get("state", "off"), "qr": st.get("qr", ""), "me": st.get("me", "")}),
+                                  ctype="application/json")
         if path in ("/joinings", "/joinings/view", "/whatsapp"):
             q["_base"] = "http://" + (self.headers.get("Host") or "34.63.254.31:8081")
             with DB_LOCK, db() as conn:
