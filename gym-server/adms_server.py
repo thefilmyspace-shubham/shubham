@@ -268,7 +268,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", "text/csv; charset=utf-8")
                 self.send_header("Content-Disposition", 'attachment; filename="hos-%s-%s.csv"' % (
-                    path.strip("/").split(".")[0], datetime.date.today().isoformat()))
+                    path.strip("/").split(".")[0].replace("/", "-"), datetime.date.today().isoformat()))
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -361,6 +361,12 @@ class Handler(BaseHTTPRequestHandler):
                         return self.set_session(A.new_session(conn, "owner"), "/")
                     return self.redirect("/login?" + urlencode({"err": "Wrong owner password."}))
             return self.redirect("/login")
+        if path == "/expenses/save":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                msg = U.save_expense(conn, f)
+                A.log(conn, "expense", msg)
+            return self.redirect("/expenses?" + urlencode({"m": msg}))
         if path in ("/settings/save", "/packages/save"):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:

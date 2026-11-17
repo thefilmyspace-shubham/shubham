@@ -283,7 +283,7 @@ NAV = [
     ("/attendance", "Attendance", "finger", None), ("/renewals", "Renewals", "renew", "renewals"),
     ("/pending", "Pending Payments", "rupee", "pending"), ("/absent", "Absent Members", "alert", "absent"),
     ("/soon?p=Inquiries", "Inquiries", "chat", None), ("/packages", "Packages", "box", None),
-    ("/soon?p=Staff", "Staff & Trainers", "staff", None), ("/soon?p=Reports", "Reports", "chart", None),
+    ("/soon?p=Staff", "Staff & Trainers", "staff", None), ("/reports", "Reports", "chart", None), ("/expenses", "Expenses", "rupee", None),
 ]
 SYSTEM = [("/users", "Staff logins", "staff"), ("/activity", "Activity log", "chart"), ("/sync", "Door sync", "door"),
           ("/gate", "Gate machine", "server"), ("/settings", "Settings", "gear"), ("/backup", "Backup", "down")]
@@ -1397,13 +1397,215 @@ def trainer_page(conn, sn, q):
     return shell("My PT clients", "/trainer", body, sub="Trainer: %s" % e(me_.get("trainer") or me_.get("name") or ""))
 
 
+# ---------------- reports ----------------
+
+EXPENSE_CATS = ["Rent", "Electricity", "Salaries", "Equipment", "Repairs", "Marketing", "Cleaning", "Other"]
+
+
+def init_expenses(conn):
+    conn.execute("""CREATE TABLE IF NOT EXISTS expenses (id INTEGER PRIMARY KEY, spent_on TEXT, category TEXT, amount REAL,
+        paid_to TEXT, mode TEXT, note TEXT, created_by TEXT, created_at TEXT)""")
+
+
+def period(q):
+    t = M.today()
+    p = q.get("p", "month")
+    if p == "last":
+        end = t.replace(day=1) - datetime.timedelta(days=1)
+        return p, end.replace(day=1), end, end.strftime("%B %Y")
+    if p == "year":
+        return p, t.replace(month=1, day=1), t, "This year"
+    if p == "all":
+        return p, datetime.date(2015, 1, 1), t, "All time"
+    if p == "custom":
+        a, b = M.parse_date(q.get("from")), M.parse_date(q.get("to"))
+        if a and b and a <= b:
+            return p, a, b, "%s – %s" % (a.strftime("%d %b %Y"), b.strftime("%d %b %Y"))
+    return "month", t.replace(day=1), t, t.strftime("%B %Y")
+
+
+def reports(conn, sn, q):
+    init_expenses(conn)
+    p, a, b, label = period(q)
+    A_, B_ = M.iso(a), M.iso(b)
+    col = conn.execute("SELECT COALESCE(SUM(amount),0), COUNT(*) FROM payments WHERE paid_on BETWEEN ? AND ?", (A_, B_)).fetchone()
+    bills = conn.execute("SELECT COUNT(*) FROM payments WHERE paid_on BETWEEN ? AND ? AND kind != 'due'", (A_, B_)).fetchone()[0]
+    newm = conn.execute("SELECT COUNT(*) FROM members WHERE registration BETWEEN ? AND ?", (A_, B_)).fetchone()[0]
+    visits = conn.execute("SELECT COUNT(DISTINCT pin || substr(ts,1,10)) FROM punches WHERE substr(ts,1,10) BETWEEN ? AND ? "
+                          "AND CAST(pin AS INT) < ? AND status != '1'", (A_, B_, STAFF_FROM)).fetchone()[0]
+    exp = conn.execute("SELECT COALESCE(SUM(amount),0) FROM expenses WHERE spent_on BETWEEN ? AND ?", (A_, B_)).fetchone()[0]
+    sal = conn.execute("SELECT COALESCE(SUM(amount),0) FROM expenses WHERE spent_on BETWEEN ? AND ? AND category='Salaries'",
+                       (A_, B_)).fetchone()[0]
+    pk = conn.execute("SELECT lower(trim(package)) p, COUNT(*) n FROM payments WHERE paid_on BETWEEN ? AND ? AND kind != 'due' "
+                      "GROUP BY p ORDER BY n DESC", (A_, B_)).fetchall()
+    top = pk[:5]
+    others = sum(r[1] for r in pk[5:])
+    most = max([r[1] for r in pk] + [1])
+    buy = "".join('<div style="display:flex;align-items:center;gap:12px;margin:8px 0"><span style="width:130px">%s</span>'
+                  '<span style="flex:1;height:10px;background:var(--card2);border-radius:5px;overflow:hidden"><i style="display:block;height:100%%;width:%d%%;background:var(--red)"></i></span>'
+                  '<b style="width:40px;text-align:right">%d</b></div>' % (e(nice(n)), int(100 * c / most), c)
+                  for n, c in top + ([("Others", others)] if others else [])) or '<p class="dim">No bills in this period.</p>'
+    disc = conn.execute("SELECT COALESCE(SUM(list_price),0), COALESCE(SUM(payable),0), SUM(discount > 0), COUNT(*) FROM payments "
+                        "WHERE paid_on BETWEEN ? AND ? AND kind != 'due'", (A_, B_)).fetchone()
+    modes = conn.execute("SELECT COALESCE(NULLIF(mode,''),'Not recorded'), COALESCE(SUM(amount),0), COUNT(*) FROM payments "
+                         "WHERE paid_on BETWEEN ? AND ? GROUP BY 1 ORDER BY 2 DESC", (A_, B_)).fetchall()
+    days = conn.execute("SELECT paid_on, COALESCE(SUM(amount),0), COUNT(*) FROM payments WHERE paid_on BETWEEN ? AND ? "
+                        "GROUP BY paid_on ORDER BY paid_on DESC LIMIT 62", (A_, B_)).fetchall()
+    tabs = "".join('<a href="/reports?p=%s"%s>%s</a>' % (k, ' class="on"' if k == p else "", l)
+                   for k, l in (("month", "This month"), ("last", "Last month"), ("year", "This year"), ("all", "All time")))
+    custom = ('<form method="get" action="/reports" class="row" style="margin:0"><input type="hidden" name="p" value="custom">'
+              '<input type="date" name="from" value="%s" aria-label="From"><input type="date" name="to" value="%s" aria-label="To">'
+              '<button class="btn sm">Custom</button></form>' % (A_ if p == "custom" else "", B_ if p == "custom" else ""))
+    rng = urlencode({"from": A_, "to": B_})
+    dl = [("Collection", "Day-wise money in", "/reports/collection.csv?" + rng), ("Bills", "Every bill with discount & balance", "/reports/bills.csv?" + rng),
+          ("Members", "Full member list", "/members.csv"), ("Attendance", "Members, staff, trainers", "/attendance.csv"),
+          ("Renewals", "Due this month", "/renewals.csv?t=month"), ("Pending dues", "Who owes what", "/pending.csv"),
+          ("Expenses", "Every expense", "/reports/expenses.csv?" + rng)]
+    downloads = "".join('<a class="kpi" href="%s" style="display:flex;justify-content:space-between;align-items:center;gap:10px">'
+                        '<span><b>%s</b><br><span class="dim" style="font-size:12px">%s</span></span>%s</a>' % (h, t_, s_, icon("down"))
+                        for t_, s_, h in dl)
+    profit = col[0] - exp
+    body = """<div class="ph" style="flex-wrap:wrap"><div class="tabs">%s</div>%s</div>
+<div class="kpis"><div class="kpi hot"><div class="l">Collection</div><div class="v">%s</div><div class="s">%s</div></div>
+<div class="kpi"><div class="l">Bills</div><div class="v">%s</div><div class="s">avg %s</div></div>
+<div class="kpi"><div class="l">New members</div><div class="v">%s</div><div class="s">joined in this period</div></div>
+<div class="kpi"><div class="l">Check-ins</div><div class="v">%s</div><div class="s">member visits</div></div></div>
+<div class="kpis"><div class="kpi"><div class="l">Expenses</div><div class="v">%s</div><div class="s">of which salaries %s</div></div>
+<div class="kpi" style="%s"><div class="l">Profit</div><div class="v">%s</div><div class="s">collection − expenses (incl. salaries)</div></div>
+<a class="kpi" href="/expenses"><div class="l">Add expenses</div><div class="v" style="font-size:22px;margin-top:14px">Open expenses →</div><div class="s">rent, bijli, salary…</div></a></div>
+<div class="two"><div class="panel"><div class="ph"><h2>What members buy · %d bills</h2></div>%s</div>
+<div class="panel"><div class="ph"><h2>Discount check</h2></div><div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+<div class="kpi"><div class="l">List price</div><div class="v">%s</div><div class="s">%d bills</div></div>
+<div class="kpi"><div class="l">Actually billed</div><div class="v">%s</div><div class="s">after discount</div></div></div>
+<p class="dim" style="margin:12px 0 0">%d of %d bills had a discount%s. Reception's limit is set in Settings.</p></div></div>
+<div class="two"><div class="panel"><div class="ph"><h2>By payment mode</h2></div><table><tr><th>Mode</th><th>Bills</th><th style="text-align:right">Amount</th></tr>%s</table></div>
+<div class="panel"><div class="ph"><h2>Day by day</h2></div><div class="tw" style="max-height:360px;overflow-y:auto"><table><tr><th>Date</th><th>Bills</th><th style="text-align:right">Amount</th></tr>%s</table></div></div></div>
+<div class="panel"><div class="ph"><h2>Download reports (Excel)</h2></div><div class="kpis">%s</div></div>""" % (
+        tabs, custom, money(col[0]), e(label), inr(bills), money(col[0] / bills) if bills else "₹0", inr(newm), inr(visits),
+        money(exp), money(sal), "border-color:#14532d" if profit >= 0 else "border-color:#7f1d1d", money(profit),
+        bills, buy, money(disc[0]), disc[3] or 0, money(disc[1]), disc[2] or 0, disc[3] or 0,
+        (" (avg %d%% off list)" % round(100 * (1 - disc[1] / disc[0]))) if disc[0] else "",
+        "".join("<tr><td>%s</td><td>%d</td><td style=\"text-align:right\">%s</td></tr>" % (e(m_), n, money(v)) for m_, v, n in modes)
+        or '<tr><td class="dim" colspan="3">—</td></tr>',
+        "".join("<tr><td>%s</td><td>%d</td><td style=\"text-align:right\">%s</td></tr>" % (short_date(d), n, money(v)) for d, v, n in days)
+        or '<tr><td class="dim" colspan="3">—</td></tr>', downloads)
+    return shell("Reports", "/reports", body, sub="Numbers for any period, ready to export", msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
+def _range(q):
+    t = M.today()
+    return M.iso(M.parse_date(q.get("from")) or t.replace(day=1)), M.iso(M.parse_date(q.get("to")) or t)
+
+
+def collection_csv(conn, sn, q):
+    a, b = _range(q)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Date", "Bills", "Cash", "UPI", "Card", "Online", "Other", "Total"])
+    for d, in conn.execute("SELECT DISTINCT paid_on FROM payments WHERE paid_on BETWEEN ? AND ? ORDER BY paid_on", (a, b)).fetchall():
+        rows = conn.execute("SELECT lower(mode), SUM(amount), COUNT(*) FROM payments WHERE paid_on=? GROUP BY 1", (d,)).fetchall()
+        by = {r[0] or "": r[1] for r in rows}
+        known = sum(by.get(k, 0) for k in ("cash", "upi", "card", "online"))
+        total = sum(r[1] for r in rows)
+        w.writerow([short_date(d), sum(r[2] for r in rows)] + ["%g" % by.get(k, 0) for k in ("cash", "upi", "card", "online")]
+                   + ["%g" % (total - known), "%g" % total])
+    return "﻿" + buf.getvalue()
+
+
+def bills_csv(conn, sn, q):
+    a, b = _range(q)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Invoice", "Date", "Member ID", "Name", "Package", "Start", "End", "Trainer", "List price", "Discount",
+                "Admission", "GST", "Payable", "Paid", "Balance", "Mode", "Prepared by"])
+    for p in conn.execute("SELECT p.*, m.name FROM payments p LEFT JOIN members m ON m.client_id = p.client_id "
+                          "WHERE paid_on BETWEEN ? AND ? ORDER BY paid_on, p.id", (a, b)):
+        w.writerow([p["invoice"] or "", short_date(p["paid_on"]), member_id(p["client_id"]), nice(p["name"] or ""), p["package"],
+                    short_date(p["start"]), short_date(p["expiry"]), p["trainer"] or "", "%g" % (p["list_price"] or 0),
+                    "%g" % (p["discount"] or 0), "%g" % (p["admission"] or 0), "%g" % (p["gst"] or 0), "%g" % (p["payable"] or 0),
+                    "%g" % (p["amount"] or 0), "%g" % (p["balance"] or 0), p["mode"] or "", p["created_by"] or ""])
+    return "﻿" + buf.getvalue()
+
+
+def expenses_csv(conn, sn, q):
+    init_expenses(conn)
+    a, b = _range(q)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Date", "Category", "Amount", "Paid to", "Mode", "Note", "Added by"])
+    for x in conn.execute("SELECT * FROM expenses WHERE spent_on BETWEEN ? AND ? ORDER BY spent_on", (a, b)):
+        w.writerow([short_date(x["spent_on"]), x["category"], "%g" % x["amount"], x["paid_to"], x["mode"], x["note"], x["created_by"]])
+    return "﻿" + buf.getvalue()
+
+
+# ---------------- expenses ----------------
+
+def expenses_page(conn, sn, q):
+    init_expenses(conn)
+    p, a, b, label = period(q)
+    A_, B_ = M.iso(a), M.iso(b)
+    rows = conn.execute("SELECT * FROM expenses WHERE spent_on BETWEEN ? AND ? ORDER BY spent_on DESC, id DESC", (A_, B_)).fetchall()
+    total = sum(r["amount"] for r in rows)
+    bycat = {}
+    for r in rows:
+        bycat[r["category"]] = bycat.get(r["category"], 0) + r["amount"]
+    col = conn.execute("SELECT COALESCE(SUM(amount),0) FROM payments WHERE paid_on BETWEEN ? AND ?", (A_, B_)).fetchone()[0]
+    tabs = "".join('<a href="/expenses?p=%s"%s>%s</a>' % (k, ' class="on"' if k == p else "", l)
+                   for k, l in (("month", "This month"), ("last", "Last month"), ("year", "This year"), ("all", "All time")))
+    trs = "".join('<tr><td>%s</td><td>%s</td><td>%s</td><td class="dim">%s</td><td class="dim">%s</td><td style="text-align:right"><b>%s</b></td>'
+                  '<td><form method="post" action="/expenses/save" onsubmit="return confirm(\'Delete this expense?\')">'
+                  '<input type="hidden" name="delete" value="%d"><button class="btn sm" aria-label="Delete">✕</button></form></td></tr>' % (
+                      short_date(r["spent_on"]), e(r["category"]), e(r["paid_to"] or ""), e(r["mode"] or ""), e(r["note"] or ""),
+                      money(r["amount"]), r["id"]) for r in rows) or '<tr><td colspan="7" class="dim">No expenses in this period.</td></tr>'
+    cats = "".join('<div class="kpi"><div class="l">%s</div><div class="v" style="font-size:26px">%s</div></div>' % (e(c), money(v))
+                   for c, v in sorted(bycat.items(), key=lambda x: -x[1]))
+    body = """<div class="ph" style="flex-wrap:wrap"><div class="tabs">%s</div><span class="dim">%s</span></div>
+<div class="kpis"><div class="kpi"><div class="l">Collection</div><div class="v">%s</div></div>
+<div class="kpi hot"><div class="l">Expenses</div><div class="v">%s</div><div class="s">%d entries</div></div>
+<div class="kpi"><div class="l">Profit</div><div class="v">%s</div><div class="s">collection − expenses</div></div></div>
+<form class="panel" method="post" action="/expenses/save" style="display:flex;flex-direction:column;gap:14px"><h2>Add expense</h2><div class="grid">
+<label>Date<input type="date" name="spent_on" value="%s" required></label>
+<label>Category<select name="category">%s</select></label>
+<label>Amount (₹)<input name="amount" inputmode="decimal" required></label>
+<label>Paid to<input name="paid_to" placeholder="e.g. MPEB, landlord, trainer name"></label>
+<label>Mode<select name="mode"><option>UPI</option><option>Cash</option><option>Bank</option><option>Card</option></select></label>
+<label>Note<input name="note"></label></div><button class="btn red" style="align-self:flex-start">Save expense</button>
+<p class="dim" style="margin:0;font-size:12px">Salaries paid go in category "Salaries" so profit is right.</p></form>
+%s<div class="panel"><div class="ph"><h2>Expenses · %s</h2>%s</div><div class="tw"><table>
+<tr><th>Date</th><th>Category</th><th>Paid to</th><th>Mode</th><th>Note</th><th style="text-align:right">Amount</th><th></th></tr>%s</table></div></div>""" % (
+        tabs, e(label), money(col), money(total), len(rows), money(col - total), M.iso(M.today()),
+        "".join("<option>%s</option>" % c for c in EXPENSE_CATS),
+        ('<div class="kpis">%s</div>' % cats) if cats else "", e(label),
+        '<a class="btn sm" href="/reports/expenses.csv?%s">%sExport</a>' % (urlencode({"from": A_, "to": B_}), icon("down", 16)), trs)
+    return shell("Expenses", "/expenses", body, sub="Kharcha, and what is left as profit", msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
+def save_expense(conn, f):
+    init_expenses(conn)
+    if f.get("delete", "").isdigit():
+        r = conn.execute("SELECT * FROM expenses WHERE id=?", (int(f["delete"]),)).fetchone()
+        conn.execute("DELETE FROM expenses WHERE id=?", (int(f["delete"]),))
+        return "Deleted %s %s." % (r["category"], money(r["amount"])) if r else "Deleted."
+    amt = num(f.get("amount"))
+    d = M.parse_date(f.get("spent_on")) or M.today()
+    cat = f.get("category") if f.get("category") in EXPENSE_CATS else "Other"
+    if amt <= 0:
+        return "Enter an amount."
+    conn.execute("INSERT INTO expenses (spent_on, category, amount, paid_to, mode, note, created_by, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                 (M.iso(d), cat, amt, (f.get("paid_to") or "").strip(), f.get("mode", ""), (f.get("note") or "").strip(),
+                  staff_name(), M.stamp()))
+    return "Saved %s %s." % (cat, money(amt))
+
+
 # ---------------- routing ----------------
 
 GET_PAGES = {"/": dashboard, "/members": members_list, "/m": profile, "/bill": bill_page, "/receipt": receipt,
              "/soon": soon, "/attendance": attendance, "/renewals": renewals, "/pending": pending, "/absent": absent,
-             "/collect": collect_page, "/trainer": trainer_page, "/settings": settings_page, "/packages": packages_page}
+             "/collect": collect_page, "/trainer": trainer_page, "/settings": settings_page, "/packages": packages_page,
+             "/reports": reports, "/expenses": expenses_page}
 CSV_PAGES = {"/members.csv": members_csv, "/attendance.csv": attendance_csv, "/renewals.csv": renewals_csv,
-             "/pending.csv": pending_csv}
+             "/pending.csv": pending_csv, "/reports/collection.csv": collection_csv, "/reports/bills.csv": bills_csv,
+             "/reports/expenses.csv": expenses_csv}
 
 
 def handle_get(path, q, conn, sn):
