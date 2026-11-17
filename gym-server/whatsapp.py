@@ -183,19 +183,25 @@ def sent_today(conn):
                         (M.today().isoformat(),)).fetchone()[0]
 
 
-def _next(conn):
+def _next(conn, kinds=None):
     order = " ".join("WHEN '%s' THEN %d" % (k, i) for i, k in enumerate(FIRST))
-    return conn.execute("SELECT * FROM wa_queue WHERE status='queued' ORDER BY CASE kind %s ELSE 9 END, id LIMIT 1" % order).fetchone()
+    where = (" AND kind IN (%s)" % ",".join("'%s'" % k for k in kinds)) if kinds else ""
+    return conn.execute("SELECT * FROM wa_queue WHERE status='queued'%s ORDER BY CASE kind %s ELSE 9 END, id LIMIT 1"
+                        % (where, order)).fetchone()
 
 
-def _send_one(db_path):
-    """Send the next queued message if allowed now. Returns True when one was attempted."""
+def _send_one(db_path, priority_only=False):
+    """Send the next queued message if allowed now. Returns the kind sent (or tried), else "".
+
+    Messages staff start themselves (test, receipt, joining form) go at once. The daily
+    reminders go only when automatic sending is on, inside the hours and the daily limit.
+    A test message goes even while automatic sending is off, so the link can be checked first.
+    """
     conn = sqlite3.connect(db_path, timeout=10)
     conn.row_factory = sqlite3.Row
     try:
         S = lambda k, d="": M.setting(conn, k, d)
-        if S("wa_auto", "0") != "1":
-            return False
+        auto = S("wa_auto", "0") == "1"
         st = status()
         if st.get("optouts"):
             have = optouts(conn)
@@ -206,15 +212,14 @@ def _send_one(db_path):
                              % ",".join("?" * len(new)), tuple(new))
                 conn.commit()
         if st.get("state") != "connected":
-            return False
-        hour = datetime.datetime.now().hour
-        if not (int(S("wa_from", "9")) <= hour < int(S("wa_to", "20"))):
-            return False
-        if sent_today(conn) >= int(S("wa_cap", "40") or 40):
-            return False
-        row = _next(conn)
+            return ""
+        row = _next(conn, FIRST if auto else ("test",))
+        if not row and auto and not priority_only:
+            hour = datetime.datetime.now().hour
+            if int(S("wa_from", "9")) <= hour < int(S("wa_to", "20")) and sent_today(conn) < int(S("wa_cap", "40") or 40):
+                row = _next(conn)
         if not row:
-            return False
+            return ""
         payload = {"to": row["phone"], "text": row["text"]}
         if row["doc"]:
             path = os.path.join(HERE, os.path.basename(row["doc"]))
@@ -235,19 +240,20 @@ def _send_one(db_path):
         if res.get("ok"):
             conn.execute("UPDATE wa_queue SET status='sent', sent_at=?, error='' WHERE id=?", (M.stamp(), row["id"]))
         elif res.get("error") == "not connected":
-            pass  # stays queued
+            return ""  # stays queued; try again when linked
         else:
             conn.execute("UPDATE wa_queue SET status='failed', sent_at=?, error=? WHERE id=?",
                          (M.stamp(), str(res.get("error", ""))[:200], row["id"]))
         conn.commit()
     finally:
         conn.close()
-    return True
+    return row["kind"]
 
 
 def loop(db_path):
+    next_reminder = 0.0  # reminders keep a 1-3 minute gap; staff messages never wait for it
     while True:
-        gap = 60
+        _wake.clear()  # anything queued from now on wakes the wait below
         try:
             conn = sqlite3.connect(db_path, timeout=10)
             conn.row_factory = sqlite3.Row
@@ -259,12 +265,15 @@ def loop(db_path):
                     conn.commit()
             finally:
                 conn.close()
-            if _send_one(db_path):
-                gap = random.randint(60, 180)  # one message every 1-3 minutes
+            kind = _send_one(db_path, priority_only=time.time() < next_reminder)
+            if kind in FIRST:
+                continue  # more staff messages may be waiting: go again at once
+            if kind:
+                next_reminder = time.time() + random.randint(60, 180)
         except Exception as exc:
             print("whatsapp loop error: %s" % exc, flush=True)
-        _wake.clear()
-        _wake.wait(gap) if gap == 60 else time.sleep(gap)
+        wait = 60 if time.time() >= next_reminder else min(60, max(1, next_reminder - time.time()))
+        _wake.wait(wait)
 
 
 # ---------------- page ----------------
@@ -322,7 +331,7 @@ draw(%s);tick()})();</script>""" % json.dumps(st.get("qr", "") if state == "qr" 
 that sends too much. Keep the daily limit low. Members who reply <b>STOP</b> are never messaged again.</div></div>
 <div class="panel" style="display:flex;flex-direction:column;gap:10px"><div class="ph" style="margin:0"><h2>Today</h2></div>
 <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="l">Sent</div><div class="v">%d</div><div class="s">limit %s a day</div></div>
-<div class="kpi"><div class="l">Waiting</div><div class="v">%d</div><div class="s">1 every 1-3 min</div></div>
+<div class="kpi"><div class="l">Waiting</div><div class="v">%d</div><div class="s">reminders: 1 every 1-3 min</div></div>
 <div class="kpi"><div class="l">Failed</div><div class="v">%d</div><div class="s">see list</div></div></div>
 <form method="post" action="/whatsapp/save" style="display:flex;gap:8px;flex-wrap:wrap;margin:0"><button class="btn sm" name="do" value="plan">Plan today's reminders now</button>
 <button class="btn sm" name="do" value="clear" onclick="return confirm('Remove every waiting message?')">Remove waiting</button></form>
@@ -366,7 +375,7 @@ def save(conn, f):
         return "%d waiting messages removed." % n
     if do == "test":
         ok = enqueue(conn, "test", 0, f.get("test_phone"), "Test message from the House of Strength app. ✅", M.stamp())
-        return "Test queued; it goes in about a minute." if ok else "Enter a valid 10-digit number."
+        return "Test is on its way; it reaches the phone in a few seconds." if ok else "Enter a valid 10-digit number."
     M.set_setting(conn, "wa_auto", "1" if f.get("wa_auto") == "1" else "0")
     M.set_setting(conn, "wa_cap", _int(f.get("wa_cap"), 1, 200, 40))
     M.set_setting(conn, "wa_from", _int(f.get("wa_from"), 0, 23, 9))

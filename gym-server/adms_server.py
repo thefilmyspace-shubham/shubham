@@ -426,7 +426,7 @@ class Handler(BaseHTTPRequestHandler):
                 if W.ready(conn):
                     ok = W.enqueue(conn, "form", 0, f.get("phone"), text, M.stamp(), doc="joining_form.pdf") \
                         if M.setting(conn, "wa_on_form", "1") == "1" else False
-                    msg = "Joining form will go on WhatsApp in a minute." if ok else "Enter a valid 10-digit mobile number."
+                    msg = "Joining form is going on WhatsApp now." if ok else "Enter a valid 10-digit mobile number."
                     A.log(conn, "joining form sent", msg)
                     return self.redirect("/joinings?" + urlencode({"m": msg}))
                 wa_link = M.wa_link(f.get("phone"), text)
@@ -548,7 +548,7 @@ class Handler(BaseHTTPRequestHandler):
                         text, m = U.receipt_text(conn, inv)
                         if m and W.enqueue(conn, "receipt", m["client_id"], m["phone"], text, inv):
                             f["send_wa"] = ""
-                            msg += " Receipt goes on WhatsApp in a minute."
+                            msg += " Receipt is going on WhatsApp now."
                 A.log(conn, "bill saved" if inv else "bill refused", "%s · %s · discount %s" % (
                     msg, f.get("member", ""), f.get("discount", "0")))
             if not inv:
