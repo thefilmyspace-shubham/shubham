@@ -15,7 +15,7 @@ try:
 except ImportError:  # the app still runs; AI buttons say it is not set up
     anthropic = None
 
-MODEL = os.environ.get("HOS_AI_MODEL", "claude-opus-5-5")
+MODEL = os.environ.get("HOS_AI_MODEL", "claude-haiku-5-5")
 MODES = ["UPI", "Cash", "Card", "Online"]
 
 
@@ -32,11 +32,10 @@ def _ask(system, text, schema):
     if not available():
         return None, "AI is not set up on the server yet."
     try:
-        resp = _client().beta.messages.create(
+        # Claude Haiku 5.5: no server-side fallback exists for it, so a refusal is handled below.
+        resp = _client().messages.create(
             model=MODEL,
             max_tokens=4000,
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
             system=system,
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": schema}},
             messages=[{"role": "user", "content": text}],
