@@ -294,6 +294,10 @@ def save_member(conn, sn, f):
         "expiry=excluded.expiry, updated_at=excluded.updated_at",
         (cid, name, phone, gender, iso(today()) if not old else old["registration"], package, expiry,
          old["notes"] if old else "", stamp()))
+    if "dob" in f:
+        import birthdays as BD
+        d = BD.parse_dob(f.get("dob"))
+        conn.execute("UPDATE members SET dob=? WHERE client_id=?", (d.isoformat() if d else "", cid))
     pend = (f.get("pending") or "").replace(",", "").strip()
     if pend:
         try:
@@ -444,6 +448,7 @@ def member_page(conn, sn, q, msg=""):
 <label>Name<input name="name" value="%s" required></label>
 <label>Phone<input name="phone" value="%s"></label>
 <label>Gender<select name="gender"><option>%s</option><option>Male</option><option>Female</option></select></label>
+<label id="dob">Date of birth<input type="date" name="dob" value="%s"></label>
 <label>Pending amount (₹)<input name="pending" value="%s" inputmode="decimal"></label>
 </div>
 <h2>New / renew membership <span class="dim">(leave package empty to only edit details)</span></h2>
@@ -465,6 +470,7 @@ def member_page(conn, sn, q, msg=""):
         '<p class="dim">Enroll the finger on the gate machine first with the same ID, then save here.</p>',
         e(q.get("join", "")) if q.get("join", "").isdigit() else "",
         v("client_id"), "readonly" if m else "", v("name"), v("phone"), v("gender"),
+        e((m["dob"] if m and "dob" in m.keys() else "") or q.get("dob", "")),
         "%g" % (m["pending"] or 0) if m else "0", opts, iso(today()),
         door, pays or '<tr><td colspan="6">—</td></tr>')
     return layout("Member", "/member", body, msg)

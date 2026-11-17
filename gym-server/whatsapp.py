@@ -5,7 +5,7 @@ Node service in wa/ (systemd unit hos-wa) holds that login and sends. This modul
 what to send and when, and keeps every message in the wa_queue table:
 
   - every morning it plans the day's reminders (expiring soon, expired yesterday, dues on
-    Mondays, birthdays from joining forms);
+    Mondays, birthdays of members with a date of birth);
   - a sender thread sends one message at a time with a random 1-3 minute gap, only in
     the allowed hours and up to a daily limit, so the number behaves like a person;
   - receipts after a bill and joining-form links go first.
@@ -53,6 +53,7 @@ STAFF_TEMPLATES = [  # late rule messages to staff; {n} = which late day this mo
 TEMPLATE_VERSION = "2"  # 2: English, several versions each
 TPL = {}  # kind -> text from settings (kept in memory so buttons need no database)
 LABEL = dict({k: l for k, l, _, _ in KINDS}, staff="Staff late notice", test="Test", remind_renew="Renewal reminder (selected)",
+             remind_birthday="Birthday wish (selected)",
              remind_due="Due reminder (selected)", remind_absent="Absent reminder (selected)")
 FIRST = ("test", "receipt", "form", "staff")  # sent before the daily reminders
 
@@ -213,19 +214,18 @@ def plan(conn):
             amt = "₹{:,.0f}".format(m["pending"])
             n += enqueue(conn, "due", m["client_id"], m["phone"], fill(conn, "due", m["phone"], name=name, amount=amt), "%d-W%02d" % t.isocalendar()[:2])
     if on("birthday"):
+        # Members (active, or ended in the last 90 days) whose date of birth is today; 29 Feb wishes go on 28 Feb.
         try:
-            jrows = conn.execute("SELECT j.client_id, j.data, m.name, m.phone FROM joinings j JOIN members m ON m.client_id=j.client_id "
-                                 "WHERE j.status='added'").fetchall()
+            brows = conn.execute("SELECT client_id, name, phone, dob FROM members WHERE COALESCE(dob,'') != '' AND client_id < ? "
+                                 "AND expiry >= ?", (staff_from, (t - datetime.timedelta(days=90)).isoformat())).fetchall()
         except sqlite3.OperationalError:
-            jrows = []
-        for r in jrows:
-            try:
-                dob = M.parse_date(json.loads(r["data"] or "{}").get("dob", ""))
-            except ValueError:
-                dob = None
-            if dob and (dob.month, dob.day) == (t.month, t.day):
-                name = _nice(r["name"])
-                n += enqueue(conn, "birthday", r["client_id"], r["phone"], fill(conn, "birthday", r["phone"], name=name), str(t.year))
+            brows = []
+        for r in brows:
+            dob = M.parse_date(r["dob"])
+            if dob and ((dob.month, dob.day) == (t.month, t.day) or
+                        ((dob.month, dob.day) == (2, 29) and (t.month, t.day) == (2, 28) and t.year % 4)):
+                n += enqueue(conn, "birthday", r["client_id"], r["phone"],
+                             fill(conn, "birthday", r["phone"], name=_nice(r["name"])), str(t.year))
     # Reminders that could not go out within two days are stale; drop them.
     old = (t - datetime.timedelta(days=2)).isoformat()
     conn.execute("UPDATE wa_queue SET status='skipped', error='too old' WHERE status='queued' AND (kind IN "
@@ -334,6 +334,17 @@ def loop(db_path):
 
 # ---------------- page ----------------
 
+SETTINGS_TPL = """<form class="panel" method="post" action="/whatsapp/save" style="display:flex;flex-direction:column;gap:12px"><div class="ph" style="margin:0"><h2>Automatic messages</h2>
+<span class="pill %s">%s</span></div>
+<label class="chk"><input type="checkbox" name="wa_auto" value="1"%s><b>Send automatically</b> (off = nothing is sent; the one-tap WhatsApp buttons still work)</label>
+<div class="grid"><label>Messages a day (max)<input name="wa_cap" value="%s" inputmode="numeric"></label><label>Send from (hour, 24h)<input name="wa_from" value="%s" inputmode="numeric"></label>
+<label>Until (hour, 24h)<input name="wa_to" value="%s" inputmode="numeric"></label><label>Plan reminders at (hour)<input name="wa_plan_hour" value="%s" inputmode="numeric"></label>
+<label>“Ending soon” days before<input name="wa_days_before" value="%s" inputmode="numeric"></label></div>
+<p class="dim" style="margin:0;font-size:12px">In the texts: {name} member's name, {date} end date, {amount} amount, {link} joining form link.
+Each message has a few versions separated by a line with only <b>---</b>; a different one goes each time. Add or remove versions freely.</p>%s
+<button class="btn red" name="do" value="save" style="align-self:flex-start">Save</button></form>"""
+
+
 def page(conn, sn, q):
     import html
     import ui as U
@@ -341,10 +352,12 @@ def page(conn, sn, q):
     st = status()
     S = lambda k, d="": M.setting(conn, k, d)
     state = st.get("state", "off")
+    admin = U.A.is_admin()  # reception sees status, messages and can relink or test; settings stay with the owner
     if state == "connected":
         conn_html = ('<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="pill p-ok">Linked</span>'
-                     '<b>+%s</b><form method="post" action="/whatsapp/save" onsubmit="return confirm(\'Unlink this number from the app?\')">'
-                     '<button class="btn sm" name="do" value="logout">Unlink number</button></form></div>' % e(st.get("me", "")))
+                     '<b>+%s</b>%s</div>' % (e(st.get("me", "")), (
+                         '<form method="post" action="/whatsapp/save" onsubmit="return confirm(\'Unlink this number from the app?\')">'
+                         '<button class="btn sm" name="do" value="logout">Unlink number</button></form>') if admin else ""))
     elif state == "off":
         conn_html = ('<div class="warn" style="margin:0">The WhatsApp service is not running on the server. '
                      'Run the WhatsApp setup commands once (see README), then refresh.</div>')
@@ -388,9 +401,22 @@ draw(%s);tick()})();</script>""" % json.dumps(st.get("qr", "") if state == "qr" 
     pill = {"queued": "p-warn", "sent": "p-ok", "failed": "p-bad", "skipped": ""}
     trs = "".join('<tr><td class="dim">%s</td><td>%s</td><td>%s</td><td class="dim" style="white-space:normal;min-width:240px;max-width:420px">%s</td><td><span class="pill %s">%s</span> <span class="dim" style="font-size:12px">%s</span></td></tr>' % (
         e((r["sent_at"] or r["created_at"] or "")[:16]), e(LABEL.get(r["kind"], r["kind"].title())),
-        ('<a href="/m?id=%d">%s</a>' % (r["client_id"], e(U.nice(names.get(str(r["client_id"]), ""))))) if r["client_id"] else "+" + e(r["phone"]),
+        ('<a href="/m?id=%d">%s</a>' % (r["client_id"], e(U.nice(names.get(str(r["client_id"]), ""))))) if r["client_id"] else (
+            ("+" + e(r["phone"])) if admin else "+%sXXXXX%s" % (e(r["phone"][:4]), e(r["phone"][-3:]))),
         e(r["text"][:110] + ("…" if len(r["text"]) > 110 else "")), pill.get(r["status"], ""), r["status"].title(), e(r["error"] or ""))
         for r in rows)
+    owner_btns = ("""<form method="post" action="/whatsapp/save" style="display:flex;gap:8px;flex-wrap:wrap;margin:0"><button class="btn sm" name="do" value="plan">Plan today's reminders now</button>
+<button class="btn sm" name="do" value="clear" onclick="return confirm('Remove every waiting message?')">Remove waiting</button></form>""") if admin else ""
+    if admin:
+        settings_html = SETTINGS_TPL % (
+            "p-ok" if auto else "", "ON" if auto else "OFF", " checked" if auto else "",
+            e(S("wa_cap", "40")), e(S("wa_from", "9")), e(S("wa_to", "20")), e(S("wa_plan_hour", "10")), e(S("wa_days_before", "3")), kinds)
+    else:
+        on_list = ", ".join(l for k, l, _, _ in KINDS if S("wa_on_" + k) == "1") or "none"
+        settings_html = ('<div class="panel" style="display:flex;flex-direction:column;gap:8px"><div class="ph" style="margin:0"><h2>Automatic messages</h2>'
+                         '<span class="pill %s">%s</span></div><p class="dim" style="margin:0">Sends between %s:00 and %s:00, at most %s a day. On: %s. '
+                         'Only the owner can change these settings and the message texts.</p></div>') % (
+            "p-ok" if auto else "", "ON" if auto else "OFF", e(S("wa_from", "9")), e(S("wa_to", "20")), e(S("wa_cap", "40")), e(on_list))
     body = """<div class="two"><div class="panel" style="display:flex;flex-direction:column;gap:14px"><div class="ph" style="margin:0"><h2>Gym WhatsApp number</h2></div>%s
 <div class="warn" style="margin:0">Use a <b>separate SIM</b>, never the gym's main number. This is not WhatsApp's official API, so WhatsApp can block a number
 that sends too much. Keep the daily limit low. Members who reply <b>STOP</b> are never messaged again.</div></div>
@@ -398,25 +424,14 @@ that sends too much. Keep the daily limit low. Members who reply <b>STOP</b> are
 <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="l">Sent</div><div class="v">%d</div><div class="s">limit %s a day</div></div>
 <div class="kpi"><div class="l">Waiting</div><div class="v">%d</div><div class="s">reminders: 1 every 1-3 min</div></div>
 <div class="kpi"><div class="l">Failed</div><div class="v">%d</div><div class="s">see list</div></div></div>
-<form method="post" action="/whatsapp/save" style="display:flex;gap:8px;flex-wrap:wrap;margin:0"><button class="btn sm" name="do" value="plan">Plan today's reminders now</button>
-<button class="btn sm" name="do" value="clear" onclick="return confirm('Remove every waiting message?')">Remove waiting</button></form>
+%s
 <form method="post" action="/whatsapp/save" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin:0"><label style="flex:1 1 160px">Test message to<input name="test_phone" inputmode="numeric" placeholder="your 10-digit number"></label>
 <button class="btn sm" name="do" value="test">Send test</button></form></div></div>
-<form class="panel" method="post" action="/whatsapp/save" style="display:flex;flex-direction:column;gap:12px"><div class="ph" style="margin:0"><h2>Automatic messages</h2>
-<span class="pill %s">%s</span></div>
-<label class="chk"><input type="checkbox" name="wa_auto" value="1"%s><b>Send automatically</b> (off = nothing is sent; the one-tap WhatsApp buttons still work)</label>
-<div class="grid"><label>Messages a day (max)<input name="wa_cap" value="%s" inputmode="numeric"></label><label>Send from (hour, 24h)<input name="wa_from" value="%s" inputmode="numeric"></label>
-<label>Until (hour, 24h)<input name="wa_to" value="%s" inputmode="numeric"></label><label>Plan reminders at (hour)<input name="wa_plan_hour" value="%s" inputmode="numeric"></label>
-<label>“Ending soon” days before<input name="wa_days_before" value="%s" inputmode="numeric"></label></div>
-<p class="dim" style="margin:0;font-size:12px">In the texts: {name} member's name, {date} end date, {amount} amount, {link} joining form link.
-Each message has a few versions separated by a line with only <b>---</b>; a different one goes each time. Add or remove versions freely.</p>%s
-<button class="btn red" name="do" value="save" style="align-self:flex-start">Save</button></form>
+%s
 <div class="panel"><div class="ph"><h2>Messages</h2><span class="dim" style="font-size:12px">Replied STOP: %d</span></div><div class="tw"><table>
 <tr><th>When</th><th>Type</th><th>To</th><th>Message</th><th>Status</th></tr>%s</table></div></div>""" % (
         conn_html, counts_.get("sent", 0), e(S("wa_cap", "40")), counts_.get("queued", 0), counts_.get("failed", 0),
-        "p-ok" if auto else "", "ON" if auto else "OFF", " checked" if auto else "",
-        e(S("wa_cap", "40")), e(S("wa_from", "9")), e(S("wa_to", "20")), e(S("wa_plan_hour", "10")), e(S("wa_days_before", "3")),
-        kinds, len(optouts(conn)), trs or '<tr><td colspan="5" class="dim">No messages yet.</td></tr>')
+        owner_btns, settings_html, len(optouts(conn)), trs or '<tr><td colspan="5" class="dim">No messages yet.</td></tr>')
     return U.shell("WhatsApp", "/whatsapp", body, sub="Automatic reminders from the gym's separate WhatsApp number",
                    msg=q.get("m", ""), cnt=U.counts(conn, sn))
 
@@ -428,8 +443,10 @@ def _int(v, lo, hi, dflt):
         return str(dflt)
 
 
-def save(conn, f):
+def save(conn, f, admin=True):
     do = f.get("do", "save")
+    if not admin and do != "test":
+        return "Only the owner can change WhatsApp settings."
     if do == "logout":
         res = logout()
         return "Number unlinked. A new QR will appear." if res.get("ok") else "Could not unlink: %s" % res.get("error", "")

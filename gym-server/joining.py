@@ -340,8 +340,10 @@ def next_id(conn):
 
 def add_link(conn, r, d):
     from urllib.parse import urlencode
+    import birthdays as BD
+    dob = BD.parse_dob(d.get("dob", ""))
     return "/member?" + urlencode({"client_id": next_id(conn), "name": d.get("name", ""), "phone": d.get("phone", ""),
-                                   "gender": d.get("gender", ""), "join": r["id"]})
+                                   "gender": d.get("gender", ""), "dob": dob.isoformat() if dob else "", "join": r["id"]})
 
 
 STATUS = {"new": ("p-warn", "New"), "added": ("p-ok", "Member added"), "rejected": ("p-bad", "Did not join")}

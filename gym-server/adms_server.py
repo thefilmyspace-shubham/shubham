@@ -35,6 +35,7 @@ import members as M
 import ui as U
 import assistant as AS
 import gsheets as GS
+import birthdays as BD
 import door as D
 import joining as J
 import staffhours as SH
@@ -99,6 +100,7 @@ def init_db():
         D.init(conn)
         W.init(conn)
         U.init_staff(conn)  # staff, shifts, late days
+        BD.init(conn)
 
 
 def kv_fields(text):
@@ -286,6 +288,9 @@ class Handler(BaseHTTPRequestHandler):
             with DB_LOCK, db() as conn:
                 U.init_staff(conn)
                 return self.send_text(SH.report_page(conn, M.default_sn(conn), q), ctype="text/html")
+        if path == "/birthdays":
+            with DB_LOCK, db() as conn:
+                return self.send_text(BD.page(conn, M.default_sn(conn), q), ctype="text/html")
         if path in ("/door", "/door/status"):
             with DB_LOCK, db() as conn:
                 if path == "/door/status":
@@ -492,10 +497,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/whatsapp/save":
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             if f.get("do") == "logout":
-                msg = W.save(None, f)  # talks to the WhatsApp service; no lock needed
+                msg = W.save(None, f, A.is_admin())  # talks to the WhatsApp service; no lock needed
             else:
                 with DB_LOCK, db() as conn:
-                    msg = W.save(conn, f)
+                    msg = W.save(conn, f, A.is_admin())
             with DB_LOCK, db() as conn:
                 A.log(conn, "whatsapp " + (f.get("do") or "save"), msg)
             return self.redirect("/whatsapp?" + urlencode({"m": msg}))

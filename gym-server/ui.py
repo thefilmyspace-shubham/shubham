@@ -15,6 +15,7 @@ import ai as AI
 import auth as A
 import gsheets as GS
 import members as M
+import birthdays as BD
 import staffhours as SH
 import whatsapp as W
 
@@ -142,6 +143,7 @@ def counts(conn, sn):
         c["joinings"] = conn.execute("SELECT COUNT(*) FROM joinings WHERE status='new'").fetchone()[0]
     except Exception:
         c["joinings"] = 0
+    c["birthdays"] = BD.today_count(conn)
     return c
 
 
@@ -201,6 +203,7 @@ def icon(name, size=18):
         "plus": '<path d="M12 5v14M5 12h14"/>',
         "phone": '<path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .4 1.9.7 2.8a2 2 0 01-.5 2.1L8 9.9a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.5c.9.3 1.8.6 2.8.7a2 2 0 011.7 2z"/>',
         "edit": '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
+        "cake": '<path d="M4 21h16M5 21v-7a2 2 0 012-2h10a2 2 0 012 2v7"/><path d="M5 16c1.5 1 3 1 4.5 0s3-1 4.5 0 3 1 5 0"/><path d="M12 12V8M12 5.5a1.5 1.5 0 01-1.5-1.5c0-1 1.5-2.5 1.5-2.5s1.5 1.5 1.5 2.5A1.5 1.5 0 0112 5.5z"/>',
         "door": '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>',
         "server": '<rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M7 7h.01M7 17h.01"/>',
         "down": '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
@@ -303,11 +306,11 @@ NAV = [
     ("/", "Dashboard", "dash", None), ("/members", "Members", "users", None), ("/bill", "New Bill", "bill", None),
     ("/attendance", "Attendance", "finger", None), ("/door", "Open gate", "door", None), ("/renewals", "Renewals", "renew", "renewals"),
     ("/pending", "Pending Payments", "rupee", "pending"), ("/absent", "Absent Members", "alert", "absent"),
-    ("/joinings", "Joining forms", "users", "joinings"), ("/inquiries", "Inquiries", "chat", None), ("/approvals", "Approvals", "alert", "approvals"), ("/packages", "Packages", "box", None),
+    ("/birthdays", "Birthdays", "cake", "birthdays"), ("/joinings", "Joining forms", "users", "joinings"), ("/inquiries", "Inquiries", "chat", None), ("/approvals", "Approvals", "alert", "approvals"), ("/packages", "Packages", "box", None),
     ("/staff", "Staff & Trainers", "staff", None), ("/reports", "Reports", "chart", None), ("/expenses", "Expenses", "rupee", None),
-    ("/assistant", "AI assistant", "chat", None),
+    ("/whatsapp", "WhatsApp", "chat", None), ("/assistant", "AI assistant", "chat", None),
 ]
-SYSTEM = [("/users", "Staff logins", "staff"), ("/activity", "Activity log", "chart"), ("/whatsapp", "WhatsApp", "chat"),
+SYSTEM = [("/users", "Staff logins", "staff"), ("/activity", "Activity log", "chart"),
           ("/sync", "Door sync", "door"),
           ("/gate", "Gate machine", "server"), ("/settings", "Settings", "gear"), ("/backup", "Backup", "down")]
 TRAINER_NAV = [("/trainer", "My PT clients", "users", None), ("/approvals", "Leave / requests", "alert", "approvals")]
@@ -516,6 +519,10 @@ def absent_msg(m):
     return W.text("absent", name=nice(m["name"]))
 
 
+def birthday_msg(m):
+    return W.text("birthday", name=nice(m["name"]))
+
+
 def wa_btn(m, text):
     if not phone_ok(m):
         return ""
@@ -673,7 +680,8 @@ def profile(conn, sn, q):
 <div><span>Member ID</span><b>%s</b></div><div><span>Mobile</span><b>%s</b></div>
 <div><span>Gender</span><b>%s</b></div><div><span>Joined</span><b>%s</b></div>
 <div><span>Biometric ID</span><b>%d</b></div><div><span>Gate door</span><b>%s</b></div>
-<div><span>Pending</span><b>%s</b></div><div><span>Package</span><b>%s</b></div></div></div>
+<div><span>Pending</span><b>%s</b></div><div><span>Package</span><b>%s</b></div>
+<div><span>Birthday</span><b>%s</b></div></div></div>
 <div class="panel"><div class="ph"><h2>Attendance · last 30 days</h2></div>
 <div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="kpi"><div class="l">Visits</div><div class="v">%d</div><div class="s">of 30 days</div></div>
 <div class="kpi"><div class="l">Last visit</div><div class="v">%s</div><div class="s">%s</div></div></div>
@@ -689,6 +697,8 @@ def profile(conn, sn, q):
         member_id(m["client_id"]), e(show_phone(m) or "—"), e(m["gender"] or "—"),
         short_date(m["registration"] or (first["paid_on"] if first else "")), m["client_id"], door,
         money(m["pending"]), e(m["package"] or "—"),
+        (M.parse_date(m["dob"]).strftime("%d %b %Y") if M.parse_date(m["dob"] if "dob" in m.keys() else "") else
+         '<a href="/member?id=%d#dob">Add date of birth</a>' % m["client_id"]),
         len(days_in), last_txt, last[11:16] if last else "", heat, tracking_start(conn).strftime("%d %b %Y"),
         m["client_id"], bill_rows,
         ('<p style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 0"><a class="btn sm" href="/receipt?inv=%s">%sPrint last receipt</a></p>'
@@ -1199,7 +1209,7 @@ def remind_redirect(conn, q):
     if not m:
         return "/members"
     kind = q.get("k", "renew")
-    text = {"renew": renew_msg, "absent": absent_msg, "due": due_msg}.get(kind, renew_msg)(m)
+    text = {"renew": renew_msg, "absent": absent_msg, "due": due_msg, "birthday": birthday_msg}.get(kind, renew_msg)(m)
     link = wa(m["phone"], text)
     if not link:
         return "/m?" + urlencode({"id": cid, "m": "No valid phone number for this member."})
@@ -1413,10 +1423,10 @@ def remind_queue(conn, sn, q, ids):
     kind = q.get("k", "renew")
     ms = [conn.execute("SELECT * FROM members WHERE client_id=?", (i,)).fetchone() for i in ids if str(i).isdigit()]
     ms = [m for m in ms if m]
-    back = {"renew": "/renewals", "absent": "/absent", "due": "/pending"}.get(kind, "/")
+    back = {"renew": "/renewals", "absent": "/absent", "due": "/pending", "birthday": "/birthdays"}.get(kind, "/")
     if ms and W.ready(conn):
         # The gym's WhatsApp is linked: queue them; they go one every 1-3 minutes within the daily limit.
-        text_of = {"renew": renew_msg, "absent": absent_msg, "due": due_msg}.get(kind, renew_msg)
+        text_of = {"renew": renew_msg, "absent": absent_msg, "due": due_msg, "birthday": birthday_msg}.get(kind, renew_msg)
         queued = skipped = 0
         for m in ms:
             if W.enqueue(conn, "remind_" + kind, m["client_id"], m["phone"], text_of(m), M.iso(M.today())):
