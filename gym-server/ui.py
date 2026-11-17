@@ -714,7 +714,22 @@ def bill_page(conn, sn, q):
     tr = "".join('<option>%s</option>' % e(x) for x in trainers(conn))
     inv = "%s%05d" % (M.setting(conn, "invoice_prefix", "HOS-"), int(M.setting(conn, "next_invoice", "1242")))
     start = M.today()
+    last_html = ""
     if m:
+        lb = last_bills(conn, m["client_id"])
+        if lb:
+            items = []
+            for b in lb:
+                pay = b["payable"] if b["payable"] is not None else (b["amount"] or 0) + (b["balance"] or 0)
+                lp = b["list_price"] or 0
+                items.append('<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><span><b>%s</b> · paid <b>%s</b>%s · ended %s</span>'
+                             '<button type="button" class="btn sm" onclick="useLast(%s,%s,%g)">Same as last time</button></div>' % (
+                                 e(b["package"] or ""), money(pay),
+                                 (" (list %s, discount %s)" % (money(lp), money(b["discount"] or 0))) if lp and (b["discount"] or 0) else "",
+                                 short_date(b["expiry"])[:6], e(repr((b["package"] or "").lower())), e(repr(b["kind"] or "gym")), pay))
+            last_html = ('<div style="margin-top:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card2);'
+                         'display:flex;flex-direction:column;gap:8px"><span class="dim" style="font-size:12px">LAST BILL</span>%s'
+                         '<span id="lastmsg" class="dim" style="font-size:12px"></span></div>' % "".join(items))
         old = M.parse_date(m["expiry"])
         if old and old >= start:
             start = old + datetime.timedelta(days=1)
@@ -731,7 +746,7 @@ def bill_page(conn, sn, q):
 <label>Member (type name or ID)<input name="member" list="mlist" value="%s" required placeholder="Search member" autocomplete="off"></label>
 <datalist id="mlist">%s</datalist>
 <label>Bill type<select name="kind" id="kind"><option value="gym">Gym membership</option><option value="pt">Personal training</option></select></label></div>
-<p class="dim" style="margin:8px 0 0;font-size:12px">New person? <a href="/member">Add member first</a> (enroll the finger on the gate with the same ID).</p></div>
+<p class="dim" style="margin:8px 0 0;font-size:12px">New person? <a href="/member">Add member first</a> (enroll the finger on the gate with the same ID).</p>%s</div>
 <div><h2 style="margin-bottom:12px">2 · Package</h2><div class="pk">%s</div></div>
 <div><h2 style="margin-bottom:12px">3 · Dates &amp; trainer</h2><div class="grid">
 <label>Start date<input type="date" name="start" id="start" value="%s" required></label>
@@ -770,6 +785,11 @@ f.start=document.getElementById('start');f.end=document.getElementById('end');
 f.addEventListener('input',upd);f.addEventListener('change',upd);f.end.addEventListener('input',function(){f.end.dataset.touched=1});
 f.start.addEventListener('input',function(){delete f.end.dataset.touched});f.querySelectorAll('input[name=package_id]').forEach(function(i){i.addEventListener('change',function(){delete f.end.dataset.touched;upd()})});
 document.getElementById('kind').addEventListener('change',function(){kindFilter();upd()});kindFilter();upd();
+window.useLast=function(name,kind,pay){var k=document.getElementById('kind');k.value=(kind==='pt'?'pt':'gym');kindFilter();var hit=null;
+f.querySelectorAll('input[name=package_id]').forEach(function(i){if(!hit&&i.dataset.name.toLowerCase().replace(/ +/g,' ')===name.replace(/ +/g,' ')){hit=i}});
+var msg=document.getElementById('lastmsg');if(!hit){msg.textContent='No package named "'+name+'" in the list now. Pick the package, then set the discount by hand.';return}
+hit.checked=true;delete f.end.dataset.touched;f.disc.value=Math.max(0,n(hit.dataset.price)-pay);f.paid.value='';upd();
+msg.textContent='Filled: '+hit.dataset.name+' at '+r(pay)+' (discount '+r(Math.max(0,n(hit.dataset.price)-pay))+'). Check, then Save.'};
 window.aiFill=function(){var t=document.getElementById('aitext').value.trim(),m=document.getElementById('aimsg'),b=document.getElementById('aibtn');if(!t){return}
 b.disabled=true;b.textContent='Reading…';m.textContent='';fetch('/bill/ai',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'text='+encodeURIComponent(t)})
 .then(function(r){return r.json()}).then(function(d){b.disabled=false;b.textContent='Fill with AI';if(d.error){m.textContent=d.error;return}
@@ -782,7 +802,7 @@ f.disc.value=d.discount||0;f.adm.value=d.admission||0;f.paid.value=(d.paid===nul
 m.innerHTML=d.note||'Form filled. Check every field, then Save.'}).catch(function(){b.disabled=false;b.textContent='Fill with AI';m.textContent='Could not reach the server.'})};
 document.getElementById('aitext').addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();aiFill()}})})();
 </script>""" % (
-        e("%s · %s" % (nice(m["name"]), member_id(m["client_id"]))) if m else "", options, cards,
+        e("%s · %s" % (nice(m["name"]), member_id(m["client_id"]))) if m else "", options, last_html, cards,
         M.iso(start), tr, e(M.setting(conn, "default_admission", "0")), inv, e(staff_name()))
     return shell("New bill", "/bill", body, sub="Membership or PT bill in under a minute", msg=q.get("m", ""),
                  cnt=counts(conn, sn))
@@ -1293,11 +1313,28 @@ def pkg_price(conn):
     return {r[0].lower(): r[1] for r in conn.execute("SELECT name, price FROM packages")}
 
 
+def last_bills(conn, cid):
+    """The member's bills for their latest period (gym and PT can both end that day)."""
+    return conn.execute("SELECT * FROM payments WHERE client_id=? AND expiry=(SELECT MAX(expiry) FROM payments WHERE client_id=?) "
+                        "ORDER BY id", (cid, cid)).fetchall()
+
+
+def renewal_values(conn):
+    """client_id -> what the member actually paid (after discount) for their latest period.
+    This matches the old software's renewal amounts far better than the package list price."""
+    return {cid: v or 0 for cid, v in conn.execute(
+        "SELECT p.client_id, SUM(COALESCE(p.payable, p.amount + COALESCE(p.balance, 0))) FROM payments p "
+        "JOIN (SELECT client_id, MAX(expiry) mx FROM payments GROUP BY client_id) x ON x.client_id = p.client_id AND p.expiry = x.mx "
+        "GROUP BY p.client_id")}
+
+
 def renewals(conn, sn, q):
     t = M.today()
     ti = M.iso(t)
     tab = q.get("t", "week")
     prices = pkg_price(conn)
+    last_paid = renewal_values(conn)
+    worth = lambda m: last_paid.get(m["client_id"]) or prices.get((m["package"] or "").lower(), 0)
     sent = last_reminders(conn, "renew")
     rng = {"today": (t, t), "week": (t, t + datetime.timedelta(days=7)), "month": (t, t + datetime.timedelta(days=30)),
            "expired": (t - datetime.timedelta(days=30), t - datetime.timedelta(days=1))}
@@ -1306,7 +1343,7 @@ def renewals(conn, sn, q):
         return conn.execute("SELECT * FROM members WHERE expiry BETWEEN ? AND ? ORDER BY expiry", (M.iso(a), M.iso(b))).fetchall()
 
     def value(ms):
-        return sum(prices.get((m["package"] or "").lower(), 0) for m in ms)
+        return sum(worth(m) for m in ms)
 
     sets = {k: members_in(*v) for k, v in rng.items()}
     cut = M.iso(t - datetime.timedelta(days=30))
@@ -1319,7 +1356,7 @@ def renewals(conn, sn, q):
         '<td>%s</td><td class="dim">%s</td><td style="display:flex;gap:6px;justify-content:flex-end">%s<a class="btn red sm" href="/bill?id=%d">Renew</a></td></tr>' % (
             sel_box(m["client_id"]), m["client_id"], initials(m["name"]), e(nice(m["name"])), e(m["package"] or ""),
             short_date(m["expiry"])[:6], due_pill(m["expiry"]),
-            money(prices.get((m["package"] or "").lower(), 0)) if prices.get((m["package"] or "").lower()) else "—",
+            money(worth(m)) if worth(m) else "—",
             ("Sent %s" % M.parse_date(sent[m["client_id"]][:10]).strftime("%d %b")) if m["client_id"] in sent else "Not sent",
             remind_btn(m, "renew"), m["client_id"]) for m in rows) or '<tr><td colspan="8" class="dim">Nobody in this list.</td></tr>'
     tabs = "".join('<a href="/renewals?t=%s"%s>%s %d</a>' % (k, ' class="on"' if k == tab else "", l, len(sets[k]))
@@ -1331,7 +1368,7 @@ def renewals(conn, sn, q):
 <div class="kpi"><div class="l">Retention</div><div class="v">%d%%</div><div class="s">%d of %d who joined 30+ days ago are active</div></div></div>
 <form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="renew"><div class="ph"><div class="tabs">%s</div>
 <div class="acts"><button class="btn red sm">Remind selected on WhatsApp</button>%s</div></div>
-<div class="tw"><table><tr><th><input type="checkbox" aria-label="Select all" title="Select all" style="width:18px;height:18px;min-height:0;accent-color:#e10600" onclick="var on=this.checked;this.form.querySelectorAll('input[name=id]').forEach(function(c){c.checked=on})"></th><th>Member</th><th>Package</th><th>Expiry</th><th>Due in</th><th>Renewal value</th><th>Reminder</th><th></th></tr>%s</table></div></form>""" % (
+<div class="tw"><table><tr><th><input type="checkbox" aria-label="Select all" title="Select all" style="width:18px;height:18px;min-height:0;accent-color:#e10600" onclick="var on=this.checked;this.form.querySelectorAll('input[name=id]').forEach(function(c){c.checked=on})"></th><th>Member</th><th>Package</th><th>Expiry</th><th>Due in</th><th title="What the member paid last time, after discount">Last paid</th><th>Reminder</th><th></th></tr>%s</table></div></form>""" % (
         len(sets["today"]), money(value(sets["today"])), len(sets["week"]), money(value(sets["week"])), len(sets["expired"]),
         round(100 * renewed / max(1, total)), renewed, total, tabs,
         admin_only('<a class="btn sm" href="/renewals.csv?t=%s">%sExport Excel</a>' % (tab, icon("down", 16))), trs)
@@ -1382,9 +1419,11 @@ def renewals_csv(conn, sn, q):
             "expired": (t - datetime.timedelta(days=30), t - datetime.timedelta(days=1))}.get(tab, (t, t + datetime.timedelta(days=7)))
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Member ID", "Name", "Phone", "Package", "Expiry"])
+    w.writerow(["Member ID", "Name", "Phone", "Package", "Expiry", "Last paid"])
+    last_paid = renewal_values(conn)
     for m in conn.execute("SELECT * FROM members WHERE expiry BETWEEN ? AND ? ORDER BY expiry", (M.iso(a), M.iso(b))):
-        w.writerow([member_id(m["client_id"]), nice(m["name"]), m["phone"], m["package"], short_date(m["expiry"])])
+        w.writerow([member_id(m["client_id"]), nice(m["name"]), m["phone"], m["package"], short_date(m["expiry"]),
+                    "%g" % last_paid.get(m["client_id"], 0)])
     return "﻿" + buf.getvalue()
 
 
