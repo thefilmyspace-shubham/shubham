@@ -293,6 +293,7 @@ button.ghost{background:var(--card2);border:1px solid var(--line)}h1{font-family
 --text2:#3f3f46;--text3:#3f3f46;--faint:#71717a;--hover:#c4c4cc;--row:#ececf0;--tabon:#18181b;--tabonfg:#fff;--msgfg:#14532d;--warnfg:#7f1d1d;--barbg:#d4d4d8}
 :root[data-theme="light"] .kpi.hot .v,:root[data-theme="light"] .kpi.hot{color:#fff}
 :root[data-theme="light"] .side{box-shadow:1px 0 0 var(--line)}
+tr.picked td{background:var(--bluebg)}
 .themebtn{width:36px;height:36px;border-radius:9px;border:1px solid var(--line);background:var(--card2);color:var(--text);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;min-height:0}
 .themebtn .sun{display:none}:root[data-theme="light"] .themebtn .sun{display:block}:root[data-theme="light"] .themebtn .moon{display:none}
 """
@@ -309,6 +310,24 @@ SYSTEM = [("/users", "Staff logins", "staff"), ("/activity", "Activity log", "ch
           ("/sync", "Door sync", "door"),
           ("/gate", "Gate machine", "server"), ("/settings", "Settings", "gear"), ("/backup", "Backup", "down")]
 TRAINER_NAV = [("/trainer", "My PT clients", "users", None), ("/approvals", "Leave / requests", "alert", "approvals")]
+
+
+# Multi-select on reminder lists: "Select all" button, click a row to tick it, Shift-click for a range,
+# and the send button shows how many are picked.
+MULTI_JS = """<script>(function(){document.querySelectorAll('form[action="/remind"]').forEach(function(f){
+var boxes=[].slice.call(f.querySelectorAll('input[type=checkbox][name=id]'));if(!boxes.length){return}
+var send=f.querySelector('button:not([type=button])'),label=send?send.textContent:'',head=f.querySelector('th input[type=checkbox]'),last=null;
+var all=document.createElement('button');all.type='button';all.className='btn sm';send&&send.parentNode.insertBefore(all,send);
+function refresh(){var n=boxes.filter(function(b){return b.checked}).length;boxes.forEach(function(b){var tr=b.closest('tr');if(tr){tr.classList.toggle('picked',b.checked)}});
+if(send){send.textContent=n?label.replace('selected',n+' selected'):label}all.textContent=(n===boxes.length)?'Clear all':'Select all ('+boxes.length+')';
+if(head){head.checked=n===boxes.length;head.indeterminate=n>0&&n<boxes.length}}
+all.addEventListener('click',function(){var on=boxes.some(function(b){return !b.checked});boxes.forEach(function(b){b.checked=on});refresh()});
+if(head){head.addEventListener('change',refresh)}
+boxes.forEach(function(b,i){b.addEventListener('click',function(ev){if(ev.shiftKey&&last!==null){var a=Math.min(last,i),z=Math.max(last,i);
+for(var k=a;k<=z;k++){boxes[k].checked=b.checked}}last=i;refresh()});var tr=b.closest('tr');if(tr){tr.style.cursor='pointer';
+tr.addEventListener('click',function(ev){if(ev.target.closest('a,button,input,select,label')){return}b.checked=!b.checked;
+if(ev.shiftKey&&last!==null){var a=Math.min(last,i),z=Math.max(last,i);for(var k=a;k<=z;k++){boxes[k].checked=b.checked}}last=i;refresh()})}});
+f.addEventListener('submit',function(ev){if(!boxes.some(function(b){return b.checked})){ev.preventDefault();alert('Pick at least one member first.')}});refresh()})})();</script>"""
 
 
 def shell(title, active, body, sub="", actions="", msg="", cnt=None, warn=""):
@@ -337,11 +356,12 @@ def shell(title, active, body, sub="", actions="", msg="", cnt=None, warn=""):
 <div class="acts"><form action="/members" method="get" class="search">%s<input name="q" placeholder="Search name, phone or member ID" aria-label="Search members"></form>%s</div></div>
 <div class="content">%s%s%s</div>
 <div class="foot"><span>House of Strength · Ratlam</span><span>Powered by <b>TFS · The First Solutions</b></span></div>
-</div></div></body></html>""" % (
+</div></div>%s</body></html>""" % (
         e(title), CSS, "".join(links), '<div class="navsec">System</div>' if sys_links else "", sys_links,
         initials(user.get("name") or "?"), e(user.get("name") or ""), e((user.get("role") or "").title()), icon("logout", 16),
         e(title), sub, icon("search") if A.role() != "trainer" else "", actions,
-        '<div class="msg">%s</div>' % e(msg) if msg else "", '<div class="warn">%s</div>' % warn if warn else "", body)
+        '<div class="msg">%s</div>' % e(msg) if msg else "", '<div class="warn">%s</div>' % warn if warn else "", body,
+        MULTI_JS if 'action="/remind"' in body else "")
 
 
 def legacy_layout(conn, sn):
@@ -1463,7 +1483,7 @@ def pending(conn, sn, q):
 <div class="kpi"><div class="l">Older than 90 days</div><div class="v">%s</div><div class="s">%d members</div></div>
 <div class="kpi"><div class="l">Collected this month</div><div class="v">%s</div><div class="s">%d bills</div></div></div>
 <form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="due"><div class="ph"><h2>Pending dues</h2>
-<div class="acts"><button class="btn red sm">Remind selected</button>%s</div></div>
+<div class="acts"><button class="btn red sm">Remind selected on WhatsApp</button>%s</div></div>
 <div class="tw"><table><tr><th><input type="checkbox" aria-label="Select all" title="Select all" style="width:18px;height:18px;min-height:0;accent-color:#e10600" onclick="var on=this.checked;this.form.querySelectorAll('input[name=id]').forEach(function(c){c.checked=on})"></th><th>Member</th><th>Since</th><th>Package</th><th>Amount due</th><th>Overdue</th><th></th></tr>%s</table></div></form>""" % (
         money(total), len(ms), money(sum(m["pending"] for m in old)), len(old), money(col[0]), col[1],
         admin_only('<a class="btn sm" href="/pending.csv">%sExport Excel</a>' % icon("down", 16)),
@@ -1539,7 +1559,7 @@ def absent(conn, sn, q):
 <a class="kpi" href="/absent?d=7"><div class="l">Absent 7+ days</div><div class="v">%d</div><div class="s">message them</div></a>
 <a class="kpi" href="/absent?d=14"><div class="l">Absent 14+ days</div><div class="v">%d</div><div class="s">likely to quit</div></a></div>
 <form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="absent"><div class="ph"><div class="tabs">%s</div>
-<button class="btn red sm">Message selected on WhatsApp</button></div>
+<button class="btn red sm">Remind selected on WhatsApp</button></div>
 <div class="tw"><table><tr><th><input type="checkbox" aria-label="Select all" title="Select all" style="width:18px;height:18px;min-height:0;accent-color:#e10600" onclick="var on=this.checked;this.form.querySelectorAll('input[name=id]').forEach(function(c){c.checked=on})"></th><th>Member</th><th>Package</th><th>Last visit</th><th>Plan</th><th>Risk</th><th></th></tr>%s</table></div></form>""" % (
         len(lists[3]), len(lists[7]), len(lists[14]), tabs, trs)
     return shell("Absent members", "/absent", body, sub="Active members who stopped coming, from biometric data",
