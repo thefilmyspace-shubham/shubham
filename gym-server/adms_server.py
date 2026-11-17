@@ -414,9 +414,9 @@ class Handler(BaseHTTPRequestHandler):
                     return self.redirect("/door?" + urlencode({"m": "Open method saved. Try Open door now."}))
                 user = A.me()
                 msg = D.request(conn, M.default_sn(conn), f.get("action", "open"), f.get("reason", ""),
-                                user.get("name") or user.get("email") or "", A.role())
+                                user.get("name") or user.get("email") or "", A.role(), f.get("minutes", ""))
                 A.log(conn, "door " + (f.get("action") or "open"), "%s · %s" % (f.get("reason", ""), msg))
-            ok = msg.endswith("seconds.") or msg.startswith(("Door will", "Locking"))
+            ok = msg.endswith("seconds.") and msg.startswith("Opening")
             return self.redirect("/door?" + urlencode({"m": msg, "wait": "1" if ok else ""}))
         if path == "/join/submit":
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
@@ -664,6 +664,10 @@ class Handler(BaseHTTPRequestHandler):
                 "ORDER BY (cmd LIKE 'AC_UNLOCK%' OR cmd LIKE 'CONTROL DEVICE%') DESC, id LIMIT 1",
                 (sn,),
             ).fetchone()
+            if not row or not D.is_door_cmd(row["cmd"]):
+                hold = D.hold_command(conn)  # door held open: send another open on this poll
+                if hold:
+                    return "C:%d:%s\n" % hold
             if not row:
                 return "OK"
             conn.execute("UPDATE commands SET sent_at=? WHERE id=?", (now(), row["id"]))
@@ -726,6 +730,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not line.strip():
                     continue
                 r = {k: v[0] for k, v in parse_qs(line).items()}
+                if r.get("ID", "").isdigit() and D.hold_reply(conn, int(r["ID"]), r.get("Return", "")):
+                    continue
                 if r.get("ID", "").isdigit():
                     conn.execute(
                         "UPDATE commands SET return_code=?, done_at=? WHERE id=?",

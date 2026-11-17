@@ -13,6 +13,7 @@ dropped, so a door never opens late on its own.
 import datetime
 import html
 import json
+import time
 
 import members as M
 
@@ -21,6 +22,9 @@ STALE_SECONDS = 60
 DOOR_PREFIXES = ("AC_UNLOCK", "CONTROL DEVICE")
 METHODS = {"1": "AC_UNLOCK", "2": "CONTROL DEVICE 01010105"}
 ACTIONS = {"open": "Open for a few seconds", "hold": "Keep open", "lock": "Lock again"}
+MAX_HOLD_MIN = 240
+HOLD_ID_BASE = 2000000000  # command IDs for hold pulses; real command IDs never get near this
+_seq = [0]
 
 
 def init(conn):
@@ -49,7 +53,7 @@ def command_for(conn, action):
     return METHODS.get(M.setting(conn, "door_method", "1"), "AC_UNLOCK")
 
 
-def request(conn, sn, action, reason, who, role):
+def request(conn, sn, action, reason, who, role, minutes=""):
     """Queue a door command. Returns a message for the page."""
     if not sn:
         return "No gate machine is connected yet."
@@ -60,6 +64,17 @@ def request(conn, sn, action, reason, who, role):
         return "Write who it is for (e.g. 'Visitor: Rahul, trial')."
     if action in ("hold", "lock") and role != "admin":
         return "Only the owner can keep the door open."
+    if action in ("hold", "lock"):
+        # The machine does not take a "stay open" command, so a hold re-sends the normal open on
+        # every poll (about every 10 s) until Lock again or the chosen time ends.
+        mins = int(minutes) if str(minutes).isdigit() and 0 < int(minutes) <= MAX_HOLD_MIN else 30
+        until = (datetime.datetime.now() + datetime.timedelta(minutes=mins)).strftime("%Y-%m-%d %H:%M:%S") if action == "hold" else ""
+        M.set_setting(conn, "door_hold_until", until)
+        M.set_setting(conn, "door_hold_last", "")
+        conn.execute("INSERT INTO door_log (at, action, reason, by_name, by_role, command_id) VALUES (?,?,?,?,?,?)",
+                     (M.stamp(), action, reason + (" (%d min)" % mins if action == "hold" else ""), who, role, None))
+        return ("Door held open until %s. It locks by itself after that." % until[11:16]) if action == "hold" else \
+            "Hold stopped. The door locks within a few seconds."
     cmd = command_for(conn, action)
     conn.execute("INSERT INTO commands (sn, cmd, created_at) VALUES (?,?,?)",
                  (sn, cmd, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
@@ -71,7 +86,34 @@ def request(conn, sn, action, reason, who, role):
             "lock": "Locking the door…"}[action]
 
 
+def hold_until(conn):
+    """Datetime string the door is held open until, or '' when no hold is on."""
+    until = M.setting(conn, "door_hold_until", "")
+    if until and until > datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"):
+        return until
+    return ""
+
+
+def hold_command(conn):
+    """A one-off open command for the next machine poll while a hold is on, else None.
+    Not stored in the commands table (it would add 360 rows an hour); the reply is noted in settings."""
+    if not hold_until(conn):
+        return None
+    _seq[0] = max(_seq[0] + 1, int(time.time()) % 100000000)  # a new ID every time, even within one second
+    cid = HOLD_ID_BASE + _seq[0] % 100000000
+    return cid, METHODS.get(M.setting(conn, "door_method", "1"), "AC_UNLOCK")
+
+
+def hold_reply(conn, cid, code):
+    if cid >= HOLD_ID_BASE:
+        M.set_setting(conn, "door_hold_last", "%s|%s" % (code, datetime.datetime.now().strftime("%H:%M:%S")))
+        return True
+    return False
+
+
 def state_of(row):
+    if row["action"] in ("hold", "lock") and row["command_id"] is None:
+        return ("p-ok", "Hold started") if row["action"] == "hold" else ("p-ok", "Hold stopped")
     if row["return_code"] == "expired":
         return "p-bad", "Machine did not answer"
     if row["done_at"]:
@@ -105,18 +147,32 @@ def page(conn, sn, q):
         trs += '<tr><td class="dim">%s</td><td>%s</td><td>%s</td><td>%s</td><td><span class="pill %s">%s</span></td></tr>' % (
             e((r["at"] or "")[:16]), e(ACTIONS.get(r["action"], r["action"])), e(r["reason"] or ""), e(r["by_name"] or ""), cls, e(text))
     method = M.setting(conn, "door_method", "1")
+    held = hold_until(conn)
+    last = M.setting(conn, "door_hold_last", "")
+    hold_box = ""
+    if held:
+        code, at = (last.split("|") + [""])[:2] if last else ("", "")
+        reply = ("Machine answered OK at %s." % at) if code in ("0",) else (
+            ("Machine said no (%s) at %s. Try the other open method." % (code, at)) if code else "Waiting for the machine…")
+        hold_box = ('<div class="warn" style="margin:0;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>Door held open until %s.</b>'
+                    '<span>%s</span><form method="post" action="/door/open" style="margin:0 0 0 auto"><input type="hidden" name="reason" value="Lock again">'
+                    '<button class="btn red" name="action" value="lock">Lock again</button></form></div>'
+                    '<script>setTimeout(function(){location.reload()},15000)</script>' % (e(held[11:16]), e(reply)))
     extra = ""
     if admin:
         extra = """<div class="panel" style="display:flex;flex-direction:column;gap:12px"><div class="ph" style="margin:0"><h2>Owner only</h2></div>
-<form method="post" action="/door/open" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin:0">
-<label style="flex:1 1 220px">Reason<input name="reason" placeholder="e.g. Event / cleaning" required></label>
-<button class="btn" name="action" value="hold">Keep door open</button><button class="btn red" name="action" value="lock">Lock again</button></form>
+%s<form method="post" action="/door/open" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin:0">
+<label style="flex:1 1 200px">Reason<input name="reason" placeholder="e.g. Event / cleaning" required></label>
+<label style="flex:0 1 150px">For<select name="minutes"><option value="15">15 min</option><option value="30" selected>30 min</option>
+<option value="60">1 hour</option><option value="120">2 hours</option><option value="240">4 hours</option></select></label>
+<button class="btn" name="action" value="hold">Keep door open</button></form>
 <form method="post" action="/door/method" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin:0">
 <label style="flex:1 1 220px">Open method (if the door does not open, try the other one)<select name="method">
 <option value="1"%s>Method 1 (AC_UNLOCK)</option><option value="2"%s>Method 2 (CONTROL DEVICE)</option></select></label>
 <button class="btn">Save method</button></form>
-<p class="dim" style="margin:0;font-size:12px">“Keep door open” and “Lock again” work only on machines that take Method 2 commands.
-If the machine says no, the door stays as it is.</p></div>""" % (" selected" if method == "1" else "", " selected" if method == "2" else "")
+<p class="dim" style="margin:0;font-size:12px">Keep open sends the normal open again about every 10 seconds, so the door may click
+shut for a moment between opens. For a door that never clicks, set the machine's <b>lock delay</b> to 10 seconds or more
+(on the machine: Menu → Access / Lock → Lock delay).</p></div>""" % (hold_box, " selected" if method == "1" else "", " selected" if method == "2" else "")
     body = """<div class="two"><div class="panel" style="display:flex;flex-direction:column;gap:14px">
 <div class="ph" style="margin:0"><h2>Open the gate</h2><span class="pill %s">%s</span></div>
 <p class="dim" style="margin:0">For a visitor, a trial, or a member whose finger does not read. The door opens for a few seconds,
