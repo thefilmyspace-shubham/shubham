@@ -361,6 +361,16 @@ class Handler(BaseHTTPRequestHandler):
                         return self.set_session(A.new_session(conn, "owner"), "/")
                     return self.redirect("/login?" + urlencode({"err": "Wrong owner password."}))
             return self.redirect("/login")
+        if path in ("/settings/save", "/packages/save"):
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                if path == "/settings/save":
+                    msg = U.save_settings(conn, f)
+                    A.log(conn, "settings saved", "")
+                    return self.redirect("/settings?" + urlencode({"m": msg}))
+                msg = U.save_package(conn, f)
+                A.log(conn, "package saved", msg)
+            return self.redirect("/packages?" + urlencode({"m": msg}))
         if path in ("/attendance/manual", "/collect"):
             if not self.authorized():
                 return self.ask_auth()

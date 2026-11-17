@@ -282,11 +282,11 @@ NAV = [
     ("/", "Dashboard", "dash", None), ("/members", "Members", "users", None), ("/bill", "New Bill", "bill", None),
     ("/attendance", "Attendance", "finger", None), ("/renewals", "Renewals", "renew", "renewals"),
     ("/pending", "Pending Payments", "rupee", "pending"), ("/absent", "Absent Members", "alert", "absent"),
-    ("/soon?p=Inquiries", "Inquiries", "chat", None), ("/soon?p=Packages", "Packages", "box", None),
+    ("/soon?p=Inquiries", "Inquiries", "chat", None), ("/packages", "Packages", "box", None),
     ("/soon?p=Staff", "Staff & Trainers", "staff", None), ("/soon?p=Reports", "Reports", "chart", None),
 ]
 SYSTEM = [("/users", "Staff logins", "staff"), ("/activity", "Activity log", "chart"), ("/sync", "Door sync", "door"),
-          ("/gate", "Gate machine", "server"), ("/backup", "Backup", "down")]
+          ("/gate", "Gate machine", "server"), ("/settings", "Settings", "gear"), ("/backup", "Backup", "down")]
 TRAINER_NAV = [("/trainer", "My PT clients", "users", None)]
 
 
@@ -687,7 +687,7 @@ def bill_page(conn, sn, q):
 <label>Trainer (optional)<select name="trainer"><option value="">No trainer</option>%s</select></label></div></div>
 <div><h2 style="margin-bottom:12px">4 · Payment</h2><div class="grid">
 <label>Discount (₹)<input name="discount" id="disc" inputmode="decimal" value="0"></label>
-<label>Admission fee (₹)<input name="admission" id="adm" inputmode="decimal" value="0"></label>
+<label>Admission fee (₹)<input name="admission" id="adm" inputmode="decimal" value="%s"></label>
 <label>GST<select name="gst" id="gst"><option value="0">No GST</option><option value="18">18%% GST</option></select></label>
 <label>Amount paid now (₹)<input name="paid" id="paid" inputmode="decimal" required></label>
 <label>Payment mode<select name="mode"><option>UPI</option><option>Cash</option><option>Card</option><option>Online</option></select></label>
@@ -720,7 +720,7 @@ f.start.addEventListener('input',function(){delete f.end.dataset.touched});f.que
 document.getElementById('kind').addEventListener('change',function(){kindFilter();upd()});kindFilter();upd()})();
 </script>""" % (
         e("%s · %s" % (nice(m["name"]), member_id(m["client_id"]))) if m else "", options, cards,
-        M.iso(start), tr, inv, e(staff_name()))
+        M.iso(start), tr, e(M.setting(conn, "default_admission", "0")), inv, e(staff_name()))
     return shell("New bill", "/bill", body, sub="Membership or PT bill in under a minute", msg=q.get("m", ""),
                  cnt=counts(conn, sn))
 
@@ -753,9 +753,10 @@ def save_bill(conn, sn, f):
     if end < start:
         return None, "End date is before start date."
     disc, adm, rate = num(f.get("discount")), num(f.get("admission")), num(f.get("gst"))
-    if not A.is_admin() and disc > p["price"] * A.RECEPTION_MAX_DISCOUNT / 100:
-        return None, ("Discount above %d%% (%s) needs the owner. Ask the owner to make this bill."
-                      % (A.RECEPTION_MAX_DISCOUNT, money(p["price"] * A.RECEPTION_MAX_DISCOUNT / 100)))
+    cap = num(M.setting(conn, "max_discount_reception", str(A.RECEPTION_MAX_DISCOUNT)))
+    if not A.is_admin() and disc > p["price"] * cap / 100:
+        return None, ("Discount above %g%% (%s) needs the owner. Ask the owner to make this bill."
+                      % (cap, money(p["price"] * cap / 100)))
     base = max(0.0, p["price"] - disc + adm)
     gst = round(base * rate / 100, 2)
     total = base + gst
@@ -789,40 +790,174 @@ def receipt(conn, sn, q):
     if not p:
         return shell("Receipt", "/bill", '<div class="panel">Receipt not found.</div>', cnt=counts(conn, sn))
     m = conn.execute("SELECT * FROM members WHERE client_id=?", (p["client_id"],)).fetchone()
+    S = lambda k: M.setting(conn, k, "")
     name = nice(m["name"]) if m else ""
     text = ("House of Strength - Receipt %s\nMember: %s (%s)\nPackage: %s\nPeriod: %s to %s\nTotal: %s\nPaid: %s (%s)\n%s"
             "Thank you! Get better, together.") % (
         inv, name, member_id(p["client_id"]), p["package"], short_date(p["start"]), short_date(p["expiry"]),
         money(p["payable"]), money(p["amount"]), p["mode"] or "",
         ("Balance: %s\n" % money(p["balance"])) if (p["balance"] or 0) > 0 else "")
-    link = wa(m["phone"], text) if m else ""
+    link = wa(m["phone"], text) if m and phone_ok(m) else ""
     auto = ""
     if q.get("wa") == "1" and link:
         auto = "<script>window.open(%r,'_blank')</script>" % link
     if q.get("print") == "1":
-        auto += "<script>setTimeout(function(){window.print()},400)</script>"
+        auto += "<script>setTimeout(function(){window.print()},700)</script>"
+    thermal = q.get("size") == "80"
     rows = [("Package", e(p["package"] or "")), ("Period", "%s → %s" % (short_date(p["start"]), short_date(p["expiry"]))),
             ("Trainer", e(p["trainer"] or "—")), ("Package price", money(p["list_price"])),
             ("Discount", "– " + money(p["discount"])), ("Admission", money(p["admission"])), ("GST", money(p["gst"])),
             ("<b>Total payable</b>", "<b>%s</b>" % money(p["payable"])), ("Paid (%s)" % e(p["mode"] or ""), money(p["amount"])),
             ("<b>Balance</b>", "<b>%s</b>" % money(p["balance"]))]
-    body = """<div class="panel" style="max-width:720px;background:#fff;color:#111">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:2px solid #e10600;padding-bottom:14px">
-<div style="display:flex;align-items:center;gap:12px"><img src="/logo.jpg" alt="" style="width:64px;height:64px;border-radius:10px">
-<div><div style="font:700 24px Oswald,sans-serif">HOUSE OF STRENGTH</div><div style="color:#555;font-size:12px">%s</div></div></div>
+    upi = S("upi_id").strip()
+    pay_amt = (p["balance"] or 0) if (p["balance"] or 0) > 0 else 0
+    upi_link = ""
+    if upi:
+        upi_link = "upi://pay?" + urlencode({"pa": upi, "pn": S("upi_name") or "House of Strength", "cu": "INR",
+                                             "tn": "%s %s" % (inv, member_id(p["client_id"]))})
+        if pay_amt:
+            upi_link += "&am=%.2f" % pay_amt
+    bank = [(l, S(k)) for l, k in (("Account name", "bank_name"), ("Account no.", "bank_account"), ("IFSC", "bank_ifsc"),
+                                   ("Bank / branch", "bank_branch")) if S(k)]
+    pay_block = ""
+    if upi or bank:
+        pay_block = """<div style="display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin-top:18px;padding-top:14px;border-top:1px dashed #ccc">
+%s<div style="font-size:12px;color:#333;line-height:1.7">%s%s</div></div>""" % (
+            ('<div><div id="qr" style="width:%dpx;height:%dpx"></div><div style="font-size:11px;color:#555;text-align:center;margin-top:4px">%s</div></div>'
+             % ((110, 110, "Scan to pay %s" % money(pay_amt)) if not thermal else (120, 120, "Scan to pay"))
+             if upi else "") if True else "",
+            ("<b>UPI:</b> %s<br>" % e(upi)) if upi else "",
+            "".join("<b>%s:</b> %s<br>" % (e(l), e(v)) for l, v in bank))
+        if pay_amt == 0 and upi:
+            pay_block = pay_block.replace("Scan to pay ₹0", "Scan to pay")
+    width = "300px" if thermal else "720px"
+    head_extra = " · ".join(x for x in (e(S("gym_phone")), ("GSTIN " + e(S("gst_no"))) if S("gst_no") else "") if x)
+    body = """<style>@media print{@page{%s}}</style><div class="panel" style="max-width:%s;background:#fff;color:#111;%s">
+<div style="display:flex;%sjustify-content:space-between;align-items:center;gap:16px;border-bottom:2px solid #e10600;padding-bottom:14px">
+<div style="display:flex;align-items:center;gap:12px"><img src="/logo.jpg" alt="" style="width:%dpx;height:%dpx;border-radius:10px">
+<div><div style="font:700 %dpx Oswald,sans-serif">HOUSE OF STRENGTH</div><div style="color:#555;font-size:12px">%s</div>
+<div style="color:#555;font-size:12px">%s</div></div></div>
 <div style="text-align:right"><div style="font:600 20px Oswald,sans-serif">RECEIPT</div><div>%s</div><div style="color:#555">%s</div></div></div>
 <p style="margin:16px 0"><b>%s</b> · %s · %s</p><p style="margin:-8px 0 12px;color:#555;font-size:12px">Prepared by %s</p>
-<table style="color:#111">%s</table>
-<p style="color:#555;font-size:12px;margin-top:20px">Payment non-refundable and non-transferable. Thank you for training with us. Get better, together.</p>
+<table style="color:#111">%s</table>%s
+<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:22px">
+<p style="color:#555;font-size:12px;margin:0;max-width:420px">%s</p><div style="text-align:center;font-size:12px;color:#555"><div style="width:150px;border-top:1px solid #999;margin-bottom:4px"></div>Signature</div></div>
 <p style="color:#888;font-size:11px">Powered by TFS · The First Solutions</p></div>
-<div class="acts noprint"><button class="btn" onclick="window.print()">%sPrint (A4)</button>%s
-<a class="btn" href="/m?id=%d">Open member</a><a class="btn red" href="/bill">New bill</a></div>%s""" % (
-        e(M.setting(conn, "gym_address", "")), e(inv), short_date(p["paid_on"]), e(name), member_id(p["client_id"]),
-        e(m["phone"] if m else ""), e(p["created_by"] or "—"),
-        "".join('<tr><td style="color:#444;border-color:#eee">%s</td><td style="text-align:right;border-color:#eee">%s</td></tr>' % r for r in rows),
-        icon("print", 16), ('<a class="btn" href="%s" target="_blank" rel="noopener">%sSend on WhatsApp</a>' % (e(link), icon("chat", 16))) if link else "",
-        p["client_id"], auto)
+<div class="acts noprint"><button class="btn" onclick="window.print()">%sPrint</button><a class="btn" href="/receipt?%s">%s</a>%s
+<a class="btn" href="/m?id=%d">Open member</a><a class="btn red" href="/bill">New bill</a></div>%s%s""" % (
+        "size:80mm auto;margin:3mm" if thermal else "size:A4;margin:12mm", width, "font-size:12px;padding:12px" if thermal else "",
+        "flex-direction:column;align-items:flex-start;" if thermal else "", 40 if thermal else 64, 40 if thermal else 64,
+        18 if thermal else 24, e(S("gym_address")), head_extra, e(inv), short_date(p["paid_on"]), e(name),
+        member_id(p["client_id"]), e(show_phone(m) if m else ""), e(p["created_by"] or "—"),
+        "".join('<tr><td style="color:#444;border-color:#eee;padding:6px 8px">%s</td><td style="text-align:right;border-color:#eee;padding:6px 8px">%s</td></tr>' % r for r in rows),
+        pay_block, e(S("receipt_terms") or "Fees are non-refundable and non-transferable. Thank you for training with us. Get better, together."),
+        icon("print", 16), urlencode({"inv": inv, "size": "a4" if thermal else "80"}), "A4 size" if thermal else "Thermal 80 mm",
+        ('<a class="btn" href="%s" target="_blank" rel="noopener">%sSend on WhatsApp</a>' % (e(link), icon("chat", 16))) if link else "",
+        p["client_id"],
+        ('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>'
+         '<script>try{new QRCode(document.getElementById("qr"),{text:%r,width:%d,height:%d,correctLevel:QRCode.CorrectLevel.M})}catch(x){}</script>'
+         % (upi_link, 120 if thermal else 110, 120 if thermal else 110)) if upi else "", auto)
     return shell("Receipt", "/bill", body, sub=e(inv), msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
+# ---------------- settings ----------------
+
+SETTING_FIELDS = [
+    ("Gym profile", [("gym_name", "Gym name", "House of Strength"), ("gym_phone", "Phone", ""), ("gym_email", "Email", ""),
+                     ("gym_instagram", "Instagram", ""), ("gym_address", "Address", ""), ("gst_no", "GST number (optional)", ""),
+                     ("open_time", "Opens", "07:00"), ("close_time", "Closes", "23:00")]),
+    ("Payment details on receipts", [("upi_id", "UPI ID (for the scan-to-pay QR)", ""), ("upi_name", "UPI payee name", ""),
+                                     ("bank_name", "Bank account name", ""), ("bank_account", "Account number", ""),
+                                     ("bank_ifsc", "IFSC", ""), ("bank_branch", "Bank & branch", "")]),
+    ("Billing rules", [("max_discount_reception", "Max discount · reception (%)", "20"), ("invoice_prefix", "Invoice prefix", "HOS-"),
+                       ("next_invoice", "Next invoice number", "1242"), ("default_admission", "Default admission fee (₹)", "0"),
+                       ("receipt_terms", "Receipt terms", "Fees are non-refundable and non-transferable.")]),
+]
+
+
+def settings_page(conn, sn, q):
+    blocks = []
+    for title, fields in SETTING_FIELDS:
+        inputs = "".join('<label>%s<input name="%s" value="%s"></label>' % (e(lbl), k, e(M.setting(conn, k, d))) for k, lbl, d in fields)
+        blocks.append('<div class="panel"><h2 style="margin-bottom:14px">%s</h2><div class="grid">%s</div></div>' % (e(title), inputs))
+    body = ('<form method="post" action="/settings/save" style="display:flex;flex-direction:column;gap:20px">%s'
+            '<button class="btn red" style="align-self:flex-start">Save changes</button></form>' % "".join(blocks))
+    return shell("Settings", "/settings", body, sub="Gym profile, receipt payment details, billing rules",
+                 msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
+def save_settings(conn, f):
+    for _, fields in SETTING_FIELDS:
+        for k, _, _ in fields:
+            if k in f:
+                v = f[k].strip()
+                if k in ("max_discount_reception", "next_invoice", "default_admission") and not re.fullmatch(r"\d+(\.\d+)?", v or "x"):
+                    continue
+                M.set_setting(conn, k, v)
+    return "Settings saved."
+
+
+def max_discount():
+    return A.RECEPTION_MAX_DISCOUNT
+
+
+# ---------------- packages ----------------
+
+def packages_page(conn, sn, q):
+    sold = {r[0]: r[1] for r in conn.execute("SELECT lower(trim(package)), COUNT(*) FROM payments GROUP BY 1")}
+    edit_id = q.get("edit", "")
+    out = []
+    for kind, title in (("gym", "Gym membership"), ("pt", "Personal training")):
+        cards = []
+        for p in conn.execute("SELECT * FROM packages WHERE kind=? ORDER BY active DESC, sort, id", (kind,)):
+            n = sold.get(p["name"].lower(), 0)
+            if A.is_admin() and str(p["id"]) == edit_id:
+                cards.append("""<form class="panel" method="post" action="/packages/save" style="display:flex;flex-direction:column;gap:10px">
+<input type="hidden" name="id" value="%d"><label>Name<input name="name" value="%s" required></label>
+<div class="grid"><label>Days<input name="days" value="%d" required></label><label>Price (₹)<input name="price" value="%g" required></label></div>
+<label>Type<select name="kind"><option value="gym"%s>Gym membership</option><option value="pt"%s>Personal training</option></select></label>
+<div style="display:flex;gap:8px"><button class="btn red sm">Save</button><a class="btn sm" href="/packages">Cancel</a></div></form>""" % (
+                    p["id"], e(p["name"]), p["days"], p["price"], " selected" if kind == "gym" else "", " selected" if kind == "pt" else ""))
+                continue
+            tools = ""
+            if A.is_admin():
+                tools = ('<div style="display:flex;gap:8px;margin-top:14px"><a class="btn sm" href="/packages?edit=%d">Edit</a>'
+                         '<form method="post" action="/packages/save"><input type="hidden" name="id" value="%d"><input type="hidden" name="toggle" value="1">'
+                         '<button class="btn sm">%s</button></form></div>' % (p["id"], p["id"], "Hide" if p["active"] else "Show"))
+            cards.append('<div class="panel" style="%s"><div class="ph" style="margin:0"><h2>%s</h2>%s</div><div class="dim">%d days</div>'
+                         '<div style="font:600 34px Oswald,sans-serif;margin:8px 0">%s</div><div class="dim">%d sold%s</div>%s</div>' % (
+                             "" if p["active"] else "opacity:.5", e(p["name"]),
+                             '<span class="pill p-bad">Best seller</span>' if n and n == max(sold.values() or [0]) else "",
+                             p["days"], money(p["price"]), n, "" if p["active"] else " · hidden", tools))
+        out.append('<h2 class="dim" style="font-family:Oswald,sans-serif;margin:6px 0 0">%s</h2><div class="kpis">%s</div>' % (title, "".join(cards)))
+    add = ""
+    if A.is_admin():
+        add = """<form class="panel" method="post" action="/packages/save" style="display:flex;flex-direction:column;gap:12px">
+<h2>Add package</h2><div class="grid"><label>Name<input name="name" required></label><label>Days<input name="days" required></label>
+<label>Price (₹)<input name="price" required></label><label>Type<select name="kind"><option value="gym">Gym membership</option><option value="pt">Personal training</option></select></label></div>
+<button class="btn red" style="align-self:flex-start">Add package</button></form>"""
+    return shell("Packages", "/packages", "".join(out) + add, sub="Prices, and what actually sells", msg=q.get("m", ""),
+                 cnt=counts(conn, sn))
+
+
+def save_package(conn, f):
+    pid = f.get("id", "")
+    if f.get("toggle") and pid.isdigit():
+        conn.execute("UPDATE packages SET active = 1 - active WHERE id=?", (int(pid),))
+        return "Package updated."
+    name = (f.get("name") or "").strip()
+    days, price = f.get("days", ""), f.get("price", "").replace(",", "")
+    if not name or not days.isdigit() or not re.fullmatch(r"\d+(\.\d+)?", price):
+        return "Name, days and price are needed."
+    kind = "pt" if f.get("kind") == "pt" else "gym"
+    if pid.isdigit():
+        conn.execute("UPDATE packages SET name=?, days=?, price=?, kind=? WHERE id=?", (name, int(days), float(price), kind, int(pid)))
+        return "Saved %s." % name
+    if conn.execute("SELECT 1 FROM packages WHERE lower(name)=lower(?)", (name,)).fetchone():
+        return "A package with this name already exists."
+    conn.execute("INSERT INTO packages (name, days, price, kind, sessions, sort) VALUES (?,?,?,?,0,99)",
+                 (name, int(days), float(price), kind))
+    return "Added %s." % name
 
 
 def soon(conn, sn, q):
@@ -1266,7 +1401,7 @@ def trainer_page(conn, sn, q):
 
 GET_PAGES = {"/": dashboard, "/members": members_list, "/m": profile, "/bill": bill_page, "/receipt": receipt,
              "/soon": soon, "/attendance": attendance, "/renewals": renewals, "/pending": pending, "/absent": absent,
-             "/collect": collect_page, "/trainer": trainer_page}
+             "/collect": collect_page, "/trainer": trainer_page, "/settings": settings_page, "/packages": packages_page}
 CSV_PAGES = {"/members.csv": members_csv, "/attendance.csv": attendance_csv, "/renewals.csv": renewals_csv,
              "/pending.csv": pending_csv}
 
