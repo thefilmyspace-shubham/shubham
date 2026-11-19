@@ -41,3 +41,15 @@ No phone number and no price are shown.
 python3 tools/overlay.py <source.mp4>                      # 4K60 H.264 with captions + watermark + effects, original audio
 python3 tools/overlay.py <source.mp4> --still 7.2 out.png  # preview one frame (no zoom)
 ```
+
+## Thumbnail / reel cover
+`exports/Funhoods_Fidget_Ball_Thumbnail.jpg` (1080x1920) is made by `tools/thumbnail.py`, in the format of the earlier Funhoods reels.
+It reuses the Press & Go reel's drawing helpers, so the look matches. It has:
+- the light sunburst background;
+- the logo sticker;
+- a NEW LAUNCH chip;
+- the yellow FIDGET BALL title and a red AVENGERS SERIES SPINNER subtitle;
+- the 4 balls on a soft burst;
+- the chips 4 DESIGNS • 288 PCS / CARTON and FOR DISTRIBUTORS & WHOLESALERS.
+
+The balls are cut out of the video's line-up frame (31.3 s) with rembg (`assets/ball_*.png`). Everything sits inside the 3:4 centre crop that Instagram shows on the profile grid; see `exports/Funhoods_Fidget_Ball_Thumbnail_grid_preview.jpg`.
