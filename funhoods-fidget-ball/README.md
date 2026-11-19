@@ -48,12 +48,12 @@ There are two 9:16 versions:
 - `exports/Funhoods_Fidget_Ball_Thumbnail_1080x1920.jpg`.
 
 All of them are made by `tools/thumbnail.py`, in the format of the earlier Funhoods reels. The script reuses the Press & Go reel's drawing helpers, so the look matches. The cover has:
-- v2 (client: "still dull"): a bright Funhoods red sunburst background, as in the Musical Stick opener;
-- a yellow NEW LAUNCH chip;
-- the yellow FIDGET BALL title and a white AVENGERS SERIES SPINNER subtitle;
-- the 4 balls on an orange + yellow burst, with punchier colour, a white sticker outline, spin arcs and sparkles;
+- the light sunburst background;
+- a NEW LAUNCH chip;
+- the yellow FIDGET BALL title and a red AVENGERS SERIES SPINNER subtitle;
+- the 4 balls on a soft burst;
 - the chips 4 DESIGNS • 288 PCS / CARTON and FOR DISTRIBUTORS & WHOLESALERS.
 
-There is no logo sticker (client: no watermark on the cover).
+There is no logo sticker (client: no watermark on the cover). The colours are as approved: a red v2 was rejected ("color nahi badalna tha, only quality"). Only the balls' quality is raised: a Real-ESRGAN source, plus clarity and fine sharpening after the resize.
 
 **Ball images:** from the video's last clean line-up frame (31.75 s), each upscaled 4x with Real-ESRGAN and cut out with rembg (`assets/ball_*.png`). The white ball's lower edge, lost against the white cloth, is filled in.
