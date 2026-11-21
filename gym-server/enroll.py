@@ -22,6 +22,7 @@ FINGERS = [(6, "Right index"), (5, "Right thumb"), (7, "Right middle"), (3, "Lef
 FINGER_NAME = dict([(0, "Left little"), (1, "Left ring"), (2, "Left middle"), (3, "Left index"), (4, "Left thumb"), (5, "Right thumb"),
                     (6, "Right index"), (7, "Right middle"), (8, "Right ring"), (9, "Right little")])
 STALE_MIN = 3
+SHOW_MIN = 10  # a result stays on the page this long
 
 
 def init(conn):
@@ -101,6 +102,10 @@ def status(conn, sn, cid):
     out = {"fingers": [FINGER_NAME.get(f, str(f)) for f in fps], "state": "none", "text": "", "done": True}
     if not r:
         return out
+    # Old results (over 10 minutes) are not shown any more.
+    started = datetime.datetime.strptime(r["at"], "%Y-%m-%d %H:%M:%S") if r["at"] else None
+    if started and datetime.datetime.now() - started > datetime.timedelta(minutes=SHOW_MIN):
+        return out
     c = conn.execute("SELECT * FROM commands WHERE id=?", (r["enroll_cmd"],)).fetchone()
     # Success = the machine sent a template for that finger after the enroll was asked for.
     got_new = bool(conn.execute("SELECT 1 FROM records WHERE sn=? AND pin=? AND kind IN ('FP','BIODATA') AND idx=? AND updated_at >= ?",
@@ -148,7 +153,7 @@ def page(conn, sn, q):
 <div class="kv"><div><span>Fingers saved</span><b>%s</b></div><div><span>On the gate machine</span><b>%s</b></div></div>
 <form method="post" action="/enroll/start" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:0">
 <input type="hidden" name="id" value="%s"><label style="flex:1 1 180px">Finger<select name="fid">%s</select></label>
-<button class="btn red" style="min-height:52px;font-size:16px"%s>%s%s</button>%s</form>
+<button class="btn red" style="min-height:52px;font-size:16px"%s>%s%s</button>%s%s</form>
 <div id="enst" style="font-size:15px;line-height:1.5"></div>
 <p class="dim" style="margin:0;font-size:12px">Register two fingers (say, both index fingers), so the door still opens if one finger has a cut.
 <b>Finger not reading at the door?</b> Calibrate: scan the same finger again, pressing flat and covering the whole scanner.</p>%s</div>
@@ -167,10 +172,11 @@ if(!d.done&&++n<150){setTimeout(tick,2000)}else if(d.state==='ok'&&n>0){setTimeo
         e(", ".join(have)) if have else '<span style="color:var(--red)">None yet</span>', "Yes" if on_machine(conn, sn, cid) else "Not yet",
         e(cid), opts, "" if online else " disabled", U.icon("finger", 18),
         "Calibrate: scan again" if have else "Register on gate machine",
+        ('<a class="btn" href="/bill?id=%s" style="min-height:52px">%s</a>' % (
+            e(cid), "Skip fingerprint → Billing" if not have else "Go to billing →")) if m else "",
         ('<label class="chk" style="flex-basis:100%%;font-size:13px"><input type="checkbox" name="fresh" value="1">Start fresh: remove this '
          'person\'s old fingerprints from the machine first (use when the finger keeps failing)</label>') if have else "",
-        ('<a class="btn" href="/bill?id=%s" style="align-self:flex-start">Next: make the first bill →</a>' % e(cid))
-        if m and not conn.execute("SELECT 1 FROM payments WHERE client_id=?", (m["client_id"],)).fetchone() else "",
+        "",
         e(cid), back, e(cid))
     return U.shell("Calibrate fingerprint" if have else "Register fingerprint", "/members", body, sub='<a href="%s">%s</a> › Fingerprint' % (back, e(U.nice(who["name"]))),
                    msg=q.get("m", ""), warn="" if online else "The gate machine is offline. Turn it on and check its internet first.",
