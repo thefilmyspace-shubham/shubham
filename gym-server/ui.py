@@ -355,6 +355,35 @@ items.forEach(function(a,k){a.classList.toggle('on',k===sel)})}else if(ev.key===
 document.addEventListener('click',function(ev){if(!f.contains(ev.target)){box.hidden=true}});i.addEventListener('focus',function(){if(i.value.trim()&&box.innerHTML){box.hidden=false}})})();</script>"""
 
 
+def delete_page(conn, sn, q):
+    """Confirm before deleting a member: shows their bills and asks what to do with them."""
+    cid = q.get("id", "")
+    m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone() if cid.isdigit() else None
+    if not m:
+        return shell("Delete member", "/members", '<div class="panel">Member not found. <a href="/members">Back</a></div>')
+    ok, why = M.can_delete(conn, m["client_id"], A.is_admin())
+    if not ok:
+        return shell("Delete member", "/members", '<div class="panel">%s <a href="/m?id=%d">Back</a></div>' % (e(why), m["client_id"]))
+    nb, tot = conn.execute("SELECT COUNT(*), COALESCE(SUM(amount),0) FROM payments WHERE client_id=?", (m["client_id"],)).fetchone()
+    visits = conn.execute("SELECT COUNT(DISTINCT substr(ts,1,10)) FROM punches WHERE pin=?", (str(m["client_id"]),)).fetchone()[0]
+    bills = ("""<div style="display:flex;flex-direction:column;gap:8px"><b>What about their %d bill%s (%s collected)?</b>
+<label class="chk"><input type="radio" name="bills" value="keep" checked>Keep the bills in the reports (collection totals stay the same)</label>
+<label class="chk"><input type="radio" name="bills" value="delete">Delete the bills too (only for a duplicate or wrong entry; collection goes down by %s)</label></div>"""
+             % (nb, "" if nb == 1 else "s", money(tot), money(tot))) if nb else '<p class="dim" style="margin:0">No bills, nothing else is lost.</p>'
+    body = """<form class="panel" method="post" action="/member/delete" style="display:flex;flex-direction:column;gap:16px;max-width:720px">
+<input type="hidden" name="id" value="%d"><h2 style="color:var(--bad)">Delete %s (%s)?</h2>
+<div class="kv"><div><span>Package</span><b>%s</b></div><div><span>Ends</span><b>%s</b></div><div><span>Bills</span><b>%d · %s</b></div>
+<div><span>Days at the gym</span><b>%d</b></div><div><span>Pending</span><b>%s</b></div></div>%s
+<p class="dim" style="margin:0">They are also removed from the gate machine, so the door stops opening for them. This cannot be undone
+(the nightly backup still has them).</p>
+<label>Type <b>DELETE</b> to confirm<input name="confirm" autocomplete="off" required pattern="DELETE" placeholder="DELETE"></label>
+<div style="display:flex;gap:10px"><button class="btn red">Delete member</button><a class="btn" href="/m?id=%d">Cancel</a></div></form>""" % (
+        m["client_id"], e(nice(m["name"])), member_id(m["client_id"]), e(m["package"] or "—"), short_date(m["expiry"]), nb, money(tot),
+        visits, money(m["pending"]), bills, m["client_id"])
+    return shell("Delete member", "/members", body, sub='<a href="/m?id=%d">%s</a> › Delete' % (m["client_id"], e(nice(m["name"]))),
+                 msg=q.get("m", ""), cnt=counts(conn, sn))
+
+
 def search_words(text):
     return [w for w in re.split(r"[\s,]+", (text or "").lower().strip()) if w]
 
@@ -797,9 +826,7 @@ def profile(conn, sn, q):
         jform = '<a class="btn" href="/joinings/view?id=%d">%sJoining form%s</a>' % (
             jr["id"], icon("edit", 16), (' <span class="pill p-bad">%s</span>' % e(flags[0][:30])) if flags else "")
     if M.can_delete(conn, m["client_id"], A.is_admin())[0]:
-        jform += ('<form method="post" action="/member/delete" style="margin:0" onsubmit="return confirm(\'Delete this member? No bill was made, '
-                  'so nothing else is lost. This cannot be undone.\')"><input type="hidden" name="id" value="%d">'
-                  '<button class="btn" style="color:var(--bad)">Delete</button></form>') % m["client_id"]
+        jform += '<a class="btn" href="/member/delete?id=%d" style="color:var(--bad)">Delete</a>' % m["client_id"]
     has_fp = bool(sn and EN.fingers(conn, sn, m["client_id"]))
     jform = ('<a class="btn%s" href="/enroll?id=%d">%s%s</a>' % ("" if has_fp else " red", m["client_id"], icon("finger", 16),
                                                               "Calibrate fingerprint" if has_fp else "Register fingerprint")) + jform

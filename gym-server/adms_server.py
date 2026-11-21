@@ -296,6 +296,9 @@ class Handler(BaseHTTPRequestHandler):
                 if path == "/enroll/status":
                     return self.send_text(EN.status_json(conn, sn, q.get("id", "")), ctype="application/json")
                 return self.send_text(EN.page(conn, sn, q), ctype="text/html")
+        if path == "/member/delete":
+            with DB_LOCK, db() as conn:
+                return self.send_text(U.delete_page(conn, M.default_sn(conn), q), ctype="text/html")
         if path == "/search":
             with DB_LOCK, db() as conn:
                 return self.send_text(U.search_json(conn, M.default_sn(conn), q), ctype="application/json")
@@ -663,8 +666,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/member/delete":
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             cid = f.get("id", "")
+            if f.get("confirm", "").strip().upper() != "DELETE":
+                return self.redirect("/member/delete?" + urlencode({"id": cid, "m": "Type DELETE to confirm."}))
             with DB_LOCK, db() as conn:
-                ok, msg = M.delete_member(conn, M.default_sn(conn), int(cid), A.is_admin()) if cid.isdigit() else (False, "Member not found.")
+                ok, msg = M.delete_member(conn, M.default_sn(conn), int(cid), A.is_admin(), f.get("bills") == "delete") \
+                    if cid.isdigit() else (False, "Member not found.")
                 A.log(conn, "member deleted" if ok else "member delete refused", "%s · %s" % (cid, msg))
             return self.redirect(("/members?" + urlencode({"m": msg})) if ok else ("/member?" + urlencode({"id": cid, "m": msg})))
         if path in ("/members/import", "/payments/import", "/member/save", "/member/door", "/sync"):

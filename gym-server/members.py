@@ -488,10 +488,8 @@ def delete_box(conn, m):
     ok, why = can_delete(conn, m["client_id"], A.is_admin())
     if not ok:
         return ""
-    return ('<form method="post" action="/member/delete" style="margin:0 0 18px" onsubmit="return confirm(\'Delete %s (ID %d)? '
-            'This cannot be undone.\')"><input type="hidden" name="id" value="%d"><button class="ghost" style="color:var(--bad)">Delete this member</button>'
-            ' <span class="dim" style="font-size:12px">No bill yet, so this entry can still be removed.</span></form>') % (
-        e((m["name"] or "").replace("'", "")), m["client_id"], m["client_id"])
+    return ('<p style="margin:0 0 18px"><a class="btn" href="/member/delete?id=%d" style="color:var(--bad)">Delete this member</a></p>'
+            % m["client_id"])
 
 
 def new_member_body(conn, q):
@@ -558,8 +556,10 @@ def can_delete(conn, cid, is_admin):
     m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone()
     if not m:
         return False, "Member not found."
+    if is_admin:
+        return True, ""  # the owner can always delete (the confirm page asks what to do with any bills)
     if conn.execute("SELECT 1 FROM payments WHERE client_id=? LIMIT 1", (cid,)).fetchone():
-        return False, "This member has a bill, so they cannot be deleted."
+        return False, "This member has a bill, so only the owner can delete them."
     if not is_admin:
         if (m["registration"] or "") != iso(today()):
             return False, "Only the owner can delete a member added before today."
@@ -568,11 +568,18 @@ def can_delete(conn, cid, is_admin):
     return True, ""
 
 
-def delete_member(conn, sn, cid, is_admin):
+def delete_member(conn, sn, cid, is_admin, with_bills=False):
     ok, why = can_delete(conn, cid, is_admin)
     if not ok:
         return False, why
     m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone()
+    nb = conn.execute("SELECT COUNT(*) FROM payments WHERE client_id=?", (cid,)).fetchone()[0]
+    if nb and with_bills:
+        conn.execute("DELETE FROM payments WHERE client_id=?", (cid,))
+    elif nb:
+        # Bills stay in the collection reports, marked with the deleted member's name.
+        conn.execute("UPDATE payments SET note = TRIM(COALESCE(note,'') || ' [member deleted: ' || ? || ']') WHERE client_id=?",
+                     (m["name"] or "", cid))
     pin = str(cid)
     on_machine = conn.execute("SELECT 1 FROM records WHERE pin=? AND kind='USER'", (pin,)).fetchone() if sn else None
     if sn and on_machine:
@@ -585,7 +592,9 @@ def delete_member(conn, sn, cid, is_admin):
         conn.execute("UPDATE wa_queue SET status='skipped', error='member deleted' WHERE client_id=? AND status='queued'", (cid,))
     except Exception:  # tables made by other modules may not exist yet
         pass
-    return True, "Deleted %s (ID %s)%s." % (m["name"], pin, ", and removed from the gate machine" if on_machine else "")
+    return True, "Deleted %s (ID %s)%s%s." % (m["name"], pin, ", removed from the gate machine" if on_machine else "",
+                                             (", %d bill%s deleted too" % (nb, "" if nb == 1 else "s") if with_bills else
+                                              ", %d bill%s kept in reports" % (nb, "" if nb == 1 else "s")) if nb else "")
 
 
 def set_no_expiry(conn, sn, cid, on):
