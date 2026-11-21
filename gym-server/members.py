@@ -467,7 +467,7 @@ def member_page(conn, sn, q, msg=""):
         '<p>Status: <span class="tag %s">%s</span> · Expiry %s · Package %s%s</p>' % (
             cls, e(st), show(m["expiry"]), v("package"),
             ' · <span class="tag mid">Pending ₹{:,.0f}</span>'.format(m["pending"]) if (m["pending"] or 0) > 0 else "") if m else
-        '<p class="dim">Enroll the finger on the gate machine first with the same ID, then save here.</p>',
+        '<p class="dim">Save the member here; the next screen registers their fingerprint on the gate machine.</p>',
         e(q.get("join", "")) if q.get("join", "").isdigit() else "",
         v("client_id"), "readonly" if m else "", v("name"), v("phone"), v("gender"),
         e((m["dob"] if m and "dob" in m.keys() else "") or q.get("dob", "")),

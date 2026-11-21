@@ -16,6 +16,7 @@ import auth as A
 import gsheets as GS
 import members as M
 import birthdays as BD
+import enroll as EN
 import staffhours as SH
 import whatsapp as W
 
@@ -713,6 +714,9 @@ def profile(conn, sn, q):
             flags = []
         jform = '<a class="btn" href="/joinings/view?id=%d">%sJoining form%s</a>' % (
             jr["id"], icon("edit", 16), (' <span class="pill p-bad">%s</span>' % e(flags[0][:30])) if flags else "")
+    has_fp = bool(sn and EN.fingers(conn, sn, m["client_id"]))
+    jform = ('<a class="btn%s" href="/enroll?id=%d">%s%s</a>' % ("" if has_fp else " red", m["client_id"], icon("finger", 16),
+                                                              "Fingerprint" if has_fp else "Register fingerprint")) + jform
     if A.is_admin():
         noexp = M.is_no_expiry(m["expiry"])
         jform += ('<form method="post" action="/member/noexpiry" style="margin:0" onsubmit="return confirm(%s)">'
@@ -1947,6 +1951,7 @@ def staff_page(conn, sn, q):
                  '<td><form method="post" action="/staff/phone" style="display:flex;gap:6px;margin:0"><input type="hidden" name="pin" value="%s">'
                  '<input name="phone" value="%s" inputmode="numeric" maxlength="13" placeholder="10-digit number" aria-label="WhatsApp number" style="width:128px;min-height:36px">'
                  '<button class="btn sm">Save</button></form></td><td style="display:flex;gap:6px;justify-content:flex-end">%s'
+                 '<a class="ibtn" href="/enroll?id=%s" aria-label="Register fingerprint" title="Register fingerprint">%s</a>'
                  '<a class="ibtn" href="/staff?edit=%s" aria-label="Edit">%s</a></td></tr>') % (
             ' style="opacity:.5"' if not s_["active"] else "", e(s_["pin"]), initials(s_["name"]), e(s_["name"] or "ID " + s_["pin"]),
             e(s_["role"] or ""), e(sh["name"]) if sh else '<span class="dim">No shift</span>', n30,
@@ -1955,7 +1960,7 @@ def staff_page(conn, sn, q):
             ("%s%s" % (fmt_t(first), (" → " + fmt_t(last)) if last else "")) if first else "", money(s_["salary"]) if s_["salary"] else "—",
             e(s_["pin"]), e(s_["phone"] or ""),
             ('<a class="ibtn" href="tel:%s" aria-label="Call">%s</a>' % (e(s_["phone"]), icon("phone", 16))) if s_["phone"] else "",
-            e(s_["pin"]), icon("edit", 16))
+            e(s_["pin"]), icon("finger", 16), e(s_["pin"]), icon("edit", 16))
     # shift cards
     sh_cards = ""
     for sh in shifts.values():

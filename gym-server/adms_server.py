@@ -37,6 +37,7 @@ import assistant as AS
 import gsheets as GS
 import birthdays as BD
 import door as D
+import enroll as EN
 import joining as J
 import staffhours as SH
 import whatsapp as W
@@ -101,6 +102,7 @@ def init_db():
         W.init(conn)
         U.init_staff(conn)  # staff, shifts, late days
         BD.init(conn)
+        EN.init(conn)
 
 
 def kv_fields(text):
@@ -288,6 +290,12 @@ class Handler(BaseHTTPRequestHandler):
             with DB_LOCK, db() as conn:
                 U.init_staff(conn)
                 return self.send_text(SH.report_page(conn, M.default_sn(conn), q), ctype="text/html")
+        if path in ("/enroll", "/enroll/status"):
+            with DB_LOCK, db() as conn:
+                sn = M.default_sn(conn)
+                if path == "/enroll/status":
+                    return self.send_text(EN.status_json(conn, sn, q.get("id", "")), ctype="application/json")
+                return self.send_text(EN.page(conn, sn, q), ctype="text/html")
         if path == "/birthdays":
             with DB_LOCK, db() as conn:
                 return self.send_text(BD.page(conn, M.default_sn(conn), q), ctype="text/html")
@@ -443,6 +451,13 @@ class Handler(BaseHTTPRequestHandler):
                         return self.set_session(A.new_session(conn, "owner"), "/")
                     return self.redirect("/login?" + urlencode({"err": "Wrong owner password."}))
             return self.redirect("/login")
+        if path == "/enroll/start":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            with DB_LOCK, db() as conn:
+                user = A.me()
+                ok, msg = EN.start(conn, M.default_sn(conn), f.get("id", ""), f.get("fid", ""), user.get("name") or user.get("email") or "")
+                A.log(conn, "fingerprint enroll" if ok else "fingerprint enroll refused", "%s · %s" % (f.get("id", ""), msg))
+            return self.redirect("/enroll?" + urlencode({"id": f.get("id", ""), "m": msg}))
         if path in ("/door/open", "/door/method"):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
@@ -668,11 +683,16 @@ class Handler(BaseHTTPRequestHandler):
                 A.log(conn, "import bills", "%d bills" % n)
                 return self.send_text("Imported %d old bills, %d skipped" % (n, skipped))
             if path == "/member/save":
+                cid_ = f.get("client_id", "")
+                was_new = not (cid_.isdigit() and conn.execute("SELECT 1 FROM members WHERE client_id=?", (int(cid_),)).fetchone())
                 ok, msg = M.save_member(conn, sn, f)
                 if ok and f.get("join"):
                     J.linked(conn, f["join"], f.get("client_id", ""), U.staff_name())
                 A.log(conn, "member saved", msg)
                 cid = f.get("client_id", "")
+                if ok and was_new and sn and not EN.fingers(conn, sn, cid):
+                    # A new member: go straight to registering their finger on the gate machine.
+                    return self.redirect("/enroll?" + urlencode({"id": cid, "m": msg + " Now register the fingerprint."}))
                 return self.redirect("/m?" + urlencode({"id": cid, "m": msg}) if ok
                                      else "/member?" + urlencode({"m": msg}))
             if path == "/member/door":
@@ -722,10 +742,11 @@ class Handler(BaseHTTPRequestHandler):
     def next_command(self, sn):
         with DB_LOCK, db() as conn:
             D.expire_stale(conn, sn)
-            # Door opens jump the queue (a person is waiting at the gate); then everything else in order.
+            EN.expire_stale(conn, sn)
+            # Door opens jump the queue, then fingerprint enrolls (a person is waiting at the gate), then everything else in order.
             row = conn.execute(
                 "SELECT id, cmd FROM commands WHERE sn=? AND sent_at IS NULL "
-                "ORDER BY (cmd LIKE 'AC_UNLOCK%' OR cmd LIKE 'CONTROL DEVICE%') DESC, id LIMIT 1",
+                "ORDER BY (cmd LIKE 'AC_UNLOCK%' OR cmd LIKE 'CONTROL DEVICE%') DESC, COALESCE(prio,0) DESC, id LIMIT 1",
                 (sn,),
             ).fetchone()
             if not row or not D.is_door_cmd(row["cmd"]):
