@@ -262,6 +262,11 @@ def save_member(conn, sn, f):
         return False, "Client ID must be a number (the Biometric ID)."
     cid = int(cid)
     old = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone()
+    if f.get("new") == "1":
+        if old:
+            return False, "Member ID %d is already %s. Leave the ID as given (the next free number)." % (cid, old["name"])
+        if cid >= STAFF_FROM:
+            return False, "Member IDs must be below %d (higher IDs are for staff)." % STAFF_FROM
     name = (f.get("name") or (old["name"] if old else "")).strip()
     if not name:
         return False, "Name is required."
@@ -433,6 +438,8 @@ def member_page(conn, sn, q, msg=""):
         pays = "".join("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s → %s</td><td>%s</td><td class=\"dim\">%s</td></tr>" % (
             show(p["paid_on"]), e(p["package"] or ""), "%g" % (p["amount"] or 0), show(p["start"]), show(p["expiry"]),
             e(p["mode"] or ""), e(p["note"] or "")) for p in rows)
+    if not m:
+        return layout("Add member", "/member", new_member_body(conn, q), msg)
     st, cls = status_of(m["expiry"]) if m else ("New member", "dim")
     pin = cid
     door = ""
@@ -474,6 +481,31 @@ def member_page(conn, sn, q, msg=""):
         "%g" % (m["pending"] or 0) if m else "0", opts, iso(today()),
         door, pays or '<tr><td colspan="6">—</td></tr>')
     return layout("Member", "/member", body, msg)
+
+
+def new_member_body(conn, q):
+    """Add a member: the ID is given automatically; next step registers the fingerprint, then the first bill."""
+    import joining as J
+    nid = q.get("client_id", "") if q.get("client_id", "").isdigit() else str(J.next_id(conn))
+    g = q.get("gender", "")
+    return """<div class="panel" style="display:flex;flex-direction:column;gap:16px;max-width:860px">
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill p-ok">1 · Details</span><span class="dim">→</span>
+<span class="pill p-dim">2 · Fingerprint</span><span class="dim">→</span><span class="pill p-dim">3 · First bill</span></div>
+<form method="post" action="/member/save" style="display:flex;flex-direction:column;gap:16px;margin:0"><input type="hidden" name="join" value="%s"><input type="hidden" name="new" value="1">
+<div class="grid">
+<label>Member ID (gate ID)<span style="display:flex;gap:8px;min-width:0"><input name="client_id" id="nid" value="%s" required readonly inputmode="numeric" style="flex:1 1 auto;min-width:0;width:100%%">
+<button type="button" class="btn sm" onclick="var i=document.getElementById('nid');i.readOnly=false;i.focus();this.remove()">Change</button></span>
+<span class="dim" style="font-size:12px">Given automatically: the next free number.</span></label>
+<label>Full name<input name="name" value="%s" required autofocus></label>
+<label>Mobile<input name="phone" value="%s" inputmode="numeric" maxlength="13"></label>
+<label>Gender<select name="gender"><option value="">Choose</option><option%s>Male</option><option%s>Female</option></select></label>
+<label id="dob">Date of birth<input type="date" name="dob" value="%s"></label></div>
+<label class="chk"><input type="checkbox" name="enroll_next" value="1" checked>Register the fingerprint on the gate machine right after saving</label>
+<div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn red" style="min-height:52px;font-size:16px">Save &amp; continue</button>
+<a class="btn" href="/members" style="min-height:52px">Cancel</a></div></form>
+<p class="dim" style="margin:0;font-size:12px">After the fingerprint, make the first bill from <b>Renewal</b>. The door opens once the bill is saved.</p></div>""" % (
+        e(q.get("join", "")) if q.get("join", "").isdigit() else "", e(nid), e(q.get("name", "")), e(q.get("phone", "")),
+        " selected" if g == "Male" else "", " selected" if g == "Female" else "", e(q.get("dob", "")))
 
 
 def sync_page(conn, sn, msg=""):

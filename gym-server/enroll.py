@@ -27,7 +27,11 @@ STALE_MIN = 3
 def init(conn):
     conn.execute("""CREATE TABLE IF NOT EXISTS enroll_log (
         id INTEGER PRIMARY KEY, client_id INTEGER, fid INTEGER, user_cmd INTEGER, enroll_cmd INTEGER,
-        fp_before INTEGER, at TEXT, by_name TEXT)""")
+        fp_before INTEGER, at TEXT, by_name TEXT, fresh INTEGER DEFAULT 0, cleaned INTEGER DEFAULT 0)""")
+    lcols = {r[1] for r in conn.execute("PRAGMA table_info(enroll_log)")}
+    for col in ("fresh", "cleaned"):
+        if col not in lcols:
+            conn.execute("ALTER TABLE enroll_log ADD COLUMN %s INTEGER DEFAULT 0" % col)
     cols = {r[1] for r in conn.execute("PRAGMA table_info(commands)")}
     if "prio" not in cols:
         conn.execute("ALTER TABLE commands ADD COLUMN prio INTEGER DEFAULT 0")
@@ -64,7 +68,7 @@ def expire_stale(conn, sn):
                  "AND prio=1 AND created_at < ?", (cut, cut, sn, cut))
 
 
-def start(conn, sn, cid, fid, who):
+def start(conn, sn, cid, fid, who, fresh=False):
     """Queue the enroll. Returns (ok, message)."""
     if not sn:
         return False, "No gate machine is connected yet."
@@ -80,10 +84,14 @@ def start(conn, sn, cid, fid, who):
         return False, "This member is blocked at the door (membership ended). Renew first, then register the finger."
     name = machine_name((m or staff)["name"])
     user_cmd = _q(conn, sn, "DATA UPDATE USERINFO PIN=%s\tName=%s\tPri=0" % (pin, name)) if not on_machine(conn, sn, pin) else None
+    if fresh:
+        # Calibrate from scratch: the machine forgets this person's old fingers before the new scan.
+        _q(conn, sn, "DATA DELETE FINGERTMP PIN=%s" % pin)
     enroll_cmd = _q(conn, sn, "ENROLL_FP PIN=%s\tFID=%d\tRETRY=3\tOVERWRITE=1" % (pin, fid))
-    conn.execute("INSERT INTO enroll_log (client_id, fid, user_cmd, enroll_cmd, fp_before, at, by_name) VALUES (?,?,?,?,?,?,?)",
-                 (int(cid), fid, user_cmd, enroll_cmd, len(fingers(conn, sn, pin)), M.stamp(), who))
-    return True, "Sent to the gate machine: %s (ID %s), %s finger." % (name, pin, FINGER_NAME.get(fid, ""))
+    conn.execute("INSERT INTO enroll_log (client_id, fid, user_cmd, enroll_cmd, fp_before, at, by_name, fresh) VALUES (?,?,?,?,?,?,?,?)",
+                 (int(cid), fid, user_cmd, enroll_cmd, len(fingers(conn, sn, pin)), M.stamp(), who, 1 if fresh else 0))
+    return True, "Sent to the gate machine: %s (ID %s), %s finger%s." % (
+        name, pin, FINGER_NAME.get(fid, ""), " (old fingerprints removed first)" if fresh else "")
 
 
 def status(conn, sn, cid):
@@ -98,6 +106,12 @@ def status(conn, sn, cid):
     got_new = bool(conn.execute("SELECT 1 FROM records WHERE sn=? AND pin=? AND kind IN ('FP','BIODATA') AND idx=? AND updated_at >= ?",
                                 (sn, str(cid), str(r["fid"]), r["at"])).fetchone())
     if got_new:
+        if r["fresh"] and not r["cleaned"]:
+            # Fresh calibration: forget the server's copies of the old fingers too, so a later door unblock
+            # does not put them back.
+            conn.execute("DELETE FROM records WHERE sn=? AND pin=? AND kind IN ('FP','BIODATA') AND updated_at < ?", (sn, str(cid), r["at"]))
+            conn.execute("UPDATE enroll_log SET cleaned=1 WHERE id=?", (r["id"],))
+            out["fingers"] = [FINGER_NAME.get(f, str(f)) for f in fingers(conn, sn, cid)]
         out.update(state="ok", text="Fingerprint saved ✅ (%s). The member can use the door now." % FINGER_NAME.get(r["fid"], ""))
     elif not c:
         out.update(state="bad", text="Enroll request was lost. Try again.")
@@ -134,9 +148,10 @@ def page(conn, sn, q):
 <div class="kv"><div><span>Fingers saved</span><b>%s</b></div><div><span>On the gate machine</span><b>%s</b></div></div>
 <form method="post" action="/enroll/start" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:0">
 <input type="hidden" name="id" value="%s"><label style="flex:1 1 180px">Finger<select name="fid">%s</select></label>
-<button class="btn red" style="min-height:52px;font-size:16px"%s>%sRegister on gate machine</button></form>
+<button class="btn red" style="min-height:52px;font-size:16px"%s>%s%s</button>%s</form>
 <div id="enst" style="font-size:15px;line-height:1.5"></div>
-<p class="dim" style="margin:0;font-size:12px">Register two fingers (say, both index fingers), so the door still opens if one finger has a cut.</p></div>
+<p class="dim" style="margin:0;font-size:12px">Register two fingers (say, both index fingers), so the door still opens if one finger has a cut.
+<b>Finger not reading at the door?</b> Calibrate: scan the same finger again, pressing flat and covering the whole scanner.</p>%s</div>
 <div class="panel" style="display:flex;flex-direction:column;gap:10px"><div class="ph" style="margin:0"><h2>How it works</h2></div>
 <ol style="margin:0;padding-left:20px;line-height:1.9"><li>Member stands at the gate machine.</li><li>Tap <b>Register on gate machine</b>. Within about 10 seconds
 the machine shows its enroll screen.</li><li>Member places the chosen finger on the scanner <b>3 times</b>, lifting it each time.</li>
@@ -150,8 +165,14 @@ if(d.state==='none'){box.innerHTML='';return}box.innerHTML='<span class="pill '+
 if(!d.done&&++n<150){setTimeout(tick,2000)}else if(d.state==='ok'&&n>0){setTimeout(function(){location.reload()},2500)}})}tick()})();</script>""" % (
         e(U.nice(who["name"])), e(cid), "p-ok" if online else "p-bad", "Machine online" if online else "Machine offline",
         e(", ".join(have)) if have else '<span style="color:var(--red)">None yet</span>', "Yes" if on_machine(conn, sn, cid) else "Not yet",
-        e(cid), opts, "" if online else " disabled", U.icon("finger", 18), e(cid), back, e(cid))
-    return U.shell("Register fingerprint", "/members", body, sub='<a href="%s">%s</a> › Fingerprint' % (back, e(U.nice(who["name"]))),
+        e(cid), opts, "" if online else " disabled", U.icon("finger", 18),
+        "Calibrate: scan again" if have else "Register on gate machine",
+        ('<label class="chk" style="flex-basis:100%%;font-size:13px"><input type="checkbox" name="fresh" value="1">Start fresh: remove this '
+         'person\'s old fingerprints from the machine first (use when the finger keeps failing)</label>') if have else "",
+        ('<a class="btn" href="/bill?id=%s" style="align-self:flex-start">Next: make the first bill →</a>' % e(cid))
+        if m and not conn.execute("SELECT 1 FROM payments WHERE client_id=?", (m["client_id"],)).fetchone() else "",
+        e(cid), back, e(cid))
+    return U.shell("Calibrate fingerprint" if have else "Register fingerprint", "/members", body, sub='<a href="%s">%s</a> › Fingerprint' % (back, e(U.nice(who["name"]))),
                    msg=q.get("m", ""), warn="" if online else "The gate machine is offline. Turn it on and check its internet first.",
                    cnt=U.counts(conn, sn))
 

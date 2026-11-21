@@ -296,6 +296,9 @@ class Handler(BaseHTTPRequestHandler):
                 if path == "/enroll/status":
                     return self.send_text(EN.status_json(conn, sn, q.get("id", "")), ctype="application/json")
                 return self.send_text(EN.page(conn, sn, q), ctype="text/html")
+        if path == "/search":
+            with DB_LOCK, db() as conn:
+                return self.send_text(U.search_json(conn, M.default_sn(conn), q), ctype="application/json")
         if path == "/birthdays":
             with DB_LOCK, db() as conn:
                 return self.send_text(BD.page(conn, M.default_sn(conn), q), ctype="text/html")
@@ -455,7 +458,8 @@ class Handler(BaseHTTPRequestHandler):
             f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
             with DB_LOCK, db() as conn:
                 user = A.me()
-                ok, msg = EN.start(conn, M.default_sn(conn), f.get("id", ""), f.get("fid", ""), user.get("name") or user.get("email") or "")
+                ok, msg = EN.start(conn, M.default_sn(conn), f.get("id", ""), f.get("fid", ""), user.get("name") or user.get("email") or "",
+                                   f.get("fresh") == "1")
                 A.log(conn, "fingerprint enroll" if ok else "fingerprint enroll refused", "%s · %s" % (f.get("id", ""), msg))
             return self.redirect("/enroll?" + urlencode({"id": f.get("id", ""), "m": msg}))
         if path in ("/door/open", "/door/method"):
@@ -690,6 +694,8 @@ class Handler(BaseHTTPRequestHandler):
                     J.linked(conn, f["join"], f.get("client_id", ""), U.staff_name())
                 A.log(conn, "member saved", msg)
                 cid = f.get("client_id", "")
+                if ok and was_new and f.get("enroll_next") != "1":
+                    return self.redirect("/bill?" + urlencode({"id": cid, "m": msg + " Now make the first bill."}))
                 if ok and was_new and sn and not EN.fingers(conn, sn, cid):
                     # A new member: go straight to registering their finger on the gate machine.
                     return self.redirect("/enroll?" + urlencode({"id": cid, "m": msg + " Now register the fingerprint."}))

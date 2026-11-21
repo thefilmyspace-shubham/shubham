@@ -299,13 +299,17 @@ button.ghost{background:var(--card2);border:1px solid var(--line)}h1{font-family
 :root[data-theme="light"] .kpi.hot .v,:root[data-theme="light"] .kpi.hot{color:#fff}
 :root[data-theme="light"] .side{box-shadow:1px 0 0 var(--line)}
 tr.picked td{background:var(--bluebg)}
+form.search{position:relative}.sbox{position:absolute;top:calc(100% + 6px);left:0;right:0;min-width:320px;z-index:50;background:var(--card);
+border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.35);max-height:70vh;overflow:auto;padding:6px}
+.sbox .si{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--text);text-decoration:none}
+.sbox a.si:hover,.sbox a.si.on{background:var(--card2);text-decoration:none}.sbox .av{width:32px;height:32px;font-size:12px}
 .themebtn{width:36px;height:36px;border-radius:9px;border:1px solid var(--line);background:var(--card2);color:var(--text);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;min-height:0}
 .themebtn .sun{display:none}:root[data-theme="light"] .themebtn .sun{display:block}:root[data-theme="light"] .themebtn .moon{display:none}
 """
 
 NAV = [
-    ("/", "Dashboard", "dash", None), ("/members", "Members", "users", None), ("/bill", "New Bill", "bill", None),
-    ("/attendance", "Attendance", "finger", None), ("/door", "Open gate", "door", None), ("/renewals", "Renewals", "renew", "renewals"),
+    ("/", "Dashboard", "dash", None), ("/members", "Members", "users", None), ("/bill", "Renewal", "bill", None),
+    ("/attendance", "Attendance", "finger", None), ("/door", "Open gate", "door", None), ("/renewals", "Renewals due", "renew", "renewals"),
     ("/pending", "Pending Payments", "rupee", "pending"), ("/absent", "Absent Members", "alert", "absent"),
     ("/birthdays", "Birthdays", "cake", "birthdays"), ("/joinings", "Joining forms", "users", "joinings"), ("/inquiries", "Inquiries", "chat", None), ("/approvals", "Approvals", "alert", "approvals"), ("/packages", "Packages", "box", None),
     ("/staff", "Staff & Trainers", "staff", None), ("/reports", "Reports", "chart", None), ("/expenses", "Expenses", "rupee", None),
@@ -333,6 +337,73 @@ for(var k=a;k<=z;k++){boxes[k].checked=b.checked}}last=i;refresh()});var tr=b.cl
 tr.addEventListener('click',function(ev){if(ev.target.closest('a,button,input,select,label')){return}b.checked=!b.checked;
 if(ev.shiftKey&&last!==null){var a=Math.min(last,i),z=Math.max(last,i);for(var k=a;k<=z;k++){boxes[k].checked=b.checked}}last=i;refresh()})}});
 f.addEventListener('submit',function(ev){if(!boxes.some(function(b){return b.checked})){ev.preventDefault();alert('Pick at least one member first.')}});refresh()})})();</script>"""
+
+
+# Search as you type in the top bar: a list of matching members under the box; click one to open it.
+SEARCH_JS = """<script>(function(){var f=document.querySelector('form.search'),i=f&&f.querySelector('input[name=q]');if(!i){return}
+var box=document.createElement('div');box.className='sbox';box.hidden=true;f.appendChild(box);var t=null,seq=0,sel=-1;
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function show(list,q){sel=-1;if(!list.length){box.innerHTML='<div class="si dim">No member matches "'+esc(q)+'"</div>';box.hidden=false;return}
+box.innerHTML=list.map(function(m){return '<a class="si" href="/m?id='+m.id+'"><span class="av">'+esc(m.ini)+'</span><span style="flex:1;min-width:0"><b>'+esc(m.name)+
+'</b><span class="dim" style="display:block;font-size:12px">'+esc(m.mid)+' · '+esc(m.pkg||'')+'</span></span><span class="pill '+m.cls+'">'+esc(m.st)+'</span></a>'}).join('')+
+'<a class="si dim" href="/members?q='+encodeURIComponent(q)+'" style="justify-content:center;font-size:13px">See all results →</a>';box.hidden=false}
+i.setAttribute('autocomplete','off');i.addEventListener('input',function(){var q=i.value.trim();clearTimeout(t);if(!q){box.hidden=true;return}
+t=setTimeout(function(){var my=++seq;fetch('/search?q='+encodeURIComponent(q),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){if(my===seq){show(d,q)}}).catch(function(){})},120)});
+i.addEventListener('keydown',function(ev){var items=box.querySelectorAll('a.si');if(box.hidden||!items.length){return}
+if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){ev.preventDefault();sel=(sel+(ev.key==='ArrowDown'?1:-1)+items.length)%items.length;
+items.forEach(function(a,k){a.classList.toggle('on',k===sel)})}else if(ev.key==='Enter'&&sel>=0){ev.preventDefault();location.href=items[sel].href}else if(ev.key==='Escape'){box.hidden=true}});
+document.addEventListener('click',function(ev){if(!f.contains(ev.target)){box.hidden=true}});i.addEventListener('focus',function(){if(i.value.trim()&&box.innerHTML){box.hidden=false}})})();</script>"""
+
+
+def search_words(text):
+    return [w for w in re.split(r"[\s,]+", (text or "").lower().strip()) if w]
+
+
+def member_matches(m, words):
+    """Every typed word must match the start of a word in the name, or the ID, or the mobile number."""
+    if not words:
+        return True
+    name_words = (m["name"] or "").lower().split()
+    pin = str(m["client_id"])
+    phone = re.sub(r"\D", "", m["phone"] or "")
+    for w in words:
+        wd = re.sub(r"\D", "", w)
+        if any(nw.startswith(w) for nw in name_words):
+            continue
+        if w.replace("hos-", "").lstrip("0") == pin or (wd and wd == pin) or member_id(pin).lower() == w:
+            continue
+        if len(wd) >= 4 and wd in phone:
+            continue
+        return False
+    return True
+
+
+def search_json(conn, sn, q):
+    """Top matches for the search box: names starting with what was typed come first."""
+    import json
+    words = search_words(q.get("q"))
+    if not words:
+        return "[]"
+    hits = [m for m in conn.execute("SELECT * FROM members ORDER BY client_id DESC") if member_matches(m, words)]
+    first = words[0]
+    hits.sort(key=lambda m: (not (m["name"] or "").lower().startswith(first), not str(m["client_id"]) == first.lstrip("0"),
+                             (m["name"] or "").lower()))
+    out = []
+    for m in hits[:12]:
+        d = M.parse_date(m["expiry"])
+        if M.is_no_expiry(m["expiry"]):
+            st, cls = "No expiry", "p-ok"
+        elif not d:
+            st, cls = "—", "p-dim"
+        elif d < M.today():
+            st, cls = "Expired", "p-bad"
+        elif (d - M.today()).days <= 7:
+            st, cls = "Expiring", "p-warn"
+        else:
+            st, cls = "Active", "p-ok"
+        out.append({"id": m["client_id"], "name": nice(m["name"]), "ini": initials(m["name"]), "mid": member_id(m["client_id"]),
+                    "pkg": m["package"] or "", "st": st, "cls": cls})
+    return json.dumps(out)
 
 
 def shell(title, active, body, sub="", actions="", msg="", cnt=None, warn=""):
@@ -366,7 +437,7 @@ def shell(title, active, body, sub="", actions="", msg="", cnt=None, warn=""):
         initials(user.get("name") or "?"), e(user.get("name") or ""), e((user.get("role") or "").title()), icon("logout", 16),
         e(title), sub, icon("search") if A.role() != "trainer" else "", actions,
         '<div class="msg">%s</div>' % e(msg) if msg else "", '<div class="warn">%s</div>' % warn if warn else "", body,
-        MULTI_JS if 'action="/remind"' in body else "")
+        (MULTI_JS if 'action="/remind"' in body else "") + (SEARCH_JS if A.role() != "trainer" else ""))
 
 
 def legacy_layout(conn, sn):
@@ -442,7 +513,7 @@ def dashboard(conn, sn, q):
 <div class="two"><div class="panel"><div class="ph"><h2>Renewals due this week</h2><a href="/renewals">View all %d</a></div>
 <div class="tw"><table><tr><th>Member</th><th>Package</th><th>Expiry</th><th>Due</th><th></th></tr>%s</table></div></div>
 <div style="display:flex;flex-direction:column;gap:20px"><div class="panel"><div class="ph"><h2>Quick actions</h2></div><div class="qa">
-<a href="/bill">%sNew membership bill</a><a href="/member">%sAdd member</a><a href="/inquiries#lead">%sAdd inquiry</a><a href="/renewals">%sSend reminders</a></div></div>
+<a href="/bill">%sRenewal / new bill</a><a href="/member">%sAdd member</a><a href="/inquiries#lead">%sAdd inquiry</a><a href="/renewals">%sSend reminders</a></div></div>
 <div class="panel"><div class="ph"><h2>Not seen for 7+ days</h2><a href="/absent">View all %d</a></div><table>%s</table></div></div></div>""" % (
         active, total - active, total, today_in,
         "Peak %s" % ("%d %s" % ((peak - 1) % 12 + 1, "AM" if peak < 12 else "PM")) if peak is not None else "From the gate",
@@ -538,7 +609,7 @@ TABS = [("all", "All"), ("active", "Active"), ("soon", "Expiring"), ("expired", 
         ("pending", "Pending dues"), ("admin", "Admin / no expiry")]
 
 
-def member_rows(conn, sn, f, term):
+def member_rows(conn, sn, f, term, rng=None, by="joined"):
     t = M.today()
     names = M.machine_names(conn, sn)
     blocked = M.blocked_pins(conn, sn)
@@ -552,8 +623,11 @@ def member_rows(conn, sn, f, term):
                 "pending": (m["pending"] or 0) > 0, "admin": M.is_no_expiry(m["expiry"]),
                 "expired_on_machine": (not active) and pin in names and pin not in blocked,
                 "active_missing": active and pin not in names}.get(f, True)
-        if term and term not in ("%s %s %s %s" % (pin, member_id(pin), m["name"], m["phone"])).lower():
+        if term and not member_matches(m, search_words(term)):
             keep = False
+        if keep and rng:
+            d = M.parse_date(m["expiry"] if by == "expiry" else m["registration"])
+            keep = bool(d and rng[0] <= d <= rng[1])
         if keep:
             out.append(m)
     return out
@@ -564,6 +638,8 @@ def members_list(conn, sn, q):
     f = q.get("f", "all")
     term = (q.get("q") or "").strip().lower()
     page = int(q.get("p", "1")) if q.get("p", "1").isdigit() else 1
+    rng, by = date_range(q), ("expiry" if q.get("by") == "expiry" else "joined")
+    keepq = {k: q[k] for k in ("from", "to", "by") if q.get(k)}
     allm = conn.execute("SELECT * FROM members").fetchall()
     n_active = sum(1 for m in allm if (M.parse_date(m["expiry"]) or datetime.date.min) >= t)
     n_soon = sum(1 for m in allm if t <= (M.parse_date(m["expiry"]) or datetime.date.min) <= t + datetime.timedelta(days=7))
@@ -572,7 +648,7 @@ def members_list(conn, sn, q):
     tab_n = {"all": len(allm), "active": n_active, "soon": n_soon, "expired": len(allm) - n_active, "pt": n_pt,
              "admin": sum(1 for m in allm if M.is_no_expiry(m["expiry"])),
              "pending": n_pend}
-    rows = member_rows(conn, sn, f, term)
+    rows = member_rows(conn, sn, f, term, rng, by)
     per = 50
     pages = max(1, (len(rows) + per - 1) // per)
     page = min(page, pages)
@@ -584,11 +660,16 @@ def members_list(conn, sn, q):
             m["client_id"], initials(m["name"]), e(nice(m["name"])), member_id(m["client_id"]), e(m["package"] or ""),
             short_date(m["expiry"]), status_pill(m["expiry"]),
             '<span class="pill p-warn">%s</span>' % money(m["pending"]) if (m["pending"] or 0) > 0 else "₹0",
-            wa_btn(m, renew_msg(m)), call_btn(m), m["client_id"], icon("edit", 16))
+            wa_btn(m, renew_msg(m)) + call_btn(m), '<a class="ibtn" href="/enroll?id=%d" aria-label="Fingerprint" title="Register / calibrate fingerprint">%s</a>' % (
+                m["client_id"], icon("finger", 16)), m["client_id"], icon("edit", 16))
         for m in shown) or '<tr><td colspan="7" class="dim">No members match.</td></tr>'
-    tabs = "".join('<a href="/members?%s"%s>%s %d</a>' % (urlencode({"f": k, "q": term}), ' class="on"' if k == f else "",
+    tabs = "".join('<a href="/members?%s"%s>%s %d</a>' % (urlencode(dict(keepq, f=k, q=term)), ' class="on"' if k == f else "",
                                                           lbl, tab_n[k]) for k, lbl in TABS)
-    qs = lambda p: urlencode({"f": f, "q": term, "p": p})
+    qs = lambda p: urlencode(dict(keepq, f=f, q=term, p=p))
+    bar = date_bar("/members", q, keep=("f", "q", "by"), extra='<label style="flex:0 1 170px">Date is<select name="by"><option value="joined"%s>Joined</option>'
+                   '<option value="expiry"%s>Membership ends</option></select></label>' % ("" if by == "expiry" else " selected", " selected" if by == "expiry" else ""),
+                   note=("Showing members who %s between %s and %s: %d found." % ("joined" if by == "joined" else "end",
+                         rng[0].strftime("%d %b %Y"), rng[1].strftime("%d %b %Y"), len(rows))) if rng else "")
     pager = '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px"><span class="dim">Showing %d–%d of %d</span><span style="display:flex;gap:8px">%s%s</span></div>' % (
         (page - 1) * per + 1 if rows else 0, (page - 1) * per + len(shown), len(rows),
         '<a class="btn sm" href="/members?%s">Previous</a>' % qs(page - 1) if page > 1 else "",
@@ -602,7 +683,7 @@ def members_list(conn, sn, q):
 <a class="kpi" href="/members?f=active"><div class="l">Active</div><div class="v">%d</div><div class="s">%d%%</div></a>
 <a class="kpi" href="/members?f=soon"><div class="l">Expiring in 7 days</div><div class="v">%d</div><div class="s">send reminder</div></a>
 <a class="kpi" href="/members?f=expired"><div class="l">Expired</div><div class="v">%d</div><div class="s">win-back list</div></a></div>
-%s<div class="panel"><div class="ph"><div class="tabs">%s</div><div class="acts">
+%s%s<div class="panel"><div class="ph"><div class="tabs">%s</div><div class="acts">
 <a class="btn sm" href="/members?f=expired_on_machine">Door: expired inside</a><a class="btn sm" href="/members?f=active_missing">Door: not enrolled</a>
 %s</div></div>
 <div class="tw"><table><tr><th>Member</th><th>ID</th><th>Package</th><th>Expiry</th><th>Status</th><th>Due</th><th></th></tr>%s</table></div>%s</div>
@@ -616,7 +697,7 @@ var s=document.getElementById(sid);s.textContent='Uploading…';f.text().then(fu
 return fetch(url,{method:'POST',headers:{'Content-Type':'text/csv'},body:t})}).then(function(r){return r.text()})
 .then(function(t){s.textContent=t;setTimeout(function(){location.href='/members'},2500)})}</script></details>%s""" % (
         len(allm), n_active, round(100 * n_active / max(1, len(allm))), n_soon, len(allm) - n_active,
-        door_issues, tabs, admin_only('<a class="btn sm" href="/members.csv?%s">%sExport Excel</a>' % (urlencode({"f": f, "q": term}), icon("down", 16))), trs, pager,
+        bar, door_issues, tabs, admin_only('<a class="btn sm" href="/members.csv?%s">%sExport Excel</a>' % (urlencode(dict(keepq, f=f, q=term)), icon("down", 16))), trs, pager,
         "" if A.is_admin() else "<div hidden>", "" if A.is_admin() else "</div>")
     actions = '<a class="btn red" href="/member">%sAdd member</a>' % icon("plus")
     return shell("Members", "/members" if f != "pending" else "/members?f=pending", body,
@@ -624,7 +705,8 @@ return fetch(url,{method:'POST',headers:{'Content-Type':'text/csv'},body:t})}).t
 
 
 def members_csv(conn, sn, q):
-    rows = member_rows(conn, sn, q.get("f", "all"), (q.get("q") or "").strip().lower())
+    rows = member_rows(conn, sn, q.get("f", "all"), (q.get("q") or "").strip().lower(), date_range(q),
+                       "expiry" if q.get("by") == "expiry" else "joined")
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Member ID", "Biometric ID", "Name", "Phone", "Package", "Expiry", "Status", "Pending"])
@@ -716,7 +798,7 @@ def profile(conn, sn, q):
             jr["id"], icon("edit", 16), (' <span class="pill p-bad">%s</span>' % e(flags[0][:30])) if flags else "")
     has_fp = bool(sn and EN.fingers(conn, sn, m["client_id"]))
     jform = ('<a class="btn%s" href="/enroll?id=%d">%s%s</a>' % ("" if has_fp else " red", m["client_id"], icon("finger", 16),
-                                                              "Fingerprint" if has_fp else "Register fingerprint")) + jform
+                                                              "Calibrate fingerprint" if has_fp else "Register fingerprint")) + jform
     if A.is_admin():
         noexp = M.is_no_expiry(m["expiry"])
         jform += ('<form method="post" action="/member/noexpiry" style="margin:0" onsubmit="return confirm(%s)">'
@@ -850,7 +932,7 @@ document.getElementById('aitext').addEventListener('keydown',function(ev){if(ev.
 </script>""" % (
         e("%s · %s" % (nice(m["name"]), member_id(m["client_id"]))) if m else "", options, last_html, cards,
         M.iso(start), tr, e(M.setting(conn, "default_admission", "0")), inv, e(staff_name()))
-    return shell("New bill", "/bill", body, sub="Membership or PT bill in under a minute", msg=q.get("m", ""),
+    return shell("Renewal", "/bill", body, sub="Renew a membership or make a new member's first bill", msg=q.get("m", ""),
                  cnt=counts(conn, sn))
 
 
@@ -1301,6 +1383,31 @@ def attendance(conn, sn, q):
                  % ("".join(staff_rows) or '<tr><td class="dim">No staff check-ins in the last 30 days.</td></tr>'))
     tabs = "".join('<a href="/attendance?t=%s"%s>%s</a>' % (k, ' class="on"' if tab == k or (k == "staff" and tab == "all") else "", l)
                    for k, l in (("members", "Members"), ("staff", "Staff & trainers")))
+    rng = date_range(q)
+    range_html = date_bar("/attendance", q, keep=("t",), note="Pick dates to see check-ins day by day for that period.")
+    if rng:
+        A_, B_ = M.iso(rng[0]), M.iso(rng[1])
+        days = conn.execute(
+            "SELECT substr(ts,1,10) d, COUNT(DISTINCT CASE WHEN CAST(pin AS INT) < ? THEN pin END), COUNT(DISTINCT CASE WHEN CAST(pin AS INT) >= ? THEN pin END) "
+            "FROM punches WHERE substr(ts,1,10) BETWEEN ? AND ? AND status != '1' GROUP BY d ORDER BY d DESC", (STAFF_FROM, STAFF_FROM, A_, B_)).fetchall()
+        uniq = conn.execute("SELECT COUNT(DISTINCT pin) FROM punches WHERE substr(ts,1,10) BETWEEN ? AND ? AND CAST(pin AS INT) < ?",
+                            (A_, B_, STAFF_FROM)).fetchone()[0]
+        top = conn.execute("SELECT pin, COUNT(DISTINCT substr(ts,1,10)) n FROM punches WHERE substr(ts,1,10) BETWEEN ? AND ? AND CAST(pin AS INT) < ? "
+                           "GROUP BY pin ORDER BY n DESC LIMIT 10", (A_, B_, STAFF_FROM)).fetchall()
+        range_html += """<div class="kpis"><div class="kpi hot"><div class="l">Member visits</div><div class="v">%s</div><div class="s">%s – %s</div></div>
+<div class="kpi"><div class="l">Different members</div><div class="v">%d</div><div class="s">came at least once</div></div>
+<div class="kpi"><div class="l">Days</div><div class="v">%d</div><div class="s">with check-ins</div></div>
+<div class="kpi"><div class="l">Per day</div><div class="v">%d</div><div class="s">average member visits</div></div></div>
+<div class="two"><div class="panel"><div class="ph"><h2>Day by day</h2>%s</div><div class="tw"><table><tr><th>Date</th><th>Members</th><th>Staff</th></tr>%s</table></div></div>
+<div class="panel"><div class="ph"><h2>Most regular</h2></div><div class="tw"><table><tr><th>Member</th><th>Days</th></tr>%s</table></div></div></div>""" % (
+            inr(sum(r[1] for r in days)), rng[0].strftime("%d %b"), rng[1].strftime("%d %b %Y"), uniq, len(days),
+            round(sum(r[1] for r in days) / max(1, len(days))),
+            admin_only('<a class="btn sm" href="/attendance.csv?%s">%sExport Excel</a>' % (urlencode({"from": A_, "to": B_}), icon("down", 16))),
+            "".join("<tr><td>%s</td><td>%d</td><td>%d</td></tr>" % (M.parse_date(d).strftime("%a %d %b %Y"), n1, n2) for d, n1, n2 in days)
+            or '<tr><td colspan="3" class="dim">No check-ins in these dates.</td></tr>',
+            "".join('<tr><td><a class="mem" href="/m?id=%s"><span class="av">%s</span>%s</a></td><td>%d</td></tr>' % (
+                pin, initials(mn.get(pin) or pin), e(nice(mn.get(pin) or "ID " + pin)), n) for pin, n in top)
+            or '<tr><td colspan="2" class="dim">—</td></tr>')
     body = """<div class="kpis">
 <div class="kpi hot"><div class="l">Inside now</div><div class="v">%d</div><div class="s">checked in during the last 90 min</div></div>
 <div class="kpi"><div class="l">Today</div><div class="v">%d</div><div class="s">member check-ins</div></div>
@@ -1309,13 +1416,13 @@ def attendance(conn, sn, q):
 <div class="two" style="grid-template-columns:repeat(auto-fit,minmax(360px,1fr))"><div class="panel" style="min-width:0"><div class="ph"><h2>Live check-ins</h2><span class="pill p-ok">%s</span></div>
 <div class="tw"><table>%s</table></div></div><div class="panel"><div class="ph"><h2>Busy hours · last 4 weeks</h2></div>%s
 <p class="dim" style="margin:12px 0 0;font-size:12px">Darker = more members.</p></div></div>
-<div class="tabs">%s</div>%s
+%s<div class="tabs">%s</div>%s
 <details class="panel"><summary style="cursor:pointer;font-weight:600">Manual check-in</summary>
 <form method="post" action="/attendance/manual" class="row" style="margin-top:12px"><input name="member" list="mlist2" placeholder="Member name or ID" required style="min-width:280px">
 <datalist id="mlist2">%s</datalist><button>Check in now</button></form>
 <p class="dim" style="font-size:12px">Use when the finger does not read. It is saved as a manual entry.</p></details>""" % (
         len(recent), len(mem_today), len(staff_today), len(staff_30) or len(sn_names), inr(month_n), t.strftime("%b"),
-        "Biometric connected" if gate_online(conn) else "Gate offline", live, grid, tabs, lower,
+        "Biometric connected" if gate_online(conn) else "Gate offline", live, grid, range_html, tabs, lower,
         "".join('<option value="%s · %s">' % (e(nice(n)), member_id(c)) for c, n in conn.execute(
             "SELECT client_id, name FROM members WHERE expiry >= ? ORDER BY name", (ti,))))
     actions = admin_only('<a class="btn red" href="/attendance.csv">%sExport</a>' % icon("down"))
@@ -1336,7 +1443,9 @@ def attendance_csv(conn, sn, q):
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Date", "Time", "ID", "Name", "Type", "In/Out", "Source"])
-    for pin, ts, st, ver in conn.execute("SELECT pin, ts, status, verify FROM punches ORDER BY ts DESC"):
+    rng = date_range(q)
+    a, b = (M.iso(rng[0]), M.iso(rng[1])) if rng else ("2000-01-01", "2999-12-31")
+    for pin, ts, st, ver in conn.execute("SELECT pin, ts, status, verify FROM punches WHERE substr(ts,1,10) BETWEEN ? AND ? ORDER BY ts DESC", (a, b)):
         w.writerow([ts[:10], ts[11:19], pin, nice(mn.get(pin) or sname.get(pin, "")),
                     "Member" if is_member(pin) else "Staff", "Out" if st == "1" else "In",
                     {"old": "Old software", "manual": "Manual"}.get(ver, "Gate")])
@@ -1390,6 +1499,10 @@ def renewals(conn, sn, q):
     def value(ms):
         return sum(worth(m) for m in ms)
 
+    custom = date_range(q)
+    if custom:
+        rng["custom"] = custom
+        tab = "custom"
     sets = {k: members_in(*v) for k, v in rng.items()}
     cut = M.iso(t - datetime.timedelta(days=30))
     total = conn.execute("SELECT COUNT(*) FROM members WHERE registration != '' AND registration <= ?", (cut,)).fetchone()[0]
@@ -1406,17 +1519,21 @@ def renewals(conn, sn, q):
             remind_btn(m, "renew"), m["client_id"]) for m in rows) or '<tr><td colspan="8" class="dim">Nobody in this list.</td></tr>'
     tabs = "".join('<a href="/renewals?t=%s"%s>%s %d</a>' % (k, ' class="on"' if k == tab else "", l, len(sets[k]))
                    for k, l in (("today", "Today"), ("week", "This week"), ("month", "This month"), ("expired", "Expired")))
+    if custom:
+        tabs += '<a class="on" href="#">%s – %s %d</a>' % (custom[0].strftime("%d %b"), custom[1].strftime("%d %b"), len(sets["custom"]))
+    rbar = date_bar("/renewals", q, note="Pick dates to see whose membership ends between them (past or future).")
     body = """<div class="kpis">
 <a class="kpi hot" href="/renewals?t=today"><div class="l">Due today</div><div class="v">%d</div><div class="s">%s</div></a>
 <a class="kpi" href="/renewals?t=week"><div class="l">Next 7 days</div><div class="v">%d</div><div class="s">%s value</div></a>
 <a class="kpi" href="/renewals?t=expired"><div class="l">Expired last 30 days</div><div class="v">%d</div><div class="s">not renewed yet</div></a>
 <div class="kpi"><div class="l">Retention</div><div class="v">%d%%</div><div class="s">%d of %d who joined 30+ days ago are active</div></div></div>
-<form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="renew"><div class="ph"><div class="tabs">%s</div>
+%s<form class="panel" method="get" action="/remind"><input type="hidden" name="k" value="renew"><div class="ph"><div class="tabs">%s</div>
 <div class="acts"><button class="btn red sm">Remind selected on WhatsApp</button>%s</div></div>
 <div class="tw"><table><tr><th><input type="checkbox" aria-label="Select all" title="Select all" style="width:18px;height:18px;min-height:0;accent-color:#e10600" onclick="var on=this.checked;this.form.querySelectorAll('input[name=id]').forEach(function(c){c.checked=on})"></th><th>Member</th><th>Package</th><th>Expiry</th><th>Due in</th><th title="What the member paid last time, after discount">Last paid</th><th>Reminder</th><th></th></tr>%s</table></div></form>""" % (
         len(sets["today"]), money(value(sets["today"])), len(sets["week"]), money(value(sets["week"])), len(sets["expired"]),
-        round(100 * renewed / max(1, total)), renewed, total, tabs,
-        admin_only('<a class="btn sm" href="/renewals.csv?t=%s">%sExport Excel</a>' % (tab, icon("down", 16))), trs)
+        round(100 * renewed / max(1, total)), renewed, total, rbar, tabs,
+        admin_only('<a class="btn sm" href="/renewals.csv?%s">%sExport Excel</a>' % (
+            urlencode(dict(t=tab, **({"from": M.iso(custom[0]), "to": M.iso(custom[1])} if custom else {}))), icon("down", 16))), trs)
     return shell("Renewals", "/renewals", body, sub="Who needs to renew, and one-tap reminders", msg=q.get("m", ""),
                  cnt=counts(conn, sn))
 
@@ -1460,7 +1577,7 @@ def remind_queue(conn, sn, q, ids):
 def renewals_csv(conn, sn, q):
     t = M.today()
     tab = q.get("t", "week")
-    a, b = {"today": (t, t), "week": (t, t + datetime.timedelta(days=7)), "month": (t, t + datetime.timedelta(days=30)),
+    a, b = date_range(q) or {"today": (t, t), "week": (t, t + datetime.timedelta(days=7)), "month": (t, t + datetime.timedelta(days=30)),
             "expired": (t - datetime.timedelta(days=30), t - datetime.timedelta(days=1))}.get(tab, (t, t + datetime.timedelta(days=7)))
     buf = io.StringIO()
     w = csv.writer(buf)
@@ -1630,6 +1747,34 @@ def init_expenses(conn):
         paid_to TEXT, mode TEXT, note TEXT, created_by TEXT, created_at TEXT)""")
 
 
+def date_range(q):
+    """(from, to) dates from ?from=&to=, or None. Only one given: open-ended on the other side."""
+    a, b = M.parse_date(q.get("from")), M.parse_date(q.get("to"))
+    if not a and not b:
+        return None
+    a, b = a or datetime.date(2015, 1, 1), b or M.today()
+    return (a, b) if a <= b else (b, a)
+
+
+def date_bar(path, q, keep=(), extra="", note=""):
+    """From / To filter with quick picks. keep: other query keys to carry along."""
+    t = M.today()
+    lm_end = t.replace(day=1) - datetime.timedelta(days=1)
+    quick = [("Today", t, t), ("Last 7 days", t - datetime.timedelta(days=6), t), ("This month", t.replace(day=1), t),
+             ("Last month", lm_end.replace(day=1), lm_end)]
+    base = {k: q[k] for k in keep if q.get(k)}
+    rng = date_range(q)
+    chips = "".join('<a class="btn sm%s" href="%s?%s">%s</a>' % (
+        " red" if rng == (a, b) else "", path, urlencode(dict(base, **{"from": M.iso(a), "to": M.iso(b)})), lbl) for lbl, a, b in quick)
+    hidden = "".join('<input type="hidden" name="%s" value="%s">' % (e(k), e(v)) for k, v in base.items())
+    return ("""<form method="get" action="%s" class="panel" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:14px 16px">%s
+<label style="flex:0 1 170px">From<input type="date" name="from" value="%s"></label><label style="flex:0 1 170px">To<input type="date" name="to" value="%s"></label>%s
+<button class="btn red sm" style="min-height:44px">Show</button>%s<div style="display:flex;flex-wrap:wrap;gap:6px;margin-left:auto">%s</div>%s</form>""" % (
+        path, hidden, M.iso(rng[0]) if rng else "", M.iso(rng[1]) if rng else "", extra,
+        ('<a class="btn sm" href="%s?%s" style="min-height:44px">Clear dates</a>' % (path, urlencode(base))) if rng else "", chips,
+        ('<p class="dim" style="flex-basis:100%%;margin:0;font-size:12px">%s</p>' % note) if note else ""))
+
+
 def period(q):
     t = M.today()
     p = q.get("p", "month")
@@ -1640,10 +1785,10 @@ def period(q):
         return p, t.replace(month=1, day=1), t, "This year"
     if p == "all":
         return p, datetime.date(2015, 1, 1), t, "All time"
-    if p == "custom":
-        a, b = M.parse_date(q.get("from")), M.parse_date(q.get("to"))
-        if a and b and a <= b:
-            return p, a, b, "%s – %s" % (a.strftime("%d %b %Y"), b.strftime("%d %b %Y"))
+    rng = date_range(q)
+    if rng and p in ("custom", "month") and (p == "custom" or not q.get("p")):
+        a, b = rng
+        return "custom", a, b, "%s – %s" % (a.strftime("%d %b %Y"), b.strftime("%d %b %Y"))
     return "month", t.replace(day=1), t, t.strftime("%B %Y")
 
 
@@ -1775,6 +1920,7 @@ def expenses_page(conn, sn, q):
     col = conn.execute("SELECT COALESCE(SUM(amount),0) FROM payments WHERE paid_on BETWEEN ? AND ?", (A_, B_)).fetchone()[0]
     tabs = "".join('<a href="/expenses?p=%s"%s>%s</a>' % (k, ' class="on"' if k == p else "", l)
                    for k, l in (("month", "This month"), ("last", "Last month"), ("year", "This year"), ("all", "All time")))
+    ebar = date_bar("/expenses", q)
     trs = "".join('<tr><td>%s</td><td>%s</td><td>%s</td><td class="dim">%s</td><td class="dim">%s</td><td style="text-align:right"><b>%s</b></td>'
                   '<td><form method="post" action="/expenses/save" onsubmit="return confirm(\'Delete this expense?\')">'
                   '<input type="hidden" name="delete" value="%d"><button class="btn sm" aria-label="Delete">✕</button></form></td></tr>' % (
@@ -1782,7 +1928,7 @@ def expenses_page(conn, sn, q):
                       money(r["amount"]), r["id"]) for r in rows) or '<tr><td colspan="7" class="dim">No expenses in this period.</td></tr>'
     cats = "".join('<div class="kpi"><div class="l">%s</div><div class="v" style="font-size:26px">%s</div></div>' % (e(c), money(v))
                    for c, v in sorted(bycat.items(), key=lambda x: -x[1]))
-    body = """<div class="ph" style="flex-wrap:wrap"><div class="tabs">%s</div><span class="dim">%s</span></div>
+    body = ebar + """<div class="ph" style="flex-wrap:wrap"><div class="tabs">%s</div><span class="dim">%s</span></div>
 <div class="kpis"><div class="kpi"><div class="l">Collection</div><div class="v">%s</div></div>
 <div class="kpi hot"><div class="l">Expenses</div><div class="v">%s</div><div class="s">%d entries</div></div>
 <div class="kpi"><div class="l">Profit</div><div class="v">%s</div><div class="s">collection − expenses</div></div></div>
