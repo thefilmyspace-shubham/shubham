@@ -796,6 +796,10 @@ def profile(conn, sn, q):
             flags = []
         jform = '<a class="btn" href="/joinings/view?id=%d">%sJoining form%s</a>' % (
             jr["id"], icon("edit", 16), (' <span class="pill p-bad">%s</span>' % e(flags[0][:30])) if flags else "")
+    if M.can_delete(conn, m["client_id"], A.is_admin())[0]:
+        jform += ('<form method="post" action="/member/delete" style="margin:0" onsubmit="return confirm(\'Delete this member? No bill was made, '
+                  'so nothing else is lost. This cannot be undone.\')"><input type="hidden" name="id" value="%d">'
+                  '<button class="btn" style="color:var(--bad)">Delete</button></form>') % m["client_id"]
     has_fp = bool(sn and EN.fingers(conn, sn, m["client_id"]))
     jform = ('<a class="btn%s" href="/enroll?id=%d">%s%s</a>' % ("" if has_fp else " red", m["client_id"], icon("finger", 16),
                                                               "Calibrate fingerprint" if has_fp else "Register fingerprint")) + jform

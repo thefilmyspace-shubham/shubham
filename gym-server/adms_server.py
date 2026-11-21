@@ -660,6 +660,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self.redirect("/bill?" + urlencode({"m": msg}))
             return self.redirect("/receipt?" + urlencode({"inv": inv, "m": msg, "wa": f.get("send_wa", ""),
                                                           "print": f.get("print", "")}))
+        if path == "/member/delete":
+            f = {k: v[0] for k, v in parse_qs(body, keep_blank_values=True).items()}
+            cid = f.get("id", "")
+            with DB_LOCK, db() as conn:
+                ok, msg = M.delete_member(conn, M.default_sn(conn), int(cid), A.is_admin()) if cid.isdigit() else (False, "Member not found.")
+                A.log(conn, "member deleted" if ok else "member delete refused", "%s · %s" % (cid, msg))
+            return self.redirect(("/members?" + urlencode({"m": msg})) if ok else ("/member?" + urlencode({"id": cid, "m": msg})))
         if path in ("/members/import", "/payments/import", "/member/save", "/member/door", "/sync"):
             if not self.authorized():
                 return self.ask_auth()

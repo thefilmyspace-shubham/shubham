@@ -193,7 +193,7 @@ RECEPTION_PATHS = {
     "/logout", "/me", "/packages", "/inquiries", "/inquiries/save", "/approvals", "/approvals/request", "/bill/ai",
     "/joinings", "/joinings/view", "/joinings/upload", "/joinings/send", "/joinings/mark",
     "/door", "/door/open", "/door/status", "/birthdays", "/whatsapp", "/whatsapp/status", "/whatsapp/save",
-    "/enroll", "/enroll/start", "/enroll/status", "/search",
+    "/enroll", "/enroll/start", "/enroll/status", "/search", "/member/delete",
 }
 TRAINER_PATHS = {"/", "/trainer", "/logout", "/me", "/approvals", "/approvals/request"}
 

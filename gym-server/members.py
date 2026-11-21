@@ -467,7 +467,7 @@ def member_page(conn, sn, q, msg=""):
 <label>Amount (₹)<input name="amount" inputmode="decimal"></label>
 <label>Paid by<select name="mode"><option>Cash</option><option>Online</option><option>UPI</option><option>Card</option></select></label>
 <label style="flex-direction:row;align-items:center"><input type="checkbox" name="continue" value="1" checked style="min-height:auto"> Continue from current end date if renewing early</label>
-</div><p><button>Save</button></p></form>
+</div><p><button>Save</button></p></form>%s
 %s
 <h2>Payments</h2><table><tr><th>Paid on</th><th>Package</th><th>Amount</th><th>Period</th><th>Mode</th><th>Note</th></tr>%s</table>""" % (
         e(m["name"]) if m else "Add member",
@@ -479,8 +479,19 @@ def member_page(conn, sn, q, msg=""):
         v("client_id"), "readonly" if m else "", v("name"), v("phone"), v("gender"),
         e((m["dob"] if m and "dob" in m.keys() else "") or q.get("dob", "")),
         "%g" % (m["pending"] or 0) if m else "0", opts, iso(today()),
-        door, pays or '<tr><td colspan="6">—</td></tr>')
+        delete_box(conn, m), door, pays or '<tr><td colspan="6">—</td></tr>')
     return layout("Member", "/member", body, msg)
+
+
+def delete_box(conn, m):
+    import auth as A
+    ok, why = can_delete(conn, m["client_id"], A.is_admin())
+    if not ok:
+        return ""
+    return ('<form method="post" action="/member/delete" style="margin:0 0 18px" onsubmit="return confirm(\'Delete %s (ID %d)? '
+            'This cannot be undone.\')"><input type="hidden" name="id" value="%d"><button class="ghost" style="color:var(--bad)">Delete this member</button>'
+            ' <span class="dim" style="font-size:12px">No bill yet, so this entry can still be removed.</span></form>') % (
+        e((m["name"] or "").replace("'", "")), m["client_id"], m["client_id"])
 
 
 def new_member_body(conn, q):
@@ -540,6 +551,41 @@ NO_EXPIRY = "2099-12-31"  # "Admin / no expiry" members (owner, family): never e
 
 def is_no_expiry(exp_iso):
     return str(exp_iso or "") >= "2099"
+
+
+def can_delete(conn, cid, is_admin):
+    """(allowed, reason). Only members with no bill at all; reception only today's new entry with no check-in."""
+    m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone()
+    if not m:
+        return False, "Member not found."
+    if conn.execute("SELECT 1 FROM payments WHERE client_id=? LIMIT 1", (cid,)).fetchone():
+        return False, "This member has a bill, so they cannot be deleted."
+    if not is_admin:
+        if (m["registration"] or "") != iso(today()):
+            return False, "Only the owner can delete a member added before today."
+        if conn.execute("SELECT 1 FROM punches WHERE pin=? LIMIT 1", (str(cid),)).fetchone():
+            return False, "This member has already checked in, so only the owner can delete them."
+    return True, ""
+
+
+def delete_member(conn, sn, cid, is_admin):
+    ok, why = can_delete(conn, cid, is_admin)
+    if not ok:
+        return False, why
+    m = conn.execute("SELECT * FROM members WHERE client_id=?", (cid,)).fetchone()
+    pin = str(cid)
+    on_machine = conn.execute("SELECT 1 FROM records WHERE pin=? AND kind='USER'", (pin,)).fetchone() if sn else None
+    if sn and on_machine:
+        queue(conn, sn, "DATA DELETE USERINFO PIN=%s" % pin)  # the door must not keep opening for a deleted member
+    conn.execute("DELETE FROM records WHERE pin=?", (pin,))
+    conn.execute("DELETE FROM blocks WHERE pin=?", (pin,))
+    conn.execute("DELETE FROM members WHERE client_id=?", (cid,))
+    try:
+        conn.execute("UPDATE joinings SET status='new', client_id=NULL WHERE client_id=?", (cid,))
+        conn.execute("UPDATE wa_queue SET status='skipped', error='member deleted' WHERE client_id=? AND status='queued'", (cid,))
+    except Exception:  # tables made by other modules may not exist yet
+        pass
+    return True, "Deleted %s (ID %s)%s." % (m["name"], pin, ", and removed from the gate machine" if on_machine else "")
 
 
 def set_no_expiry(conn, sn, cid, on):
