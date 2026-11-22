@@ -43,3 +43,13 @@ Feedback on v1: *"color grading mt bdlo, clips ko stable rkho, mai song deta hu"
 ffmpeg -i ReelAudio-88386.mp3 -af "atrim=0:24.6,afade=t=out:st=23.9:d=0.7" -ar 48000 -ac 2 song_cut.wav
 python3 edit.py --src SRC_DIR --work WORK_DIR --out Aman_Jain_Live_v2_4K.mp4 --w 2160 --audio song_cut.wav
 ```
+
+## v3: slow zoom in/out, jittery clip replaced (`Aman_Jain_Live_v3_4K.mp4`, 24.6 s)
+Feedback on v2: "use slow zoom in zoom out effect and replace the clip jittering".
+- **Jitter found by measurement.** The opener (IMG_0102, a 720p handheld lantern-tree pan) still moved about 2 px/frame after stabilising, with high variance. Every other shot was at about 0.1.
+- **Opener replaced** with IMG_0289 at 0 s (string lights + stage, tripod-steady).
+- **Ending changed** to IMG_0287 from 8.15 s (stage wide), so IMG_0289 isn't used twice.
+- **Zoom:**
+  - Even shots zoom in from 1.00 to 1.08; odd shots zoom out from 1.08 to 1.00.
+  - The zoom is linear.
+  - It uses the `perspective` filter with sub-pixel corners, so it doesn't step the way an integer `scale`/`zoompan` zoom does.

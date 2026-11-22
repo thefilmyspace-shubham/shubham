@@ -14,7 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # (clip, src_start, speed, out_dur)  speed < 1 = slow motion
 SHOTS = [
-    ("IMG_0102.MP4", 7.10, 0.60, 2.8),   # lantern tree, opener
+    ("IMG_0289.MOV", 0.00, 0.50, 2.8),   # string lights + stage, opener (v3: replaces the shaky 720p lantern shot)
     ("IMG_0103.MOV", 0.40, 0.75, 2.8),   # Aman, guitar, close
     ("IMG_0257.MOV", 0.05, 0.50, 2.6),   # audience from behind, bulbs
     ("IMG_0283.MOV", 0.30, 0.50, 2.6),   # audience faces
@@ -24,9 +24,10 @@ SHOTS = [
     ("IMG_0103.MOV", 3.80, 0.75, 2.8),   # Aman, second moment
     ("IMG_0258.MOV", 2.20, 0.50, 2.6),   # garden pan wide
     ("IMG_0260.MOV", 0.30, 0.50, 2.6),   # wide, dancing
-    ("IMG_0289.MOV", 3.90, 0.50, 4.1),   # back wide, string lights (end)
+    ("IMG_0287.MOV", 8.15, 0.50, 4.1),   # stage wide, Aman + keys (end)
 ]
 XF = 0.6  # dissolve length
+ZOOM = 0.08  # slow zoom per shot: even shots zoom in 1.00->1.08, odd shots zoom out 1.08->1.00
 
 GRADE = (
     "huesaturation=hue=-8:saturation=-0.55:intensity=-0.02:colors=g+y:strength=1,"
@@ -39,6 +40,16 @@ GRADE = (
 def run(cmd):
     print(" ".join(cmd)[:300], file=sys.stderr)
     subprocess.run(cmd, check=True)
+
+
+def zoom_filter(i, dur, fps):
+    """Slow linear zoom with sub-pixel corners (perspective filter), so the zoom itself never steps or jitters."""
+    n = max(1, round(dur * fps) - 1)
+    prog = f"(in/{n})" if i % 2 == 0 else f"(1-in/{n})"
+    m = f"((1-1/(1+{ZOOM}*{prog}))/2)"
+    lo_x, hi_x, lo_y, hi_y = f"{m}*W", f"W-{m}*W", f"{m}*H", f"H-{m}*H"
+    return (f"perspective=x0='{lo_x}':y0='{lo_y}':x1='{hi_x}':y1='{lo_y}':"
+            f"x2='{lo_x}':y2='{hi_y}':x3='{hi_x}':y3='{hi_y}':interpolation=cubic:eval=frame")
 
 
 def render_shot(i, shot, a):
@@ -67,7 +78,7 @@ def render_shot(i, shot, a):
          f"vidstabdetect=shakiness=6:accuracy=15:stepsize=6:result={trf}", "-f", "null", "-"])
     run(["ffmpeg", "-v", "error", "-y", "-i", base, "-vf",
          f"vidstabtransform=input={trf}:smoothing=60:optzoom=1:zoomspeed=0:interpol=bicubic,"
-         f"unsharp=5:5:0.4,format=yuv420p10le",
+         f"unsharp=5:5:0.4,{zoom_filter(i, dur, fps)},format=yuv420p10le",
          "-c:v", "prores_ks", "-profile:v", "2", out])
     os.remove(base)
     return out
