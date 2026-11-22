@@ -24,7 +24,7 @@ SHOTS = [
     ("IMG_0103.MOV", 3.80, 0.75, 2.8),   # Aman, second moment
     ("IMG_0258.MOV", 2.20, 0.50, 2.6),   # garden pan wide
     ("IMG_0260.MOV", 0.30, 0.50, 2.6),   # wide, dancing
-    ("IMG_0289.MOV", 3.90, 0.50, 3.4),   # back wide, string lights (end)
+    ("IMG_0289.MOV", 3.90, 0.50, 4.1),   # back wide, string lights (end)
 ]
 XF = 0.6  # dissolve length
 
@@ -48,21 +48,28 @@ def render_shot(i, shot, a):
     out = os.path.join(a.work, f"s{i:02d}.mov")
     if os.path.exists(out) and not a.force:
         return out
-    blur = max(2, W // 160)
+    base = out.replace(".mov", "_base.mov")
+    trf = out.replace(".mov", ".trf")
+    # 1) trim + slow motion + 9:16 frame. Original colours: no grade, glow, vignette or zoom.
     vf = (
         f"setpts=(PTS-STARTPTS)/{speed},"
         f"framerate=fps={fps}:interp_start=0:interp_end=255:scene=100,"
-        f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H},"
-        f"{GRADE},"
-        # slow push-in (about 5% over the shot), centre crop
-        f"scale=w='trunc({W}*(1+0.05*t/{dur})/2)*2':h=-2:eval=frame:flags=bicubic,crop={W}:{H},"
-        # soft glow: blurred copy screened at low opacity
-        f"split[a][b];[b]gblur=sigma={blur}[g];[a][g]blend=all_mode=screen:all_opacity=0.22,"
-        f"vignette=angle=PI/4.2:mode=forward,format=yuv420p10le"
+        f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}"
     )
+    if a.grade:
+        vf += f",{GRADE}"
     run(["ffmpeg", "-v", "error", "-y", "-ss", str(ss), "-t", f"{src_len:.3f}", "-i",
-         os.path.join(a.src, clip), "-filter_complex", vf, "-t", f"{dur:.3f}", "-an",
-         "-r", str(fps), "-c:v", "prores_ks", "-profile:v", "1", out])
+         os.path.join(a.src, clip), "-vf", vf, "-t", f"{dur:.3f}", "-an",
+         "-r", str(fps), "-c:v", "prores_ks", "-profile:v", "2", base])
+    # 2) stabilise (vid.stab two-pass): heavy smoothing for a near-tripod feel,
+    #    optzoom=1 zooms just enough to hide the moving borders.
+    run(["ffmpeg", "-v", "error", "-y", "-i", base, "-vf",
+         f"vidstabdetect=shakiness=6:accuracy=15:stepsize=6:result={trf}", "-f", "null", "-"])
+    run(["ffmpeg", "-v", "error", "-y", "-i", base, "-vf",
+         f"vidstabtransform=input={trf}:smoothing=60:optzoom=1:zoomspeed=0:interpol=bicubic,"
+         f"unsharp=5:5:0.4,format=yuv420p10le",
+         "-c:v", "prores_ks", "-profile:v", "2", out])
+    os.remove(base)
     return out
 
 
@@ -96,6 +103,7 @@ def main():
     p.add_argument("--fps", type=int, default=30)
     p.add_argument("--audio", default="")  # pre-mixed wav; empty = silent
     p.add_argument("--force", action="store_true")
+    p.add_argument("--grade", action="store_true")  # v1 warm look; v2 default keeps original colours
     a = p.parse_args()
     os.makedirs(a.work, exist_ok=True)
 
@@ -116,7 +124,7 @@ def main():
     inputs += ["-loop", "1", "-framerate", str(a.fps), "-i", title]
     fc.append(f"[{n}:v]format=rgba,fade=t=in:st=0.5:d=1.4:alpha=1,"
               f"fade=t=out:st={total - 1.6:.2f}:d=1.2:alpha=1[t]")
-    fc.append(f"{prev}[t]overlay=0:0:shortest=1,noise=alls=4:allf=t,"
+    fc.append(f"{prev}[t]overlay=0:0:shortest=1,"
               f"fade=t=in:st=0:d=0.8,fade=t=out:st={total - 1.0:.2f}:d=1.0,format=yuv420p[v]")
     cmd = ["ffmpeg", "-v", "error", "-y"] + inputs
     maps = ["-map", "[v]"]

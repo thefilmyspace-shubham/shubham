@@ -96,6 +96,7 @@ Everything below comes from Shubham's own messages in the TFS promo / brand-reel
 ## 4. Client Editing Preferences
 
 - **Aman Jain (singer, live acoustic events) — 2026-11-22:** brief = event montage like IG DSkT940kqyS, **slow pace**, title only "Aman Jain live" in the reference's brush-script font (no reference wording). v1 delivered: 0.5× slow-mo, 0.6 s dissolves, warm dark grade, small centred Marck Script title, live-audio bed + a silent version. Awaiting feedback.
+  - **v1 feedback:** "color grading mt bdlo" → keep the clips' original colours (no grade/glow/vignette/grain); "clips ko stable rkho" → stabilise every shot and use no push-in zoom; he supplies the song himself. v2 delivered with those changes. **For Aman: default to original colours and stable shots.**
 
 ---
 

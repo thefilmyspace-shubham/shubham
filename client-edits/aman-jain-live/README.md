@@ -28,3 +28,18 @@ sh audio.sh SRC_DIR mix.wav 23.9
 python3 edit.py --src SRC_DIR --work WORK_DIR --out Aman_Jain_Live_4K.mp4 --w 2160 --audio mix.wav
 python3 edit.py --src SRC_DIR --work WORK_DIR --out preview.mp4 --w 1080   # quick preview
 ```
+
+## v2: original colours, stabilised, Aman's song (`Aman_Jain_Live_v2_4K.mp4`, 24.6 s)
+Feedback on v1: *"color grading mt bdlo, clips ko stable rkho, mai song deta hu"* (don't change the colour grading, keep the clips stable, I'll send the song).
+- **Colours:** the clips' original colours are kept. There's no grade, glow, vignette or grain. `--grade` brings back the v1 look.
+- **Stabilisation:**
+  - The v1 slow push-in is removed.
+  - Every shot is stabilised with a vid.stab two-pass (smoothing 60, optzoom only as much as needed to hide the borders).
+- **Audio:**
+  - The song Shubham sent (`ReelAudio-88386.mp3`, 25.1 s) plays from 0 s.
+  - It's cut at 24.6 s with a 0.7 s fade, where the track ends on its own.
+  - To fit it, the last shot was extended to 4.1 s.
+```sh
+ffmpeg -i ReelAudio-88386.mp3 -af "atrim=0:24.6,afade=t=out:st=23.9:d=0.7" -ar 48000 -ac 2 song_cut.wav
+python3 edit.py --src SRC_DIR --work WORK_DIR --out Aman_Jain_Live_v2_4K.mp4 --w 2160 --audio song_cut.wav
+```
