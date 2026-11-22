@@ -116,7 +116,7 @@ def main():
     inputs += ["-loop", "1", "-framerate", str(a.fps), "-i", title]
     fc.append(f"[{n}:v]format=rgba,fade=t=in:st=0.5:d=1.4:alpha=1,"
               f"fade=t=out:st={total - 1.6:.2f}:d=1.2:alpha=1[t]")
-    fc.append(f"{prev}[t]overlay=0:0:shortest=1,noise=alls=7:allf=t,"
+    fc.append(f"{prev}[t]overlay=0:0:shortest=1,noise=alls=4:allf=t,"
               f"fade=t=in:st=0:d=0.8,fade=t=out:st={total - 1.0:.2f}:d=1.0,format=yuv420p[v]")
     cmd = ["ffmpeg", "-v", "error", "-y"] + inputs
     maps = ["-map", "[v]"]
@@ -125,7 +125,7 @@ def main():
         maps += ["-map", f"{n + 1}:a", "-c:a", "aac", "-b:a", "256k"]
     cmd += ["-filter_complex", ";".join(fc)] + maps + [
         "-t", f"{total:.3f}", "-r", str(a.fps), "-c:v", "libx264", "-preset", "slow",
-        "-crf", "16" if a.w >= 2000 else "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", a.out]
+        "-crf", "18", "-maxrate", "28M" if a.w >= 2000 else "12M", "-bufsize", "56M", "-pix_fmt", "yuv420p", "-movflags", "+faststart", a.out]
     run(cmd)
     print(f"done {a.out} ({total:.2f}s)")
 
