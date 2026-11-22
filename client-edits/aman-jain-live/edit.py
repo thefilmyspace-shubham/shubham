@@ -20,7 +20,7 @@ SHOTS = [
     ("IMG_0283.MOV", 0.30, 0.50, 2.6),   # audience faces
     ("IMG_0286.MOV", 0.00, 0.50, 2.5),   # stage wide
     ("IMG_0287.MOV", 4.40, 0.50, 2.6),   # keyboard player
-    ("IMG_0288.MOV", 0.20, 0.50, 2.6),   # crowd vibing
+    ("IMG_0258.MOV", 0.00, 0.50, 2.6),   # crowd vibing, hands up (v4: replaces handheld IMG_0288, unstable at 13 s)
     ("IMG_0103.MOV", 3.80, 0.75, 2.8),   # Aman, second moment
     ("IMG_0258.MOV", 2.20, 0.50, 2.6),   # garden pan wide
     ("IMG_0260.MOV", 0.30, 0.50, 2.6),   # wide, dancing

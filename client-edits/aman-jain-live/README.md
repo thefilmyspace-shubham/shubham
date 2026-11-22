@@ -53,3 +53,8 @@ Feedback on v2: "use slow zoom in zoom out effect and replace the clip jittering
   - Even shots zoom in from 1.00 to 1.08; odd shots zoom out from 1.08 to 1.00.
   - The zoom is linear.
   - It uses the `perspective` filter with sub-pixel corners, so it doesn't step the way an integer `scale`/`zoompan` zoom does.
+
+## v4: unstable shot at 13 s replaced (`Aman_Jain_Live_v4_4K.mp4`)
+Feedback on v3: "13 sec ki unstable hai" (the shot around 13 s is unstable).
+- **The cause:** at 12.3–14.9 s the reel showed the "crowd vibing" shot, IMG_0288. It's handheld with fast crowd motion, so stabilising left a wobble of about 0.8 px/frame.
+- **The fix:** it's replaced by IMG_0258 from 0 s, the crowd with hands up. The camera there makes a slow, smooth pan, now about 0.28 px/frame with a std of 0.05.
