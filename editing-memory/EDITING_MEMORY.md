@@ -95,7 +95,7 @@ Everything below comes from Shubham's own messages in the TFS promo / brand-reel
 
 ## 4. Client Editing Preferences
 
-No client-specific editing feedback recorded yet. Add per client: pace, energy, text style, transitions, music, disliked patterns, winning formats.
+- **Aman Jain (singer, live acoustic events) — 2026-11-22:** brief = event montage like IG DSkT940kqyS, **slow pace**, title only "Aman Jain live" in the reference's brush-script font (no reference wording). v1 delivered: 0.5× slow-mo, 0.6 s dissolves, warm dark grade, small centred Marck Script title, live-audio bed + a silent version. Awaiting feedback.
 
 ---
 
@@ -108,6 +108,7 @@ No client-specific editing feedback recorded yet. Add per client: pace, energy, 
 | 2026-10 | Foretell-style reel (IG DRxMlniDbzR) | Clean minimal text reel | Shubham wants reference format, font feel and timing kept closely | — |
 | 2026-10 | Hyper Visuals reel (IG DZxV_EEqKAj) | Brand reel, paper/cut-out explainer | Text must lead the VO; big layouts; depth via texture, shadow and 3D | — |
 | 2026-10-17 | Brand Buddies Studio (IG DejZPQ1zkxE) | Presenter + kinetic type + motion graphics | Keep the shot long, change the layer; text behind subject; one outfit with many locations | [breakdown](references/2026-10-17_brandbuddies_DejZPQ1zkxE.md) |
+| 2026-11-22 | "sufi night" college event reel (IG DSkT940kqyS, @devagirikaar.23) | Event montage, 25 s, 720p30 | One small brush-script title held centre for the whole reel; warm dark grade + bokeh; performer → crowd reaction rhythm, about 1.3 s cuts with some dissolves | [edit](../client-edits/aman-jain-live/README.md) |
 | 2026-10-17 | Asma × Changan Pakistan (IG Deje_IEhM8c) | Creator-led brand story / collab, 130 s | Brand story as a personal story; chapters marked by music drops; one reusable graphic system + callbacks; B&W memes and receipts; open-loop ending | [breakdown](references/2026-10-17_asma_changan_Deje_IEhM8c.md) |
 
 ---
