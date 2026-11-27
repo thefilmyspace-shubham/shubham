@@ -26,19 +26,20 @@ The client warned: "video kab horizontal hai kab vertical dekh lena".
 | Time (s) | Caption | View |
 |---|---|---|
 | 0.15–1.55 | LAUNCH IT HIGH! | vertical |
-| 3.9–8.9 | NEW LAUNCH / FUNHOODS HELICOPTER | horizontal |
-| 9.1–14.3 | 6 PCS PER DISPLAY BOX | horizontal |
+| 3.9–8.9 | FUNHOODS HELICOPTER | horizontal |
+| 9.1–14.3 | 12 PCS PER DISPLAY BOX | horizontal |
 | 14.5–20.0 | EACH IN ITS OWN BOX | horizontal |
 | 20.15–26.6 | FOR 3 YEARS+ | horizontal |
 | 27.0–29.1 | 4 CUTE DESIGNS | horizontal |
 | 31.4–34.0 | WATCH IT FLY! | vertical |
 | 34.15–36.0 | FOR DISTRIBUTORS / & WHOLESALERS | vertical |
 
-**Facts used** (all read from the footage):
-- the name "helicopter" on the packs;
-- 6 packs in the display box (3 x 2);
-- "3 YEARS+" printed on the packs;
-- 4 designs in the line-up.
+**Facts used:**
+- **From the client:** 12 pcs per display box (only one layer of 6 is visible in the footage). Also from the client: no NEW LAUNCH.
+- **From the footage:**
+  - the name "helicopter" on the packs;
+  - "3 YEARS+" printed on the packs;
+  - 4 designs in the line-up.
 
 The pieces per carton are not known, so they are not shown. There is no phone number and no price.
 

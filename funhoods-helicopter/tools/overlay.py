@@ -25,8 +25,8 @@ L_LEFT, L_TOP = 300, 90           # horizontal: top-left of the first pill on th
 # (start, end, orientation, [(text, size, bg, fg), ...]) -- pills stacked top-down; times read from the footage
 CAPTIONS = [
     (0.15, 1.55, 'v', [('LAUNCH IT HIGH!', 120, YEL, DRED)]),                                    # propellers in the sky
-    (3.90, 8.90, 'h', [('NEW LAUNCH', 64, RED, WHITE), ('FUNHOODS HELICOPTER', 120, YEL, DRED)]),  # wrapped display box
-    (9.10, 14.30, 'h', [('6 PCS PER DISPLAY BOX', 96, RED, WHITE)]),                              # 3 x 2 packs inside
+    (3.90, 8.90, 'h', [('FUNHOODS HELICOPTER', 120, YEL, DRED)]),                                # wrapped display box (no NEW LAUNCH: client)
+    (9.10, 14.30, 'h', [('12 PCS PER DISPLAY BOX', 96, RED, WHITE)]),                             # client: 12 pcs
     (14.50, 20.00, 'h', [('EACH IN ITS OWN BOX', 96, RED, WHITE)]),                               # packs opened
     (20.15, 26.60, 'h', [('FOR 3 YEARS+', 96, RED, WHITE)]),                                      # "3 YEARS+" on the pack
     (27.00, 29.10, 'h', [('4 CUTE DESIGNS', 110, YEL, DRED)]),                                    # the line-up
